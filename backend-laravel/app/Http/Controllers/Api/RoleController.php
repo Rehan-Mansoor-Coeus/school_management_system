@@ -26,25 +26,31 @@ class RoleController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $role = Role::create(['name' => $request->name]);
+        $role = Role::create(['name' => $request->name, 'guard_name' => 'api']);
 
         return response()->json(['message' => 'Role created successfully.', 'role' => $role], 201);
     }
 
-    public function assignRoles(Request $request, User $user)
+    public function update(Request $request, Role $role)
     {
         $validator = Validator::make($request->all(), [
-            'roles' => 'required|array',
-            'roles.*' => 'exists:roles,id',
+            'name' => 'required|string|max:50|unique:roles,name,' . $role->id,
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->roles()->sync($request->roles);
+        $role->update(['name' => $request->name]);
 
-        return response()->json(['message' => 'User roles updated successfully.', 'roles' => $user->roles]);
+        return response()->json(['message' => 'Role updated successfully.', 'role' => $role]);
+    }
+
+    public function destroy(Role $role)
+    {
+        $role->delete();
+
+        return response()->json(['message' => 'Role deleted successfully.']);
     }
 
     public function assignPermissions(Request $request, Role $role)
@@ -58,7 +64,7 @@ class RoleController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $role->permissions()->sync($request->permissions);
+        $role->syncPermissions($request->permissions);
 
         return response()->json(['message' => 'Role permissions updated successfully.', 'permissions' => $role->permissions]);
     }

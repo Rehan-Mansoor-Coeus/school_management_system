@@ -5,31 +5,45 @@ use App\Role;
 use App\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $userRole = Role::firstOrCreate(['name' => 'user']);
+        $superAdmin = Role::firstOrCreate(['name' => 'super-admin'], ['guard_name' => 'api']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['guard_name' => 'api']);
+        $teacherRole = Role::firstOrCreate(['name' => 'teacher'], ['guard_name' => 'api']);
+        $studentRole = Role::firstOrCreate(['name' => 'student'], ['guard_name' => 'api']);
 
-        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users']);
-        $manageRoles = Permission::firstOrCreate(['name' => 'manage_roles']);
-        $viewDashboard = Permission::firstOrCreate(['name' => 'view_dashboard']);
+        $permissions = [
+            'users.view',
+            'users.create',
+            'users.edit',
+            'users.delete',
+            'roles.manage',
+            'permissions.manage',
+        ];
 
-        $adminRole->permissions()->syncWithoutDetaching([$manageUsers->id, $manageRoles->id, $viewDashboard->id]);
-        $userRole->permissions()->syncWithoutDetaching([$viewDashboard->id]);
+        foreach ($permissions as $permissionName) {
+            Permission::firstOrCreate(['name' => $permissionName], ['guard_name' => 'api']);
+        }
+
+        $superAdmin->syncPermissions($permissions);
+        $adminRole->syncPermissions(['users.view', 'users.create', 'users.edit', 'users.delete']);
+        $teacherRole->syncPermissions(['users.view']);
+        $studentRole->syncPermissions([]);
 
         $admin = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'admin@test.com'],
             [
-                'name' => 'Admin User',
+                'name' => 'Super Admin',
                 'password' => Hash::make('password'),
                 'api_token' => Str::random(60),
             ]
         );
 
-        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+        $admin->assignRole($superAdmin);
     }
 }
