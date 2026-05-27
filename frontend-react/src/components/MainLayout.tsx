@@ -2,10 +2,12 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import api from '../api/client'
 import { useToast } from './ui/ToastProvider'
+import { useAuth } from '../context/AuthContext'
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
+  const { clearAuth } = useAuth()
 
   const logout = async () => {
     try {
@@ -14,6 +16,7 @@ export default function MainLayout() {
       // ignore network failure during logout
     }
     localStorage.removeItem('token')
+    clearAuth()
     delete api.defaults.headers.common['Authorization']
     navigate('/login')
     pushToast('Logged out successfully.', 'info')

@@ -55,3 +55,15 @@ export function updatePermission(id: number, payload: any) {
 export function deletePermission(id: number) {
   return api.delete(`/permissions/${id}`)
 }
+
+export function fetchInstitutions() {
+  return api.get('/institutions')
+}
+
+export function fetchInstitutionModules(institutionId: number) {
+  return api.get(`/institutions/${institutionId}/modules`)
+}
+
+export function updateInstitutionModules(institutionId: number, modules: { key: string; enabled: boolean }[]) {
+  return api.put(`/institutions/${institutionId}/modules`, { modules })
+}

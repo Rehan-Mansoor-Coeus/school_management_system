@@ -80,6 +80,24 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json($request->user()->load('roles.permissions'));
+        $user = $request->user()->load('roles.permissions');
+
+        $permissions = $user->getAllPermissions()->pluck('name')->values();
+
+        $modules = [];
+        if ($user->institution_id) {
+            $modules = \Illuminate\Support\Facades\DB::table('institution_modules')
+                ->join('modules', 'modules.id', '=', 'institution_modules.module_id')
+                ->where('institution_modules.institution_id', $user->institution_id)
+                ->where('institution_modules.enabled', true)
+                ->pluck('modules.key')
+                ->values();
+        }
+
+        return response()->json([
+            'user' => $user,
+            'permissions' => $permissions,
+            'enabled_modules' => $modules,
+        ]);
     }
 }
