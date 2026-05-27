@@ -18,7 +18,16 @@ export default function LoginPage(){
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
       navigate('/')
     }catch(err:any){
-      setError(err?.response?.data?.message || 'Login failed')
+      const data = err?.response?.data
+      const validation = data?.errors
+        ? Object.values(data.errors).flat().join(' ')
+        : null
+      setError(
+        validation
+        || data?.message
+        || (err?.message === 'Network Error' ? 'Cannot reach API server. Is Laravel running on port 8000?' : null)
+        || 'Login failed'
+      )
     }
   }
 

@@ -13,7 +13,7 @@ class AuthServiceProvider extends ServiceProvider
      * @var array
      */
     protected $policies = [
-        // 'App\Model' => 'App\Policies\ModelPolicy',
+        \App\Timesheet::class => \App\Policies\TimesheetPolicy::class,
     ];
 
     /**
@@ -25,6 +25,10 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        //
+        Gate::before(function ($user, $ability) {
+            if ($user && method_exists($user, 'hasRole') && $user->hasRole('super-admin')) {
+                return true;
+            }
+        });
     }
 }

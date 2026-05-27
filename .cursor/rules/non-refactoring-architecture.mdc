@@ -1,0 +1,17 @@
+# Non-Refactoring Architecture Rules
+
+Apply these rules to ALL development in this repository:
+
+- Do NOT refactor unrelated modules.
+- Do NOT change existing stable architecture unnecessarily.
+- Do NOT break authentication, dashboards, APIs, permissions, notifications, or existing modules.
+- Extend existing functionality only.
+- Preserve backward compatibility.
+- Use modular additions and safe migrations only.
+- Every major table must continue using `institution_id`.
+- All changes must be production-safe and scalable.
+
+When adding features:
+- Prefer new migrations, seeders, routes, and controllers over modifying stable code paths.
+- Keep existing role slugs and permission names working unless explicitly migrating them.
+- Test auth and core dashboards after any permission or auth change.
