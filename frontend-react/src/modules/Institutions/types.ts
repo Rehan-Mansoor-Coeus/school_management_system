@@ -9,10 +9,9 @@ export type Institution = {
   letterhead?: string | null
   registrar_signature?: string | null
   official_stamp?: string | null
-  logo_url?: string | null
-  letterhead_url?: string | null
-  registrar_signature_url?: string | null
-  official_stamp_url?: string | null
+  logo_path?: string | null
+  letterhead_path?: string | null
+  registrar_signature_path?: string | null
   logo_url?: string | null
   letterhead_url?: string | null
   registrar_signature_url?: string | null

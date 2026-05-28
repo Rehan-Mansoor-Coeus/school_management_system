@@ -194,9 +194,31 @@ export default function RolesPage() {
         </form>
       </Modal>
 
-      <Modal title="Assign Permissions" open={permModalOpen} onClose={() => setPermModalOpen(false)}>
+      <Modal title="Assign Permissions" open={permModalOpen} onClose={() => setPermModalOpen(false)} wide>
         <div className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-slate-600">
+              Selected {selectedPermissions.length} of {permissionOptions.length}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPermissions(permissionOptions.map((permission) => permission.id))}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPermissions([])}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[65vh] overflow-y-auto pr-1">
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {permissionOptions.map((permission) => (
               <label key={permission.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <input
@@ -212,6 +234,7 @@ export default function RolesPage() {
                 {permission.label}
               </label>
             ))}
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button onClick={() => setPermModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">

@@ -104,11 +104,11 @@ export default function InstitutionList() {
             <h2 className="text-2xl font-semibold">{t('institutions.title')}</h2>
             <p className="text-sm text-slate-500">{t('institutions.subtitle')}</p>
           </div>
-          <HasPermission permission="institutions.create">
+          {/* <HasPermission permission="institutions.create"> */}
             <button onClick={openCreate} className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700">
               {t('institutions.add')}
             </button>
-          </HasPermission>
+          {/* </HasPermission> */}
         </div>
 
         <div className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
