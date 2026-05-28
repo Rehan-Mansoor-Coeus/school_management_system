@@ -13,33 +13,58 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+Route::middleware('auth:api')->get('me', 'Api\AuthController@me');
+
 Route::middleware('auth:api')->group(function () {
-    Route::get('users', 'Api\UserController@index');
-    Route::get('roles', 'Api\RoleController@index');
-    Route::get('permissions', 'Api\PermissionController@index');
+    Route::middleware(['module_enabled:users', 'permission:users.view|view_users|manage_users'])->get('users', 'Api\UserController@index');
+    Route::middleware(['module_enabled:roles', 'permission:roles.view|view_roles|manage_roles|roles.manage'])->get('roles', 'Api\RoleController@index');
+    Route::middleware(['module_enabled:permissions', 'permission:permissions.view|view_permissions|manage_roles|permissions.manage'])->get('permissions', 'Api\PermissionController@index');
 
-    Route::middleware('role:admin')->group(function () {
-        Route::post('users', 'Api\UserController@store');
-        Route::put('users/{user}', 'Api\UserController@update');
-        Route::delete('users/{user}', 'Api\UserController@destroy');
-        Route::post('users/{user}/roles', 'Api\UserController@assignRoles');
-    });
+    Route::middleware(['module_enabled:users', 'permission:users.create|create_users|manage_users'])->post('users', 'Api\UserController@store');
+    Route::middleware(['module_enabled:users', 'permission:users.edit|edit_users|manage_users'])->put('users/{user}', 'Api\UserController@update');
+    Route::middleware(['module_enabled:users', 'permission:users.delete|delete_users|manage_users'])->delete('users/{user}', 'Api\UserController@destroy');
+    Route::middleware(['module_enabled:users', 'permission:users.edit|edit_users|manage_users'])->post('users/{user}/roles', 'Api\UserController@assignRoles');
 
-    Route::middleware('role:super-admin')->group(function () {
-        Route::post('roles', 'Api\RoleController@store');
-        Route::put('roles/{role}', 'Api\RoleController@update');
-        Route::delete('roles/{role}', 'Api\RoleController@destroy');
-        Route::post('roles/{role}/permissions', 'Api\RoleController@assignPermissions');
+    Route::middleware(['module_enabled:roles', 'permission:roles.create|create_roles|manage_roles|roles.manage'])->post('roles', 'Api\RoleController@store');
+    Route::middleware(['module_enabled:roles', 'permission:roles.edit|edit_roles|manage_roles|roles.manage'])->put('roles/{role}', 'Api\RoleController@update');
+    Route::middleware(['module_enabled:roles', 'permission:roles.delete|delete_roles|manage_roles|roles.manage'])->delete('roles/{role}', 'Api\RoleController@destroy');
+    Route::middleware(['module_enabled:roles', 'permission:roles.edit|assign_permissions|manage_roles|roles.manage'])->post('roles/{role}/permissions', 'Api\RoleController@assignPermissions');
 
-        Route::post('permissions', 'Api\PermissionController@store');
-        Route::put('permissions/{permission}', 'Api\PermissionController@update');
-        Route::delete('permissions/{permission}', 'Api\PermissionController@destroy');
-    });
+    Route::middleware(['module_enabled:permissions', 'permission:permissions.create|manage_roles|permissions.manage'])->post('permissions', 'Api\PermissionController@store');
+    Route::middleware(['module_enabled:permissions', 'permission:permissions.edit|manage_roles|permissions.manage'])->put('permissions/{permission}', 'Api\PermissionController@update');
+    Route::middleware(['module_enabled:permissions', 'permission:permissions.delete|manage_roles|permissions.manage'])->delete('permissions/{permission}', 'Api\PermissionController@destroy');
+
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions', 'Api\InstitutionController@index');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
+    Route::get('my-institution', 'Api\InstitutionController@myInstitution');
 
     Route::prefix('timesheets')->group(function () {
-        Route::get('activities', 'Api\TimesheetController@activities');
-        Route::post('activities', 'Api\TimesheetController@storeActivity')->middleware('permission:timesheets.manage');
+        // Employee timesheet flow (simplified)
+        Route::get('categories', 'Api\Timesheets\EmployeeTimesheetController@categories');
+        Route::post('categories', 'Api\Timesheets\EmployeeTimesheetController@storeCategory')->middleware('permission:manage_timesheet_categories|timesheets.manage');
+        Route::put('categories/{category}', 'Api\Timesheets\EmployeeTimesheetController@updateCategory')->middleware('permission:manage_timesheet_categories|timesheets.manage');
+        Route::delete('categories/{category}', 'Api\Timesheets\EmployeeTimesheetController@destroyCategory')->middleware('permission:manage_timesheet_categories|timesheets.manage');
 
+        Route::get('activities', 'Api\Timesheets\EmployeeTimesheetController@activities');
+        Route::post('activities', 'Api\Timesheets\EmployeeTimesheetController@storeActivity')->middleware('permission:create_timesheet_activity|timesheets.create_entry|timesheets.manage');
+        Route::put('activities/{activity}', 'Api\Timesheets\EmployeeTimesheetController@updateActivity')->middleware('permission:create_timesheet_activity|timesheets.create_entry|timesheets.manage');
+        Route::delete('activities/{activity}', 'Api\Timesheets\EmployeeTimesheetController@destroyActivity')->middleware('permission:create_timesheet_activity|timesheets.create_entry|timesheets.manage');
+
+        Route::get('working-week', 'Api\Timesheets\EmployeeTimesheetController@workingWeek');
+        Route::post('working-week', 'Api\Timesheets\EmployeeTimesheetController@storeWorkingWeek')->middleware('permission:manage_own_working_week|timesheets.manage');
+
+        Route::get('entries', 'Api\Timesheets\EmployeeTimesheetController@entries');
+        Route::post('entries', 'Api\Timesheets\EmployeeTimesheetController@storeEntry')->middleware('permission:fill_timesheet|timesheets.create_entry|timesheets.manage');
+        Route::put('entries/{entry}', 'Api\Timesheets\EmployeeTimesheetController@updateEntry')->middleware('permission:edit_own_timesheet|fill_timesheet|timesheets.manage');
+        Route::delete('entries/{entry}', 'Api\Timesheets\EmployeeTimesheetController@destroyEntry')->middleware('permission:delete_own_timesheet|fill_timesheet|timesheets.manage');
+
+        Route::get('admin/manage-all', 'Api\Timesheets\EmployeeTimesheetController@manageAll')->middleware('permission:view_all_timesheets|timesheets.manage|timesheets.review');
+        Route::post('admin/entries/{entry}/approve', 'Api\Timesheets\EmployeeTimesheetController@approveEntry')->middleware('permission:approve_timesheets|timesheets.review');
+        Route::post('admin/entries/{entry}/reject', 'Api\Timesheets\EmployeeTimesheetController@rejectEntry')->middleware('permission:reject_timesheets|timesheets.review');
+        Route::get('admin/report', 'Api\Timesheets\EmployeeTimesheetController@report')->middleware('permission:view_timesheet_reports|timesheets.report|timesheets.view_timesheet_reports');
+        Route::get('admin/overtime-report', 'Api\Timesheets\EmployeeTimesheetController@overtimeReport')->middleware('permission:view_overtime_reports|view_timesheet_reports|timesheets.report');
+
+        // Legacy weekly flow (kept for backward compatibility)
         Route::get('mine', 'Api\TimesheetController@myTimesheets');
         Route::post('weekly', 'Api\TimesheetController@createOrGetWeekly');
         Route::post('{timesheet}/entries', 'Api\TimesheetController@addEntry');

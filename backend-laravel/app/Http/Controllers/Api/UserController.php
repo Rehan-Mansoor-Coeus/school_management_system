@@ -42,7 +42,8 @@ class UserController extends Controller
         ]);
 
         if ($request->filled('roles')) {
-            $user->syncRoles($request->roles);
+            $roles = Role::whereIn('id', $request->roles)->get();
+            $user->syncRoles($roles);
         }
 
         return response()->json(['message' => 'User created successfully.', 'user' => $user->load('roles')], 201);
@@ -76,7 +77,8 @@ class UserController extends Controller
         ]);
 
         if ($request->filled('roles')) {
-            $user->syncRoles($request->roles);
+            $roles = Role::whereIn('id', $request->roles)->get();
+            $user->syncRoles($roles);
         }
 
         return response()->json(['message' => 'User updated successfully.', 'user' => $user->load('roles')]);
@@ -110,7 +112,7 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->syncRoles($request->roles);
+        $user->syncRoles(Role::whereIn('id', $request->roles)->get());
 
         return response()->json(['message' => 'User roles updated successfully.', 'roles' => $user->roles]);
     }

@@ -64,7 +64,7 @@ class RoleController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $role->syncPermissions($request->permissions);
+        $role->syncPermissions(Permission::whereIn('id', $request->permissions)->get());
 
         return response()->json(['message' => 'Role permissions updated successfully.', 'permissions' => $role->permissions]);
     }

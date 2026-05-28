@@ -3,11 +3,15 @@ import Sidebar from './Sidebar'
 import api from '../api/client'
 import { useToast } from './ui/ToastProvider'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
+import { useAuth } from '../hooks/useAuth'
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
   const { locale, setAppLocale } = useTimesheetI18n()
+  const { institution } = useAuth()
+
+  const institutionName = institution?.name || 'School Management'
 
   const logout = async () => {
     try {
@@ -28,7 +32,7 @@ export default function MainLayout() {
         <div className="flex-1">
           <header className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
-              <h1 className="text-lg font-semibold">School Management</h1>
+              <h1 className="text-lg font-semibold">{institutionName}</h1>
               <p className="text-sm text-slate-500">Manage users, roles, and permissions.</p>
             </div>
             <button

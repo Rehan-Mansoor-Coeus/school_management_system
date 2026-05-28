@@ -10,10 +10,24 @@ class EnsureUserHasRole
     {
         $user = $request->user();
 
-        if (! $user || ! $user->hasRole($role)) {
-            return response()->json(['message' => 'Unauthorized. This action requires the ' . $role . ' role.'], 403);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
-        return $next($request);
+        if ($user->hasRole('super-admin')) {
+            return $next($request);
+        }
+
+        $roles = explode('|', $role);
+
+        foreach ($roles as $name) {
+            if ($user->hasRole(trim($name))) {
+                return $next($request);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Unauthorized. This action requires one of these roles: ' . implode(', ', $roles),
+        ], 403);
     }
 }

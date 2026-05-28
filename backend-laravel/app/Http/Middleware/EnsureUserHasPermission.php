@@ -14,10 +14,14 @@ class EnsureUserHasPermission
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
+        if ($user->hasRole('super-admin')) {
+            return $next($request);
+        }
+
         $permissions = explode('|', $permission);
 
         foreach ($permissions as $name) {
-            if ($user->hasPermissionTo($name)) {
+            if ($user->hasPermissionTo(trim($name))) {
                 return $next($request);
             }
         }
