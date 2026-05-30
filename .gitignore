@@ -6,12 +6,17 @@ vendor/
 **/vendor/
 backend-laravel/vendor/
 dist/
+**/dist/
 build/
+**/build/
 coverage/
+frontend-react/.vite/
 
 # Environment and secrets
 .env
 .env.*
+.env.local
+.env.production
 !.env.example
 
 # OS / IDE
@@ -30,6 +35,8 @@ pnpm-debug.log*
 .phpunit.result.cache
 storage/logs/*
 bootstrap/cache/*
+backend-laravel/storage/logs/
+backend-laravel/bootstrap/cache/
 
 # Accidental CLI artifacts
 Admin,
