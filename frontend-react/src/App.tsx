@@ -8,13 +8,22 @@ import PermissionsPage from './pages/Permissions'
 import ModulesPage from './pages/Modules'
 import InstitutionList from './modules/Institutions/pages/InstitutionList'
 import PlaceholderModulePage from './pages/PlaceholderModule'
+import TimesheetCategoriesPage from './pages/TimesheetCategories'
+import TimesheetActivitiesPage from './pages/TimesheetActivities'
+import FillTimesheetPage from './pages/FillTimesheet'
+import WorkingWeekPage from './pages/WorkingWeek'
+import TimesheetManageAllPage from './pages/TimesheetManageAll'
+import TimesheetReportPage from './pages/TimesheetReport'
+import OvertimeReportPage from './pages/OvertimeReport'
 import ProtectedRoute from './components/ProtectedRoute'
 import MainLayout from './components/MainLayout'
 import { ToastProvider } from './components/ui/ToastProvider'
+import { TimesheetI18nProvider } from './hooks/useTimesheetI18n'
 
 export default function App(){
   return (
     <ToastProvider>
+      <TimesheetI18nProvider>
       <Routes>
         <Route path="/login" element={<LoginPage/>} />
 
@@ -37,10 +46,23 @@ export default function App(){
           <Route path="canteen" element={<PlaceholderModulePage title="Canteen" />} />
           <Route path="notifications" element={<PlaceholderModulePage title="Notifications" />} />
           <Route path="audit" element={<PlaceholderModulePage title="Audit Logs" />} />
+
+          {/* Employee timesheet flow */}
+          <Route path="timesheets/activities/create" element={<TimesheetActivitiesPage/>} />
+          <Route path="timesheets/fill" element={<FillTimesheetPage/>} />
+          <Route path="timesheets/working-week" element={<WorkingWeekPage/>} />
+          <Route path="timesheets/admin/categories" element={<TimesheetCategoriesPage/>} />
+          <Route path="timesheets/admin/manage-all" element={<TimesheetManageAllPage/>} />
+          <Route path="timesheets/admin/reports" element={<TimesheetReportPage/>} />
+          <Route path="timesheets/admin/overtime-report" element={<OvertimeReportPage/>} />
+
+          {/* Legacy timesheet routes redirect to simplified flow */}
+          <Route path="timesheets/*" element={<Navigate to="/timesheets/fill" replace />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </TimesheetI18nProvider>
     </ToastProvider>
   )
 }

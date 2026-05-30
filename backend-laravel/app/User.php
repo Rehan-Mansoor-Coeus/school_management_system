@@ -15,12 +15,8 @@ class User extends Authenticatable
     protected $guard_name = 'api';
 
     protected $fillable = [
-        'institution_id',
-        'name',
-        'email',
-        'password',
-        'api_token',
-        'is_active',
+        'institution_id', 'name', 'email', 'password', 'api_token',
+        'hourly_rate', 'department_id', 'campus_id', 'locale',
     ];
 
     protected $hidden = [

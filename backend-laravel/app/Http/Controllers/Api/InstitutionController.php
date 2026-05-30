@@ -53,6 +53,31 @@ class InstitutionController extends Controller
         return response()->json($query->orderBy('name')->paginate($perPage));
     }
 
+    public function show($id)
+    {
+        $institution = Institution::with('settings')->findOrFail($id);
+
+        return response()->json($institution);
+    }
+
+    public function myInstitution(Request $request)
+    {
+        return response()->json('dd');
+        $user = $request->user();
+
+        if (! $user || ! $user->institution_id) {
+            return response()->json(['message' => 'No institution assigned to this user.'], 404);
+        }
+
+        $institution = Institution::with('settings')->find($user->institution_id);
+
+        if (! $institution) {
+            return response()->json(['message' => 'Institution not found.'], 404);
+        }
+
+        return response()->json($institution);
+    }
+
     public function store(Request $request)
     {
         $normalized = $this->normalizeJsonArrayFields($request->all(), [
@@ -125,12 +150,6 @@ class InstitutionController extends Controller
         InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], $settingsPayload);
 
         return response()->json(['message' => 'Institution created successfully.', 'institution' => $institution->load('settings')], 201);
-    }
-
-    public function show($id)
-    {
-        $institution = Institution::with('settings')->findOrFail($id);
-        return response()->json($institution);
     }
 
     public function update(Request $request, $id)

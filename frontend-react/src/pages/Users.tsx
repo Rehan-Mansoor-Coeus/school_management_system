@@ -88,7 +88,10 @@ export default function UsersPage() {
       setModalOpen(false)
       loadData()
     } catch (error: any) {
-      pushToast(error?.response?.data?.message || 'Unable to save user', 'error')
+      const validation = error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : null
+      pushToast(validation || error?.response?.data?.message || 'Unable to save user', 'error')
     }
   }
 

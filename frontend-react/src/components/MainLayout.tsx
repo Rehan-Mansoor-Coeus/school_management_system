@@ -2,11 +2,17 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import api from '../api/client'
 import { useToast } from './ui/ToastProvider'
+import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
+// import { useAuth } from '../hooks/useAuth'
 import { useAuth } from '../context/AuthContext'
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
+  const { locale, setAppLocale } = useTimesheetI18n()
+  const { institution } = useAuth()
+
+  const institutionName = institution?.name || 'School Management'
   const { clearAuth } = useAuth()
 
   const logout = async () => {
@@ -38,6 +44,10 @@ export default function MainLayout() {
             >
               Logout
             </button>
+            <select value={locale} onChange={(e) => setAppLocale(e.target.value as 'en' | 'fr')} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+            </select>
           </header>
           <main className="p-6">
             <Outlet />

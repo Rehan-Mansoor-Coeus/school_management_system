@@ -14,12 +14,14 @@ class UserController extends Controller
 {
     public function index()
     {
-        return response()->json(User::with('roles')->get());
+        $institutionId = (int) (optional(request()->user())->institution_id ?: 1);
+        return response()->json(User::with('roles')->where('institution_id', $institutionId)->get());
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'institution_id' => 'nullable|integer|min:1',
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
@@ -32,6 +34,7 @@ class UserController extends Controller
         }
 
         $user = User::create([
+            'institution_id' => $request->institution_id ?: (optional($request->user())->institution_id ?: 1),
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -39,7 +42,8 @@ class UserController extends Controller
         ]);
 
         if ($request->filled('roles')) {
-            $user->syncRoles($request->roles);
+            $roles = Role::whereIn('id', $request->roles)->get();
+            $user->syncRoles($roles);
         }
 
         return response()->json(['message' => 'User created successfully.', 'user' => $user->load('roles')], 201);
@@ -47,7 +51,13 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
+        if ((int) $user->institution_id !== $institutionId) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
         $validator = Validator::make($request->all(), [
+            'institution_id' => 'nullable|integer|min:1',
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8',
@@ -60,13 +70,15 @@ class UserController extends Controller
         }
 
         $user->update([
+            'institution_id' => $request->institution_id ?: $user->institution_id,
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->filled('password') ? Hash::make($request->password) : $user->password,
         ]);
 
         if ($request->filled('roles')) {
-            $user->syncRoles($request->roles);
+            $roles = Role::whereIn('id', $request->roles)->get();
+            $user->syncRoles($roles);
         }
 
         return response()->json(['message' => 'User updated successfully.', 'user' => $user->load('roles')]);
@@ -74,6 +86,11 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $institutionId = (int) (optional(request()->user())->institution_id ?: 1);
+        if ((int) $user->institution_id !== $institutionId) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
         $user->delete();
 
         return response()->json(['message' => 'User deleted successfully.']);
@@ -81,6 +98,11 @@ class UserController extends Controller
 
     public function assignRoles(Request $request, User $user)
     {
+        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
+        if ((int) $user->institution_id !== $institutionId) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
         $validator = Validator::make($request->all(), [
             'roles' => 'required|array',
             'roles.*' => 'exists:roles,id',
@@ -90,7 +112,7 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->syncRoles($request->roles);
+        $user->syncRoles(Role::whereIn('id', $request->roles)->get());
 
         return response()->json(['message' => 'User roles updated successfully.', 'roles' => $user->roles]);
     }
