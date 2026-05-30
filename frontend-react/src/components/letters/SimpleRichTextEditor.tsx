@@ -1,0 +1,66 @@
+import { useEffect, useRef } from 'react'
+
+type Props = {
+  value: string
+  onChange: (html: string) => void
+  placeholder?: string
+  minHeight?: number
+}
+
+const tools = [
+  { cmd: 'bold', label: 'B', title: 'Bold' },
+  { cmd: 'italic', label: 'I', title: 'Italic' },
+  { cmd: 'underline', label: 'U', title: 'Underline' },
+  { cmd: 'insertUnorderedList', label: '• List', title: 'Bullets' },
+  { cmd: 'insertOrderedList', label: '1. List', title: 'Numbering' },
+  { cmd: 'justifyLeft', label: 'Left', title: 'Align left' },
+  { cmd: 'justifyCenter', label: 'Center', title: 'Align center' },
+  { cmd: 'justifyRight', label: 'Right', title: 'Align right' },
+]
+
+export default function SimpleRichTextEditor({ value, onChange, placeholder, minHeight = 180 }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (ref.current && ref.current.innerHTML !== value) {
+      ref.current.innerHTML = value || ''
+    }
+  }, [value])
+
+  function exec(command: string) {
+    document.execCommand(command, false)
+    if (ref.current) onChange(ref.current.innerHTML)
+  }
+
+  function handleInput() {
+    if (ref.current) onChange(ref.current.innerHTML)
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200">
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 bg-slate-50 p-2">
+        {tools.map(tool => (
+          <button
+            key={tool.cmd}
+            type="button"
+            title={tool.title}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => exec(tool.cmd)}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+          >
+            {tool.label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        data-placeholder={placeholder}
+        className="min-w-0 px-3 py-3 text-sm leading-6 outline-none [&:empty:before]:text-slate-400 [&:empty:before]:content-[attr(data-placeholder)]"
+        style={{ minHeight }}
+      />
+    </div>
+  )
+}
