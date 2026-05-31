@@ -126,8 +126,22 @@ export default function PermissionsPage() {
         </table>
       </div>
 
-      <Modal title={activePermission ? 'Edit Permission' : 'Create Permission'} open={modalOpen} onClose={() => setModalOpen(false)}>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+      <Modal
+        title={activePermission ? 'Edit Permission' : 'Create Permission'}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="submit" form="permission-form" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save
+            </button>
+          </div>
+        }
+      >
+        <form id="permission-form" onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
@@ -137,14 +151,6 @@ export default function PermissionsPage() {
               required
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save
-            </button>
           </div>
         </form>
       </Modal>

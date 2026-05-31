@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-// import { useAuth } from '../context/AuthContext'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAuth } from '../context/AuthContext'
+import LettersSidebarSection from './letters/LettersSidebarSection'
 
 const navItems = [{ label: 'Dashboard', path: '/' }]
 const accessItems = [
@@ -44,7 +44,7 @@ const adminItems = [
 
 function linkClass(isActive: boolean, nested = false) {
   return [
-    'block rounded-xl px-4 py-2.5 text-sm font-medium transition',
+    'flex items-center rounded-xl px-4 py-2.5 text-sm font-medium transition',
     nested ? 'pl-6' : '',
     isActive ? 'bg-[#2a4a73] text-[#eab308]' : 'text-white hover:bg-[#2a4a73]/70',
   ].join(' ')
@@ -64,8 +64,9 @@ export default function Sidebar() {
   const institutionSubtitle = institution?.acronym || ''
 
   return (
-    <aside className="h-screen w-full overflow-y-auto bg-[#1e3a5f] px-4 py-6 text-white sm:w-72">
-      <div className="mb-10">
+
+    <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
+      <div className="mb-6 shrink-0">
         {institution?.logo_url ? (
           <img src={institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
         ) : null}
@@ -75,7 +76,7 @@ export default function Sidebar() {
         ) : null}
       </div>
 
-      <nav className="space-y-2">
+      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
         <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>
           Dashboard
         </NavLink>
@@ -123,6 +124,8 @@ export default function Sidebar() {
             {t(item.labelKey)}
           </NavLink>
         ))}
+
+        {safeEnabledModules.includes('letters') && <LettersSidebarSection />}
 
         <button
           type="button"

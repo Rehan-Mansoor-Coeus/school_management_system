@@ -179,8 +179,23 @@ export default function UsersPage() {
         </table>
       </div>
 
-      <Modal title={activeUser ? 'Edit user' : 'Create user'} open={modalOpen} onClose={() => setModalOpen(false)}>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+      <Modal
+        title={activeUser ? 'Edit user' : 'Create user'}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        wide
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="submit" form="user-form" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save
+            </button>
+          </div>
+        }
+      >
+        <form id="user-form" onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
@@ -230,44 +245,40 @@ export default function UsersPage() {
               ))}
             </select>
           </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save
-            </button>
-          </div>
         </form>
       </Modal>
 
-      <Modal title="Assign Roles" open={roleModalOpen} onClose={() => setRoleModalOpen(false)}>
-        <div className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {roles.map((role) => (
-              <label key={role.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={selectedRoles.includes(role.id)}
-                  onChange={(event) => {
-                    const value = Number(role.id)
-                    setSelectedRoles((current) =>
-                      event.target.checked ? [...current, value] : current.filter((item) => item !== value)
-                    )
-                  }}
-                />
-                {role.name}
-              </label>
-            ))}
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button onClick={() => setRoleModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+      <Modal
+        title="Assign Roles"
+        open={roleModalOpen}
+        onClose={() => setRoleModalOpen(false)}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setRoleModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
               Cancel
             </button>
-            <button onClick={handleAssignRoles} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="button" onClick={handleAssignRoles} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
               Save Roles
             </button>
           </div>
+        }
+      >
+        <div className="grid gap-2 sm:grid-cols-2">
+          {roles.map((role) => (
+            <label key={role.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={selectedRoles.includes(role.id)}
+                onChange={(event) => {
+                  const value = Number(role.id)
+                  setSelectedRoles((current) =>
+                    event.target.checked ? [...current, value] : current.filter((item) => item !== value)
+                  )
+                }}
+              />
+              {role.name}
+            </label>
+          ))}
         </div>
       </Modal>
     </div>
