@@ -14,6 +14,7 @@ const accessItems = [
 
 const moduleItems = [
   { key: 'institutions', label: 'Institutions', path: '/institutions' },
+  { key: 'departments', label: 'Departments', path: '/departments' },
   { key: 'admissions', label: 'Admissions', path: '/admissions' },
   { key: 'academics', label: 'Academics', path: '/academics' },
   { key: 'attendance', label: 'Attendance', path: '/attendance' },
@@ -63,7 +64,7 @@ export default function Sidebar() {
   const institutionSubtitle = institution?.acronym || ''
 
   return (
-    <aside className="h-full w-full bg-[#1e3a5f] px-4 py-6 text-white sm:w-72">
+    <aside className="h-screen w-full overflow-y-auto bg-[#1e3a5f] px-4 py-6 text-white sm:w-72">
       <div className="mb-10">
         {institution?.logo_url ? (
           <img src={institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
