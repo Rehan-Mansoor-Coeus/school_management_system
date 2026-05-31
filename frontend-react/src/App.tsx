@@ -7,6 +7,7 @@ import RolesPage from './pages/Roles'
 import PermissionsPage from './pages/Permissions'
 import ModulesPage from './pages/Modules'
 import InstitutionList from './modules/Institutions/pages/InstitutionList'
+import DepartmentsPage from './pages/Departments'
 import PlaceholderModulePage from './pages/PlaceholderModule'
 import TimesheetCategoriesPage from './pages/TimesheetCategories'
 import TimesheetActivitiesPage from './pages/TimesheetActivities'
@@ -63,6 +64,7 @@ export default function App(){
           <Route path="permissions" element={<PermissionsPage/>} />
           <Route path="modules" element={<ModulesPage/>} />
           <Route path="institutions" element={<InstitutionList />} />
+          <Route path="departments" element={<DepartmentsPage />} />
           <Route path="admissions" element={<PlaceholderModulePage title="Admissions" />} />
           <Route path="academics" element={<PlaceholderModulePage title="Academics" />} />
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />

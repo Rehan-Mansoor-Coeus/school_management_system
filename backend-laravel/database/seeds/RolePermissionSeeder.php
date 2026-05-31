@@ -32,6 +32,7 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'roles', 'name' => 'Roles', 'sort_order' => 20],
             ['key' => 'permissions', 'name' => 'Permissions', 'sort_order' => 30],
             ['key' => 'institutions', 'name' => 'Institutions', 'sort_order' => 40],
+            ['key' => 'departments', 'name' => 'Departments', 'sort_order' => 45],
             ['key' => 'timesheets', 'name' => 'Timesheets', 'sort_order' => 50],
             ['key' => 'letters', 'name' => 'Letters & Announcements', 'sort_order' => 55],
             ['key' => 'admissions', 'name' => 'Admissions', 'sort_order' => 100],

@@ -59,6 +59,11 @@ class Institution extends Model
         return $this->hasOne(InstitutionSetting::class);
     }
 
+    public function departments()
+    {
+        return $this->hasMany(Department::class);
+    }
+
     public function getLogoUrlAttribute()
     {
         return $this->publicFileUrl($this->logo);

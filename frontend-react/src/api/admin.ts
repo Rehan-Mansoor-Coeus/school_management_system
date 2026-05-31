@@ -56,8 +56,24 @@ export function deletePermission(id: number) {
   return api.delete(`/permissions/${id}`)
 }
 
-export function fetchInstitutions() {
-  return api.get('/institutions')
+export function fetchInstitutions(params?: Record<string, any>) {
+  return api.get('/institutions', { params })
+}
+
+export function fetchDepartments(search?: string) {
+  return api.get('/departments', { params: { search } })
+}
+
+export function createDepartment(payload: any) {
+  return api.post('/departments', payload)
+}
+
+export function updateDepartment(id: number, payload: any) {
+  return api.put(`/departments/${id}`, payload)
+}
+
+export function deleteDepartment(id: number) {
+  return api.delete(`/departments/${id}`)
 }
 
 export function fetchInstitutionModules(institutionId: number) {

@@ -14,6 +14,7 @@ const accessItems = [
 
 const moduleItems = [
   { key: 'institutions', label: 'Institutions', path: '/institutions' },
+  { key: 'departments', label: 'Departments', path: '/departments' },
   { key: 'admissions', label: 'Admissions', path: '/admissions' },
   { key: 'academics', label: 'Academics', path: '/academics' },
   { key: 'attendance', label: 'Attendance', path: '/attendance' },
@@ -63,6 +64,7 @@ export default function Sidebar() {
   const institutionSubtitle = institution?.acronym || ''
 
   return (
+
     <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
       <div className="mb-6 shrink-0">
         {institution?.logo_url ? (

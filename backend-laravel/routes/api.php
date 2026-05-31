@@ -134,6 +134,10 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('institutions/{id}', 'Api\InstitutionController@update');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('institutions/{id}', 'Api\InstitutionController@destroy');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('departments', 'Api\DepartmentController@index');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('departments', 'Api\DepartmentController@store');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('departments/{department}', 'Api\DepartmentController@update');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('departments/{department}', 'Api\DepartmentController@destroy');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->get('institutions/{id}/settings', 'Api\InstitutionController@getSettings');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->put('institutions/{id}/settings', 'Api\InstitutionController@updateSettings');
 
