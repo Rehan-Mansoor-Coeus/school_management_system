@@ -8,7 +8,7 @@ import {
   SelectInput, TextArea, TextInput,
 } from '../../components/letters/LettersUi'
 import { useLettersI18n } from '../../hooks/useLettersI18n'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../context/AuthContext'
 
 export default function CreateLetterPage() {
   const { t } = useLettersI18n()

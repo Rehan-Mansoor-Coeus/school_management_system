@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import api from '../api/client'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function LoginPage(){
   const [email,setEmail]=useState('')
   const [password,setPassword]=useState('')
   const [error,setError]=useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sessionExpired = searchParams.get('session') === 'expired'
 
   async function submit(e:React.FormEvent){
     e.preventDefault()
@@ -35,6 +37,11 @@ export default function LoginPage(){
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <form onSubmit={submit} className="p-6 bg-white rounded shadow w-full max-w-md">
         <h2 className="text-xl font-semibold mb-4">Sign in</h2>
+        {sessionExpired && (
+          <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Your session has expired. Please sign in again.
+          </div>
+        )}
         {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
         <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" className="w-full mb-2 p-2 border rounded" />
         <input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Password" className="w-full mb-4 p-2 border rounded" />

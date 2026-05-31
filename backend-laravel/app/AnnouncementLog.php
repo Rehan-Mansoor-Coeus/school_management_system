@@ -8,6 +8,6 @@ class AnnouncementLog extends Model
 {
     protected $fillable = [
         'institution_id', 'announcement_id', 'recipient_id', 'provider', 'phone_number',
-        'message', 'content_sid', 'content_variables', 'status', 'provider_response', 'error_message',
+        'message', 'attachment_path', 'content_sid', 'content_variables', 'status', 'provider_response', 'error_message',
     ];
 }

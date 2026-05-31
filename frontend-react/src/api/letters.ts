@@ -31,12 +31,21 @@ export const sendLetter = (id: number, payload?: any) => api.post(`/letters/${id
 export const bulkLetterAction = (payload: any) => api.post('/letters/bulk', payload)
 export const previewLetter = (id: number) => api.get(`/letters/${id}/preview`)
 
+export const searchAnnouncementRecipients = (category: string, query = '') =>
+  api.get('/letters/announcements/recipients/search', { params: { category, query } })
+
 export const fetchAnnouncements = (params?: any) => api.get('/letters/announcements', { params })
 export const createAnnouncement = (payload: FormData) => api.post('/letters/announcements', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const updateAnnouncement = (id: number, payload: FormData) => api.put(`/letters/announcements/${id}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const previewAnnouncement = (payload: FormData) => api.post('/letters/announcements/preview', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const sendAnnouncement = (id: number) => api.post(`/letters/announcements/${id}/send`)
 export const deleteAnnouncement = (id: number) => api.delete(`/letters/announcements/${id}`)
+
+export const requestOtp = (payload: any) => api.post('/letters/otp/request', payload)
+export const verifyOtp = (payload: any) => api.post('/letters/otp/verify', payload)
+export const fetchMessageLogs = (params?: any) => api.get('/letters/message-logs', { params })
+export const fetchWhatsAppSettings = () => api.get('/letters/whatsapp-settings')
+export const saveWhatsAppSettings = (payload: any) => api.put('/letters/whatsapp-settings', payload)
 
 export const fetchUserSignatures = (params?: any) => api.get('/letters/signatures/list', { params })
 export const uploadUserSignature = (payload: FormData) => api.post('/letters/signatures', payload, { headers: { 'Content-Type': 'multipart/form-data' } })

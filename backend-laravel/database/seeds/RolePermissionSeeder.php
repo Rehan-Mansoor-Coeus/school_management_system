@@ -33,6 +33,7 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'permissions', 'name' => 'Permissions', 'sort_order' => 30],
             ['key' => 'institutions', 'name' => 'Institutions', 'sort_order' => 40],
             ['key' => 'timesheets', 'name' => 'Timesheets', 'sort_order' => 50],
+            ['key' => 'letters', 'name' => 'Letters & Announcements', 'sort_order' => 55],
             ['key' => 'admissions', 'name' => 'Admissions', 'sort_order' => 100],
             ['key' => 'academics', 'name' => 'Academics', 'sort_order' => 110],
             ['key' => 'attendance', 'name' => 'Attendance', 'sort_order' => 120],
@@ -189,7 +190,53 @@ class RolePermissionSeeder extends Seeder
             'export_timesheet_reports',
         ];
 
-        $allPermissions = array_values(array_unique(array_merge($accessPermissions, $legacyTimesheetPermissions, $timesheetPermissions)));
+        $lettersPermissions = [
+            'view_letters_menu',
+            'create_letters',
+            'edit_letters',
+            'edit_awaiting_letters',
+            'delete_letters',
+            'send_letter_to_editor',
+            'forward_letter_to_approver',
+            'forward_letter_to_signer',
+            'approve_letters',
+            'reject_letters',
+            'sign_letters',
+            'bulk_sign_letters',
+            'send_letters',
+            'bulk_send_letters',
+            'view_awaiting_editing',
+            'view_awaiting_approval',
+            'view_awaiting_signature',
+            'view_ready_to_send_letters',
+            'view_sent_letters',
+            'print_letters',
+            'download_letters',
+            'manage_letter_settings',
+            'manage_letter_categories',
+            'manage_letter_templates',
+            'view_announcements',
+            'create_announcements',
+            'send_announcements',
+            'send_whatsapp_announcements',
+            'schedule_announcements',
+            'manage_announcement_recipients',
+            'view_people_menu',
+            'view_customers',
+            'create_customers',
+            'edit_customers',
+            'delete_customers',
+            'view_billers',
+            'create_billers',
+            'edit_billers',
+            'delete_billers',
+            'view_suppliers',
+            'create_suppliers',
+            'edit_suppliers',
+            'delete_suppliers',
+        ];
+
+        $allPermissions = array_values(array_unique(array_merge($accessPermissions, $legacyTimesheetPermissions, $timesheetPermissions, $lettersPermissions)));
         sort($allPermissions);
 
         foreach ($allPermissions as $permissionName) {

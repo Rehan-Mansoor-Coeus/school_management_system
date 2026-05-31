@@ -8,8 +8,10 @@ import {
   A4Preview, DangerButton, LettersCard, LettersPageHeader, PrimaryButton,
   SecondaryButton, StatusBadge, SuccessButton, TextInput,
 } from '../../components/letters/LettersUi'
+import OtpVerificationModal from '../../components/letters/OtpVerificationModal'
+import Modal from '../../components/ui/Modal'
 import { useLettersI18n } from '../../hooks/useLettersI18n'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../context/AuthContext'
 
 type Props = {
   title: string
@@ -34,6 +36,9 @@ export default function LetterQueuePage({
   const [preview, setPreview] = useState<any>(null)
   const [error, setError] = useState('')
   const [openActionId, setOpenActionId] = useState<number | null>(null)
+  const [otpModal, setOtpModal] = useState<{ letter: any; action: string } | null>(null)
+
+  const otpActions = ['approve', 'reject', 'sign', 'send']
 
   const can = (perm: string) => permissions.includes(perm)
 
@@ -61,13 +66,14 @@ export default function LetterQueuePage({
     await load()
   }
 
-  async function rowAction(action: string, letter: any) {
+  async function rowAction(action: string, letter: any, otp?: string) {
     setOpenActionId(null)
     try {
-      if (action === 'approve') await approveLetter(letter.id)
-      if (action === 'reject') await rejectLetter(letter.id)
-      if (action === 'sign') await signLetter(letter.id)
-      if (action === 'send') await sendLetter(letter.id)
+      const payload = otp ? { otp } : undefined
+      if (action === 'approve') await approveLetter(letter.id, payload)
+      if (action === 'reject') await rejectLetter(letter.id, payload)
+      if (action === 'sign') await signLetter(letter.id, payload)
+      if (action === 'send') await sendLetter(letter.id, payload)
       if (action === 'forward-approver') await forwardLetter(letter.id, { to: 'approver' })
       if (action === 'forward-signer') await forwardLetter(letter.id, { to: 'signer' })
       if (action === 'delete') await deleteLetter(letter.id)
@@ -83,8 +89,16 @@ export default function LetterQueuePage({
       }
       if (!['preview', 'print', 'download'].includes(action)) await load()
     } catch (err: any) {
+      if (err?.response?.status === 422 && err?.response?.data?.otp_required && otpActions.includes(action)) {
+        setOtpModal({ letter, action })
+        return
+      }
       setError(err?.response?.data?.message || 'Action failed')
     }
+  }
+
+  function handleRowAction(action: string, letter: any) {
+    rowAction(action, letter)
   }
 
   const actionOptions = useMemo(() => (letter: any) => {
@@ -165,7 +179,7 @@ export default function LetterQueuePage({
                               key={option.key}
                               type="button"
                               className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                              onClick={() => rowAction(option.key, letter)}
+                              onClick={() => handleRowAction(option.key, letter)}
                             >
                               {option.label}
                             </button>
@@ -184,18 +198,33 @@ export default function LetterQueuePage({
         </div>
       </LettersCard>
 
-      {preview && (
-        <LettersCard>
-          <div className="mb-4 flex justify-between print:hidden">
-            <h2 className="text-lg font-semibold">{t('preview')}</h2>
-            <div className="flex gap-2">
-              <SecondaryButton onClick={() => window.print()}>{t('printLetters')}</SecondaryButton>
-              <SecondaryButton onClick={() => setPreview(null)}>{t('cancel')}</SecondaryButton>
-            </div>
+      <OtpVerificationModal
+        open={!!otpModal}
+        onClose={() => setOtpModal(null)}
+        module="letter"
+        relatedId={otpModal?.letter?.id}
+        action={otpModal?.action || 'approve'}
+        context={otpModal?.letter?.subject}
+        onVerified={(otp) => {
+          if (otpModal) rowAction(otpModal.action, otpModal.letter, otp)
+          setOtpModal(null)
+        }}
+      />
+
+      <Modal
+        title={t('preview')}
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        wide
+        footer={
+          <div className="flex justify-end gap-2 print:hidden">
+            <SecondaryButton onClick={() => window.print()}>{t('printLetters')}</SecondaryButton>
+            <SecondaryButton onClick={() => setPreview(null)}>{t('cancel')}</SecondaryButton>
           </div>
-          <A4Preview preview={preview} />
-        </LettersCard>
-      )}
+        }
+      >
+        {preview ? <A4Preview preview={preview} /> : null}
+      </Modal>
     </div>
   )
 }

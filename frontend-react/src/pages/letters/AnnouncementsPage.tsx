@@ -17,12 +17,13 @@ const recipientSources = [
   { value: 'custom', label: 'Custom Phone Number' },
 ]
 
-export default function AnnouncementsPage() {
+export default function AnnouncementsPage({ mode, title }: { mode?: 'create' | 'list' | 'scheduled'; title?: string }) {
   const { t } = useLettersI18n()
   const { pushToast } = useToast()
-  const [tab, setTab] = useState<'list' | 'create'>('list')
+  const [tab, setTab] = useState<'list' | 'create'>(mode === 'create' ? 'create' : 'list')
   const [items, setItems] = useState<any[]>([])
   const [sendResults, setSendResults] = useState<any>(null)
+  const [preview, setPreview] = useState<any>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [form, setForm] = useState({
     title: '',
@@ -38,11 +39,21 @@ export default function AnnouncementsPage() {
   }, [form.audience_type])
 
   async function load() {
-    const res = await fetchAnnouncements()
-    setItems(res.data?.data || res.data || [])
+    const params = mode === 'scheduled' ? { status: 'scheduled' } : undefined
+    const res = await fetchAnnouncements(params)
+    const rows = res.data?.data || res.data || []
+    setItems(mode === 'scheduled' ? rows.filter((item: any) => item.status === 'scheduled' || item.scheduled_at) : rows)
   }
 
-  useEffect(() => { if (tab === 'list') load() }, [tab])
+  useEffect(() => {
+    if (mode === 'create') setTab('create')
+    else setTab('list')
+  }, [mode])
+
+  const showCreate = mode === 'create' || (!mode && tab === 'create')
+  const showList = mode === 'list' || mode === 'scheduled' || (!mode && tab === 'list')
+
+  useEffect(() => { if (showList) load() }, [showList, mode])
 
   function buildPayload(extra: Record<string, any> = {}) {
     const payload = new FormData()
@@ -130,16 +141,16 @@ export default function AnnouncementsPage() {
   return (
     <div className="space-y-6">
       <LettersPageHeader
-        title={t('announcements')}
-        action={
+        title={title || t('announcements')}
+        action={!mode ? (
           <div className="flex gap-2">
             <SecondaryButton onClick={() => setTab('list')}>{t('announcementList')}</SecondaryButton>
             <PrimaryButton onClick={() => { setTab('create'); resetForm() }}>+ {t('createAnnouncement')}</PrimaryButton>
           </div>
-        }
+        ) : undefined}
       />
 
-      {tab === 'create' ? (
+      {showCreate ? (
         <LettersCard>
           <form className="grid gap-4">
             <div className="grid gap-4 md:grid-cols-2">

@@ -52,16 +52,26 @@ class LetterWorkflowService
     {
         $replacements = [
             '{name}' => $data['name'] ?? '',
-            '{phone_number}' => $data['phone'] ?? '',
+            '[name]' => $data['name'] ?? '',
+            '{phone_number}' => $data['phone'] ?? ($data['phone_number'] ?? ''),
+            '[phone_number]' => $data['phone'] ?? ($data['phone_number'] ?? ''),
+            '{phone}' => $data['phone'] ?? ($data['phone_number'] ?? ''),
+            '[phone]' => $data['phone'] ?? ($data['phone_number'] ?? ''),
             '{email}' => $data['email'] ?? '',
+            '[email]' => $data['email'] ?? '',
             '{address}' => $data['address'] ?? '',
+            '[address]' => $data['address'] ?? '',
             '{institution_name}' => $data['institution_name'] ?? '',
+            '[institution_name]' => $data['institution_name'] ?? '',
             '{reference}' => $data['reference'] ?? '',
+            '[reference]' => $data['reference'] ?? '',
             '{date}' => $data['date'] ?? now()->format('M d, Y'),
+            '[date]' => $data['date'] ?? now()->format('M d, Y'),
         ];
 
         for ($i = 1; $i <= 10; $i++) {
             $replacements['{column'.$i.'}'] = $data['column'.$i] ?? '';
+            $replacements['[column'.$i.']'] = $data['column'.$i] ?? '';
         }
 
         return strtr((string) $template, $replacements);

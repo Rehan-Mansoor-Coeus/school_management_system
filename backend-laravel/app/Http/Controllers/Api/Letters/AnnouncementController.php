@@ -10,7 +10,7 @@ use App\AnnouncementLog;
 use App\AnnouncementRecipient;
 use App\AnnouncementSchedule;
 use App\Institution;
-use App\Jobs\SendAnnouncementWhatsAppJob;
+use App\Jobs\SendAnnouncementJob;
 use App\Services\Letters\LetterWorkflowService;
 use App\Services\Messaging\AnnouncementMessagingService;
 use Illuminate\Http\Request;
@@ -90,25 +90,43 @@ class AnnouncementController extends Controller
             $request->merge(['recipients' => json_decode($request->recipients, true) ?: []]);
         }
 
-        $institution = Institution::find($this->institutionId($request));
-        $recipient = collect($request->get('recipients', []))->first() ?: [
-            'name' => 'Recipient',
-            'phone' => '',
-            'email' => '',
-        ];
+        $recipients = collect($request->get('recipients', []));
+        if ($recipients->isEmpty()) {
+            return response()->json(['message' => 'Select at least one recipient to preview.'], 422);
+        }
 
-        $body = $this->workflow->personalize($request->get('body_html', ''), [
-            'name' => $recipient['name'] ?? '',
-            'phone' => $recipient['phone'] ?? '',
-            'email' => $recipient['email'] ?? '',
-            'institution_name' => optional($institution)->name,
-        ]);
+        $institution = Institution::find($this->institutionId($request));
+        $attachmentFiles = $this->attachmentFiles($request);
+        $attachmentName = ! empty($attachmentFiles) ? $attachmentFiles[0]->getClientOriginalName() : null;
+
+        $previews = $recipients->map(function ($recipient) use ($request, $institution) {
+            $body = $this->workflow->personalize($request->get('body_html', ''), [
+                'name' => $recipient['name'] ?? '',
+                'phone' => $recipient['phone'] ?? $recipient['phone_number'] ?? '',
+                'phone_number' => $recipient['phone'] ?? $recipient['phone_number'] ?? '',
+                'email' => $recipient['email'] ?? '',
+                'institution_name' => optional($institution)->name,
+                'date' => now()->format('M d, Y'),
+            ]);
+
+            $plain = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], "\n", $body)));
+
+            return [
+                'name' => $recipient['name'] ?? '',
+                'email' => $recipient['email'] ?? null,
+                'phone' => $recipient['phone'] ?? $recipient['phone_number'] ?? null,
+                'address' => $recipient['address'] ?? null,
+                'personalized_message' => $plain,
+                'body_html' => $body,
+            ];
+        });
 
         return response()->json([
             'preview' => [
                 'title' => $request->get('title'),
-                'body_html' => $body,
-                'recipient' => $recipient,
+                'subject' => $request->get('title'),
+                'attachment_name' => $attachmentName,
+                'recipients' => $previews->values(),
             ],
         ]);
     }
@@ -148,7 +166,7 @@ class AnnouncementController extends Controller
             ]);
         }
 
-        SendAnnouncementWhatsAppJob::dispatch($announcement->id);
+        SendAnnouncementJob::dispatch($announcement->id)->onQueue('whatsapp');
         $announcement->whatsapp_status = 'scheduled';
         $announcement->save();
 
@@ -180,17 +198,21 @@ class AnnouncementController extends Controller
 
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:500',
+            'category' => 'nullable|string|max:50',
             'header_html' => 'nullable|string',
             'body_html' => 'required|string',
             'footer_html' => 'nullable|string',
             'audience_type' => 'nullable|string|max:50',
             'send_now' => 'nullable|boolean',
             'save_draft' => 'nullable|boolean',
+            'save_as_template' => 'nullable|boolean',
+            'schedule_for_later' => 'nullable|boolean',
             'scheduled_at' => 'nullable|date',
             'recipients' => 'nullable|array',
             'recipients.*.name' => 'required|string|max:255',
             'recipients.*.phone' => 'nullable|string|max:50',
             'recipients.*.email' => 'nullable|string|max:255',
+            'recipients.*.address' => 'nullable|string',
             'recipients.*.recipient_type' => 'nullable|string|max:50',
             'recipients.*.recipient_id' => 'nullable|integer',
             'schedules' => 'nullable|array',
@@ -204,6 +226,10 @@ class AnnouncementController extends Controller
         }
 
         $recipients = $request->get('recipients', []);
+        if ($request->boolean('send_now') && count($recipients) === 0) {
+            return response()->json(['message' => 'Select at least one recipient before sending.'], 422);
+        }
+
         $missingPhone = collect($recipients)->filter(function ($row) {
             return trim((string) ($row['phone'] ?? '')) === '';
         });
@@ -217,10 +243,10 @@ class AnnouncementController extends Controller
         $institutionId = $this->institutionId($request);
         $userId = optional($request->user())->id;
         $status = 'draft';
-        if ($request->boolean('send_now')) {
-            $status = 'pending';
-        } elseif ($request->scheduled_at || $request->schedules) {
+        if ($request->boolean('schedule_for_later') || $request->scheduled_at || $request->schedules) {
             $status = 'scheduled';
+        } elseif ($request->boolean('send_now')) {
+            $status = 'pending';
         } elseif ($request->boolean('save_draft')) {
             $status = 'draft';
         }
@@ -230,14 +256,15 @@ class AnnouncementController extends Controller
             $data = [
                 'institution_id' => $institutionId,
                 'title' => $request->title,
+                'category' => $request->get('category', 'general'),
                 'header_html' => $request->header_html,
                 'body_html' => $request->body_html,
                 'footer_html' => $request->footer_html,
-                'audience_type' => $request->audience_type ?: 'custom',
+                'audience_type' => $request->audience_type ?: 'users',
                 'status' => $status,
                 'scheduled_at' => $request->scheduled_at,
                 'created_by' => $userId,
-                'whatsapp_status' => $request->boolean('send_now') ? 'pending' : 'draft',
+                'whatsapp_status' => $request->boolean('send_now') ? 'pending' : ($status === 'scheduled' ? 'scheduled' : 'draft'),
             ];
 
             if ($announcement) {
@@ -256,6 +283,7 @@ class AnnouncementController extends Controller
                     'name' => $row['name'],
                     'email' => $row['email'] ?? null,
                     'phone' => $row['phone'] ?? null,
+                    'address' => $row['address'] ?? null,
                     'placeholder_data' => $row['placeholder_data'] ?? [],
                     'delivery_status' => 'pending',
                 ]);
@@ -271,8 +299,13 @@ class AnnouncementController extends Controller
                 ]);
             }
 
-            foreach ($this->attachmentFiles($request) as $file) {
+            $attachmentFiles = $this->attachmentFiles($request);
+            foreach ($attachmentFiles as $index => $file) {
                 $path = $file->store('letters/announcements/'.$institutionId, 'public');
+                if ($index === 0) {
+                    $announcement->attachment_path = $path;
+                    $announcement->save();
+                }
                 AnnouncementAttachment::create([
                     'institution_id' => $institutionId,
                     'announcement_id' => $announcement->id,
@@ -284,9 +317,14 @@ class AnnouncementController extends Controller
             }
 
             $sendResults = null;
-            if ($request->boolean('send_now')) {
-                $institution = Institution::find($institutionId);
-                $sendResults = $this->messaging->dispatch($announcement->fresh(['recipients']), optional($institution)->name);
+            if ($request->boolean('send_now') && ! $request->boolean('schedule_for_later')) {
+                if (config('queue.default') === 'sync') {
+                    $institution = Institution::find($institutionId);
+                    $sendResults = $this->messaging->dispatch($announcement->fresh(['recipients']), optional($institution)->name);
+                } else {
+                    SendAnnouncementJob::dispatch($announcement->id)->onQueue('whatsapp');
+                    $sendResults = ['queued' => true, 'total' => count($recipients)];
+                }
             }
 
             $code = $isNew ? 201 : 200;
