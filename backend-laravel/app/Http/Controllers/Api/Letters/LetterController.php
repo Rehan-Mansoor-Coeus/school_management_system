@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Letters;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Letters\Concerns\ResolvesLettersContext;
+use App\Http\Controllers\Api\Letters\Concerns\VerifiesLetterOtp;
 use App\Letter;
 use App\LetterApproval;
 use App\LetterAttachment;
@@ -13,6 +14,7 @@ use App\LetterRecipient;
 use App\LetterSetting;
 use App\LetterTemplate;
 use App\Services\Letters\LetterWorkflowService;
+use App\Services\Letters\LetterMessagingService;
 use App\UserSignature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,12 +24,15 @@ use Illuminate\Support\Facades\Validator;
 class LetterController extends Controller
 {
     use ResolvesLettersContext;
+    use VerifiesLetterOtp;
 
     protected $workflow;
+    protected $letterMessaging;
 
-    public function __construct(LetterWorkflowService $workflow)
+    public function __construct(LetterWorkflowService $workflow, LetterMessagingService $letterMessaging)
     {
         $this->workflow = $workflow;
+        $this->letterMessaging = $letterMessaging;
     }
 
     public function counts(Request $request)
@@ -365,8 +370,14 @@ class LetterController extends Controller
             return response()->json(['message' => 'Letter is not awaiting approval.'], 422);
         }
 
+        if ($response = $this->ensureOtpVerified($request, $letter, 'approve')) {
+            return $response;
+        }
+
         $signature = $this->resolveUserSignature($letter->institution_id, optional($request->user())->id, 'approver');
         $this->recordApproval($letter, $request, 'approve', 'approver', optional($signature)->signature_path);
+        $letter->approved_by = optional($request->user())->id;
+        $letter->save();
         $this->workflow->transition($letter, 'awaiting_signature', optional($request->user())->id, $request->get('comment'));
 
         return response()->json(['message' => 'Letter approved.', 'letter' => $this->formatLetter($letter->fresh())]);
@@ -381,7 +392,13 @@ class LetterController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        if ($response = $this->ensureOtpVerified($request, $letter, 'reject')) {
+            return $response;
+        }
+
         $this->recordApproval($letter, $request, 'reject', $letter->status);
+        $letter->rejected_by = optional($request->user())->id;
+        $letter->save();
         $this->workflow->transition($letter, 'rejected', optional($request->user())->id, $request->get('comment'));
 
         return response()->json(['message' => 'Letter rejected.', 'letter' => $this->formatLetter($letter->fresh())]);
@@ -400,8 +417,14 @@ class LetterController extends Controller
             return response()->json(['message' => 'Letter is not awaiting signature.'], 422);
         }
 
+        if ($response = $this->ensureOtpVerified($request, $letter, 'sign')) {
+            return $response;
+        }
+
         $signature = $this->resolveUserSignature($letter->institution_id, optional($request->user())->id, 'signer');
         $this->recordApproval($letter, $request, 'sign', 'signer', optional($signature)->signature_path);
+        $letter->signed_by = optional($request->user())->id;
+        $letter->save();
         $this->workflow->transition($letter, 'ready_to_send', optional($request->user())->id, $request->get('comment'));
 
         return response()->json(['message' => 'Letter signed.', 'letter' => $this->formatLetter($letter->fresh())]);
@@ -420,12 +443,22 @@ class LetterController extends Controller
             return response()->json(['message' => 'Letter is not ready to send.'], 422);
         }
 
+        if ($response = $this->ensureOtpVerified($request, $letter, 'send')) {
+            return $response;
+        }
+
         $this->recordApproval($letter, $request, 'send', 'sender');
         $this->workflow->transition($letter, 'sent', optional($request->user())->id, $request->get('comment'));
+        $letter->sent_by = optional($request->user())->id;
+        $letter->save();
 
-        LetterRecipient::query()->where('letter_id', $letter->id)->update(['delivery_status' => 'sent']);
+        $queueResult = $this->letterMessaging->queueLetterDelivery($letter, optional($request->user())->id);
 
-        return response()->json(['message' => 'Letter sent.', 'letter' => $this->formatLetter($letter->fresh())]);
+        return response()->json([
+            'message' => 'Letter queued for WhatsApp delivery.',
+            'letter' => $this->formatLetter($letter->fresh()),
+            'queue' => $queueResult,
+        ]);
     }
 
     public function bulk(Request $request)

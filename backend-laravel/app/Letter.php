@@ -13,9 +13,10 @@ class Letter extends Model
         'institution_id', 'category_id', 'template_id', 'reference', 'people_type', 'author_name',
         'subject', 'header_html', 'body_html', 'footer_html', 'status', 'comment', 'scheduled_at',
         'sent_at', 'created_by', 'updated_by', 'assigned_to', 'is_template', 'barcode_value', 'qr_code_value',
+        'otp', 'otp_time', 'otp_verified', 'approved_by', 'signed_by', 'sent_by', 'rejected_by', 'edit_by',
     ];
 
-    protected $dates = ['scheduled_at', 'sent_at', 'deleted_at'];
+    protected $dates = ['scheduled_at', 'sent_at', 'deleted_at', 'otp_time'];
 
     public function category()
     {

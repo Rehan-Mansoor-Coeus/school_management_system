@@ -1,0 +1,138 @@
+---
+description: Branch-per-module Git workflow — develop is base; each new module gets its own branch
+alwaysApply: true
+---
+
+# Module Branch Workflow (MANDATORY)
+
+Apply to **every** push, PR, and module task in this repository.
+
+## When the user says "pull" or "push"
+
+Always follow **all** rules in this file (and `.cursor/rules/non-refactoring-architecture.mdc`) before running any git pull or push.
+
+### Pull
+
+1. Confirm current branch: `git branch --show-current`
+2. For **syncing with develop** (new module or rebase prep):
+   ```bash
+   git checkout develop
+   git pull origin develop
+   ```
+3. For **updating the current feature branch**:
+   ```bash
+   git pull origin branch-name
+   ```
+   Replace `branch-name` with the active branch (e.g. `letters_and_announcements`).
+4. Do **not** pull into `develop` or switch branches unless the user asked or the workflow requires it.
+5. Stay on the module branch the user specified (e.g. `letters_and_announcements` for Letters work).
+
+### Push
+
+1. Run pre-push checks (see **Before every push** below).
+2. Confirm current branch is **not** `develop` or `main`.
+3. Stage only relevant files — never `node_modules`, `vendor`, `.env`, logs, cache, `dist/`, or IDE files.
+4. Commit with a clear message if changes are not yet committed.
+5. Push **only** to the current feature branch:
+   ```bash
+   git push origin branch-name
+   ```
+6. Do **not** push to `develop` unless the user explicitly requests it.
+7. If the user has not yet manually tested, remind them before pushing unless they explicitly say to push now.
+
+## Base branch
+
+- **`develop`** is the integration base branch (not `main`).
+- Never push new module work directly to `develop` or `main`.
+
+## Start a new branch from develop
+
+When beginning work on a **new module**, sync with develop first, then create a dedicated branch:
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b new-branch
+```
+
+Replace `new-branch` with a descriptive name (e.g. `letters_and_announcements`, `feature/admissions`).
+
+## Switch to another branch
+
+To move to an existing branch:
+
+```bash
+git checkout branch-name
+```
+
+Confirm you are on the correct branch before making changes:
+
+```bash
+git branch --show-current
+```
+
+## Commit and push
+
+After changes are tested and ready:
+
+```bash
+git status
+git add .
+git commit -m 'commit message'
+git push origin branch-name
+```
+
+Replace `branch-name` with the current branch (e.g. `letters_and_announcements`).
+
+**Important:** Only push when the user has explicitly approved after manual testing. Do not push to `develop` directly.
+
+## One module = one branch
+
+When starting or continuing work on a **new module** (e.g. Letters, Admissions, Timesheets):
+
+1. Follow **Start a new branch from develop** above.
+2. Do all module work on that branch only.
+3. Open a PR: `your-branch` → `develop`.
+4. Do **not** mix unrelated modules on the same branch.
+
+### Branch naming examples
+
+| Module | Branch |
+|--------|--------|
+| Letters & Announcements | `letters_and_announcements` |
+| Admissions | `feature/admissions` |
+| New HR module | `feature/hr-payroll` |
+
+## Before every push
+
+Run and confirm:
+
+```bash
+git status
+git diff --stat
+git branch --show-current
+```
+
+Verify:
+
+- Current branch matches the module being worked on (not `develop`).
+- No `node_modules`, `vendor`, `.env`, logs, cache, build/dist, `.idea`, `.vscode`, or accidental CLI artifacts are included.
+- Changes are scoped to the module the user asked for — no unrelated refactors.
+
+## Do NOT
+
+- Push a new module to `develop` or an existing unrelated feature branch.
+- Combine two modules in one PR unless the user explicitly requests it.
+- Refactor modules the user did not ask to change.
+- **Push until the user has manually tested** — wait for explicit approval before `git push`.
+- Push `node_modules`, `vendor`, `.env`, logs, cache, build/dist, IDE files, or unmodified files.
+
+## Current module branch
+
+When working on **Letters & Announcements**, stay on **`letters_and_announcements`**. Do not create or switch to other branches for this module unless the user asks.
+
+## Module scope
+
+- Work **only** on the module the user instructs.
+- Do not refactor, rename, or restructure other modules.
+- Extend existing code minimally; preserve backward compatibility.

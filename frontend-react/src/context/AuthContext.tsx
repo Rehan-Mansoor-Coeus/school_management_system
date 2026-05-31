@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 
 export type AuthUser = any
 
@@ -33,27 +33,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     enabledModules: readJson('enabled_modules', []),
   }))
 
-  const value = useMemo<AuthContextValue>(() => {
-    return {
-      ...state,
-      setAuth: (next) => {
-        setState((current) => {
-          const merged = { ...current, ...next }
-          localStorage.setItem('me', JSON.stringify(merged.user))
-          localStorage.setItem('permissions', JSON.stringify(merged.permissions || []))
-          localStorage.setItem('enabled_modules', JSON.stringify(merged.enabledModules || []))
-          return merged
-        })
-      },
-      clearAuth: () => {
-        setState({ user: null, permissions: [], enabledModules: [] })
-        localStorage.removeItem('me')
-        localStorage.removeItem('permissions')
-        localStorage.removeItem('enabled_modules')
-      },
-      hasPermission: (permission: string) => state.permissions.includes(permission),
-    }
-  }, [state])
+  const setAuth = useCallback((next: Partial<AuthState>) => {
+    setState((current) => {
+      const merged = { ...current, ...next }
+      localStorage.setItem('me', JSON.stringify(merged.user))
+      localStorage.setItem('permissions', JSON.stringify(merged.permissions || []))
+      localStorage.setItem('enabled_modules', JSON.stringify(merged.enabledModules || []))
+      return merged
+    })
+  }, [])
+
+  const clearAuth = useCallback(() => {
+    setState({ user: null, permissions: [], enabledModules: [] })
+    localStorage.removeItem('me')
+    localStorage.removeItem('permissions')
+    localStorage.removeItem('enabled_modules')
+  }, [])
+
+  const value = useMemo<AuthContextValue>(() => ({
+    ...state,
+    setAuth,
+    clearAuth,
+    hasPermission: (permission: string) => state.permissions.includes(permission),
+  }), [state, setAuth, clearAuth])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
@@ -63,4 +65,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
-

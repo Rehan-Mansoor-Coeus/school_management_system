@@ -171,8 +171,22 @@ export default function RolesPage() {
         </table>
       </div>
 
-      <Modal title={activeRole ? 'Edit Role' : 'Create Role'} open={modalOpen} onClose={() => setModalOpen(false)}>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+      <Modal
+        title={activeRole ? 'Edit Role' : 'Create Role'}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="submit" form="role-form" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save
+            </button>
+          </div>
+        }
+      >
+        <form id="role-form" onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
@@ -183,18 +197,25 @@ export default function RolesPage() {
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save
-            </button>
-          </div>
         </form>
       </Modal>
 
-      <Modal title="Assign Permissions" open={permModalOpen} onClose={() => setPermModalOpen(false)} wide>
+      <Modal
+        title="Assign Permissions"
+        open={permModalOpen}
+        onClose={() => setPermModalOpen(false)}
+        wide
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setPermModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="button" onClick={handleAssignPermissions} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save Permissions
+            </button>
+          </div>
+        }
+      >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-slate-600">
@@ -217,8 +238,7 @@ export default function RolesPage() {
               </button>
             </div>
           </div>
-          <div className="max-h-[65vh] overflow-y-auto pr-1">
-            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {permissionOptions.map((permission) => (
               <label key={permission.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <input
@@ -234,15 +254,6 @@ export default function RolesPage() {
                 {permission.label}
               </label>
             ))}
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button onClick={() => setPermModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button onClick={handleAssignPermissions} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save Permissions
-            </button>
           </div>
         </div>
       </Modal>
