@@ -3,7 +3,7 @@ import api from '../api/client'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function LoginPage(){
-  const [email,setEmail]=useState('')
+  const [login,setLogin]=useState('')
   const [password,setPassword]=useState('')
   const [error,setError]=useState('')
   const navigate = useNavigate()
@@ -13,7 +13,7 @@ export default function LoginPage(){
   async function submit(e:React.FormEvent){
     e.preventDefault()
     try{
-      const res = await api.post('/auth/login', {email, password})
+      const res = await api.post('/auth/login', {login, password})
       const token = res.data.token
       localStorage.setItem('token', token)
       // set auth header for future requests
@@ -43,7 +43,7 @@ export default function LoginPage(){
           </div>
         )}
         {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" className="w-full mb-2 p-2 border rounded" />
+        <input value={login} onChange={e=>setLogin(e.target.value)} placeholder="Username or email" className="w-full mb-2 p-2 border rounded" />
         <input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Password" className="w-full mb-4 p-2 border rounded" />
         <button className="w-full p-2 bg-blue-600 text-white rounded">Sign in</button>
       </form>

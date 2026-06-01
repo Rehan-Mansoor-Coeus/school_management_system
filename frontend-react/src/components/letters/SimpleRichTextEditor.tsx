@@ -1,4 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+
+export type SimpleRichTextEditorRef = {
+  insertText: (text: string) => void
+}
 
 type Props = {
   value: string
@@ -18,22 +22,35 @@ const tools = [
   { cmd: 'justifyRight', label: 'Right', title: 'Align right' },
 ]
 
-export default function SimpleRichTextEditor({ value, onChange, placeholder, minHeight = 180 }: Props) {
-  const ref = useRef<HTMLDivElement>(null)
+const SimpleRichTextEditor = forwardRef<SimpleRichTextEditorRef, Props>(function SimpleRichTextEditor(
+  { value, onChange, placeholder, minHeight = 180 },
+  ref,
+) {
+  const editorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (ref.current && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value || ''
+    if (editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || ''
     }
   }, [value])
 
+  useImperativeHandle(ref, () => ({
+    insertText(text: string) {
+      const el = editorRef.current
+      if (!el) return
+      el.focus()
+      document.execCommand('insertText', false, text)
+      onChange(el.innerHTML)
+    },
+  }))
+
   function exec(command: string) {
     document.execCommand(command, false)
-    if (ref.current) onChange(ref.current.innerHTML)
+    if (editorRef.current) onChange(editorRef.current.innerHTML)
   }
 
   function handleInput() {
-    if (ref.current) onChange(ref.current.innerHTML)
+    if (editorRef.current) onChange(editorRef.current.innerHTML)
   }
 
   return (
@@ -53,7 +70,7 @@ export default function SimpleRichTextEditor({ value, onChange, placeholder, min
         ))}
       </div>
       <div
-        ref={ref}
+        ref={editorRef}
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
@@ -63,4 +80,6 @@ export default function SimpleRichTextEditor({ value, onChange, placeholder, min
       />
     </div>
   )
-}
+})
+
+export default SimpleRichTextEditor

@@ -53,6 +53,8 @@ const en: Record<string, string> = {
   description: 'Description',
   templateName: 'Template Name',
   addTemplate: 'Add Template',
+  announcementTemplates: 'Announcement Templates',
+  selectTemplate: 'Select or search template',
   createAnnouncement: 'Create Announcement',
   announcementList: 'Announcement List',
   scheduledAnnouncements: 'Scheduled Announcements',
@@ -133,6 +135,8 @@ const fr: Record<string, string> = {
   description: 'Description',
   templateName: 'Nom du modèle',
   addTemplate: 'Ajouter un modèle',
+  announcementTemplates: 'Modèles d\'annonces',
+  selectTemplate: 'Sélectionner ou rechercher un modèle',
   createAnnouncement: 'Créer une annonce',
   announcementList: 'Liste des annonces',
   scheduledAnnouncements: 'Annonces programmées',
@@ -185,4 +189,5 @@ export const statusColors: Record<string, string> = {
   rejected: 'bg-rose-100 text-rose-800',
   cancelled: 'bg-gray-100 text-gray-600',
   scheduled: 'bg-blue-100 text-blue-800',
+  overdue: 'bg-orange-100 text-orange-800',
 }

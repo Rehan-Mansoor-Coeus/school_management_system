@@ -235,6 +235,10 @@ class RolePermissionSeeder extends Seeder
             'create_suppliers',
             'edit_suppliers',
             'delete_suppliers',
+            'view_students',
+            'create_students',
+            'edit_students',
+            'delete_students',
         ];
 
         $allPermissions = array_values(array_unique(array_merge($accessPermissions, $legacyTimesheetPermissions, $timesheetPermissions, $lettersPermissions)));
@@ -280,6 +284,8 @@ class RolePermissionSeeder extends Seeder
             'view_permissions', 'assign_permissions',
             'institutions.view', 'institutions.create', 'institutions.edit', 'institutions.delete', 'institutions.settings',
             'modules.view', 'modules.manage',
+            'view_customers', 'create_customers', 'edit_customers', 'delete_customers',
+            'view_students', 'create_students', 'edit_students', 'delete_students',
         ];
 
         $institutionAdminPermissions = array_merge(

@@ -80,8 +80,11 @@ class LetterWorkflowService
     public function securityCodes(Letter $letter)
     {
         $value = $letter->reference ?: ('LTR-'.$letter->id);
+        $frontend = rtrim(env('FRONTEND_URL', config('app.url')), '/');
+        $verifyUrl = $frontend.'/letters/verify/'.$letter->id;
+
         $letter->barcode_value = $value;
-        $letter->qr_code_value = $value.'|'.Str::upper(Str::random(8));
+        $letter->qr_code_value = $verifyUrl;
         $letter->save();
 
         return $letter;

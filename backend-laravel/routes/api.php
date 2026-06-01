@@ -15,6 +15,8 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:api')->get('me', 'Api\AuthController@me');
 
+Route::get('letters/public/verify/{letter}', 'Api\Letters\LetterPublicController@verify');
+
 Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:users', 'permission:users.view|view_users|manage_users'])->get('users', 'Api\UserController@index');
     Route::middleware(['module_enabled:roles', 'permission:roles.view|view_roles|manage_roles|roles.manage'])->get('roles', 'Api\RoleController@index');
@@ -165,18 +167,24 @@ Route::middleware('auth:api')->group(function () {
         Route::put('templates/{template}', 'Api\Letters\LetterTemplateController@update');
         Route::delete('templates/{template}', 'Api\Letters\LetterTemplateController@destroy');
         Route::get('announcements/recipients/search', 'Api\Letters\AnnouncementRecipientSearchController@search');
+        Route::get('announcements/templates', 'Api\Letters\AnnouncementTemplateController@index');
+        Route::post('announcements/templates', 'Api\Letters\AnnouncementTemplateController@store');
+        Route::put('announcements/templates/{announcementTemplate}', 'Api\Letters\AnnouncementTemplateController@update');
+        Route::delete('announcements/templates/{announcementTemplate}', 'Api\Letters\AnnouncementTemplateController@destroy');
         Route::post('otp/request', 'Api\Letters\OtpController@request');
         Route::post('otp/verify', 'Api\Letters\OtpController@verify');
         Route::get('message-logs', 'Api\Letters\MessageLogController@index');
         Route::get('whatsapp-settings', 'Api\Letters\WhatsAppSettingsController@show');
         Route::put('whatsapp-settings', 'Api\Letters\WhatsAppSettingsController@update');
         Route::get('announcements', 'Api\Letters\AnnouncementController@index');
+        Route::post('announcements/process-scheduled', 'Api\Letters\AnnouncementController@processScheduled');
         Route::post('announcements', 'Api\Letters\AnnouncementController@store');
         Route::post('announcements/preview', 'Api\Letters\AnnouncementController@preview');
         Route::get('announcements/{announcement}', 'Api\Letters\AnnouncementController@show');
         Route::put('announcements/{announcement}', 'Api\Letters\AnnouncementController@update');
         Route::post('announcements/{announcement}/send', 'Api\Letters\AnnouncementController@send');
         Route::delete('announcements/{announcement}', 'Api\Letters\AnnouncementController@destroy');
+        Route::post('announcements/bulk-delete', 'Api\Letters\AnnouncementController@bulkDestroy');
         Route::get('signatures/list', 'Api\Letters\UserSignatureController@index');
         Route::post('signatures', 'Api\Letters\UserSignatureController@store');
         Route::get('/', 'Api\Letters\LetterController@index');
@@ -207,5 +215,17 @@ Route::middleware('auth:api')->group(function () {
         Route::post('suppliers', 'Api\People\SupplierController@store');
         Route::put('suppliers/{id}', 'Api\People\SupplierController@update');
         Route::delete('suppliers/{id}', 'Api\People\SupplierController@destroy');
+        Route::get('students', 'Api\People\StudentController@index');
+        Route::post('students', 'Api\People\StudentController@store');
+        Route::put('students/{id}', 'Api\People\StudentController@update');
+        Route::delete('students/{id}', 'Api\People\StudentController@destroy');
+        Route::get('teachers', 'Api\People\TeacherController@index');
+        Route::post('teachers', 'Api\People\TeacherController@store');
+        Route::put('teachers/{id}', 'Api\People\TeacherController@update');
+        Route::delete('teachers/{id}', 'Api\People\TeacherController@destroy');
+        Route::get('staff', 'Api\People\StaffController@index');
+        Route::post('staff', 'Api\People\StaffController@store');
+        Route::put('staff/{id}', 'Api\People\StaffController@update');
+        Route::delete('staff/{id}', 'Api\People\StaffController@destroy');
     });
 });

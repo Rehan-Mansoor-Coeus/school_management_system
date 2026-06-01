@@ -43,6 +43,11 @@ class Letter extends Model
         return $this->hasMany(LetterAttachment::class);
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(LetterSchedule::class);
+    }
+
     public function comments()
     {
         return $this->hasMany(LetterComment::class);

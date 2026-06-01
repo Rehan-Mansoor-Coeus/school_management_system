@@ -25,47 +25,50 @@ class AnnouncementRecipientSearchController extends Controller
 
         $category = strtolower(trim((string) $request->get('category', 'users')));
         $query = trim((string) $request->get('query', ''));
+        $selectAll = $request->boolean('all');
         $institutionId = $this->institutionId($request);
+        $limit = $selectAll ? 500 : 25;
 
         $results = collect();
 
         switch ($category) {
             case 'customers':
             case 'customer':
-                $results = $this->searchEntity(Customer::class, 'customer', $institutionId, $query);
+                $results = $this->searchEntity(Customer::class, 'customer', $institutionId, $query, $limit);
                 break;
             case 'billers':
             case 'biller':
-                $results = $this->searchEntity(Biller::class, 'biller', $institutionId, $query);
+                $results = $this->searchEntity(Biller::class, 'biller', $institutionId, $query, $limit);
                 break;
             case 'suppliers':
             case 'supplier':
-                $results = $this->searchEntity(Supplier::class, 'supplier', $institutionId, $query);
+                $results = $this->searchEntity(Supplier::class, 'supplier', $institutionId, $query, $limit);
                 break;
             case 'students':
             case 'student':
-                $results = $this->searchUsersByRoles($institutionId, $query, ['student']);
+                $results = $this->searchUsersByRoles($institutionId, $query, ['student'], $limit);
                 break;
             case 'teachers':
             case 'teacher':
-                $results = $this->searchUsersByRoles($institutionId, $query, ['teacher']);
+                $results = $this->searchUsersByRoles($institutionId, $query, ['teacher'], $limit);
                 break;
             case 'staff':
-                $results = $this->searchUsersByRoles($institutionId, $query, ['staff', 'hr-officer', 'time-sheet-supervisor']);
+                $results = $this->searchUsersByRoles($institutionId, $query, ['staff', 'hr-officer', 'time-sheet-supervisor'], $limit);
                 break;
             case 'users':
             case 'user':
             default:
-                $results = $this->searchUsers($institutionId, $query);
+                $results = $this->searchUsers($institutionId, $query, $limit);
                 break;
         }
 
-        return response()->json($results->take(40)->values());
+        return response()->json($results->take($selectAll ? 500 : 40)->values());
     }
 
-    protected function searchUsers($institutionId, $query)
+    protected function searchUsers($institutionId, $query, $limit = 25)
     {
         return User::query()
+            ->loginAccounts()
             ->where('institution_id', $institutionId)
             ->where(function ($q) {
                 $q->whereNull('status')->orWhere('status', 'active');
@@ -79,12 +82,12 @@ class AnnouncementRecipientSearchController extends Controller
                 });
             })
             ->orderBy('name')
-            ->limit(25)
+            ->limit($limit)
             ->get()
             ->map(fn (User $user) => $this->mapUser($user, 'user'));
     }
 
-    protected function searchUsersByRoles($institutionId, $query, array $roles)
+    protected function searchUsersByRoles($institutionId, $query, array $roles, $limit = 25)
     {
         return User::query()
             ->where('institution_id', $institutionId)
@@ -103,7 +106,7 @@ class AnnouncementRecipientSearchController extends Controller
                 });
             })
             ->orderBy('name')
-            ->limit(25)
+            ->limit($limit)
             ->get()
             ->map(function (User $user) use ($roles) {
                 $type = in_array('student', $roles, true) ? 'student' : (in_array('teacher', $roles, true) ? 'teacher' : 'staff');
@@ -118,13 +121,14 @@ class AnnouncementRecipientSearchController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'phone_number' => $user->phone_number ?: $user->additional_phone_number,
+            'phone_number' => $user->phone_number,
+            'additional_phone_number' => $user->additional_phone_number,
             'address' => null,
             'recipient_type' => $type,
         ];
     }
 
-    protected function searchEntity($modelClass, $type, $institutionId, $query)
+    protected function searchEntity($modelClass, $type, $institutionId, $query, $limit = 25)
     {
         return $modelClass::query()
             ->where('institution_id', $institutionId)
@@ -138,14 +142,15 @@ class AnnouncementRecipientSearchController extends Controller
                 });
             })
             ->orderBy('name')
-            ->limit(25)
+            ->limit($limit)
             ->get()
             ->map(function ($record) use ($type) {
                 return [
                     'id' => $record->id,
                     'name' => $record->name,
                     'email' => $record->email,
-                    'phone_number' => $record->phone_number ?: $record->additional_phone_number,
+                    'phone_number' => $record->phone_number,
+                    'additional_phone_number' => $record->additional_phone_number,
                     'address' => $record->address,
                     'recipient_type' => $type,
                 ];

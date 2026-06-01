@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createAnnouncement, deleteAnnouncement, fetchAnnouncements, previewAnnouncement, sendAnnouncement } from '../../api/letters'
+import { bulkDeleteAnnouncements, createAnnouncement, deleteAnnouncement, fetchAnnouncements, previewAnnouncement, processScheduledAnnouncements, sendAnnouncement } from '../../api/letters'
 import RecipientSelect, { type RecipientOption } from '../../components/letters/RecipientSelect'
 import SimpleRichTextEditor from '../../components/letters/SimpleRichTextEditor'
 import {
@@ -17,11 +17,50 @@ const recipientSources = [
   { value: 'custom', label: 'Custom Phone Number' },
 ]
 
+function formatScheduleTime(value?: string) {
+  if (!value) return '—'
+  const date = new Date(value.includes('T') ? value : value.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function scheduleTimesFor(item: any) {
+  const rows = Array.isArray(item.schedules) ? item.schedules : []
+  const pending = rows.filter((s: any) => s.status === 'pending')
+  const source = pending.length ? pending : rows
+  if (source.length) {
+    return source.map((s: any) => formatScheduleTime(s.scheduled_at))
+  }
+  if (item.scheduled_at) return [formatScheduleTime(item.scheduled_at)]
+  return []
+}
+
+function hasOverdueSchedule(item: any) {
+  const rows = Array.isArray(item.schedules) ? item.schedules : []
+  const now = Date.now()
+  return rows.some((schedule: any) => {
+    if (schedule.status !== 'pending' || !schedule.scheduled_at) return false
+    const date = new Date(schedule.scheduled_at.includes('T') ? schedule.scheduled_at : schedule.scheduled_at.replace(' ', 'T'))
+    return !Number.isNaN(date.getTime()) && date.getTime() <= now
+  })
+}
+
+function canManualSend(item: any) {
+  return item.status !== 'sent'
+}
+
 export default function AnnouncementsPage({ mode, title }: { mode?: 'create' | 'list' | 'scheduled'; title?: string }) {
   const { t } = useLettersI18n()
   const { pushToast } = useToast()
   const [tab, setTab] = useState<'list' | 'create'>(mode === 'create' ? 'create' : 'list')
   const [items, setItems] = useState<any[]>([])
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [sendResults, setSendResults] = useState<any>(null)
   const [preview, setPreview] = useState<any>(null)
   const [attachments, setAttachments] = useState<File[]>([])
@@ -39,10 +78,17 @@ export default function AnnouncementsPage({ mode, title }: { mode?: 'create' | '
   }, [form.audience_type])
 
   async function load() {
+    if (mode === 'scheduled') {
+      try {
+        await processScheduledAnnouncements()
+      } catch {
+        // Non-blocking: list still loads if processor fails
+      }
+    }
     const params = mode === 'scheduled' ? { status: 'scheduled' } : undefined
     const res = await fetchAnnouncements(params)
     const rows = res.data?.data || res.data || []
-    setItems(mode === 'scheduled' ? rows.filter((item: any) => item.status === 'scheduled' || item.scheduled_at) : rows)
+    setItems(mode === 'scheduled' ? rows : rows)
   }
 
   useEffect(() => {
@@ -54,6 +100,37 @@ export default function AnnouncementsPage({ mode, title }: { mode?: 'create' | '
   const showList = mode === 'list' || mode === 'scheduled' || (!mode && tab === 'list')
 
   useEffect(() => { if (showList) load() }, [showList, mode])
+
+  useEffect(() => {
+    if (mode !== 'scheduled' || !showList) return
+    const timer = setInterval(() => {
+      load()
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [mode, showList])
+
+  const allSelected = items.length > 0 && selectedIds.length === items.length
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? [] : items.map(item => item.id))
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  }
+
+  async function deleteSelected() {
+    if (!selectedIds.length) return
+    if (!window.confirm(`Delete ${selectedIds.length} announcement(s)?`)) return
+    try {
+      await bulkDeleteAnnouncements(selectedIds)
+      pushToast(`${selectedIds.length} announcement(s) deleted.`)
+      setSelectedIds([])
+      await load()
+    } catch (error: any) {
+      pushToast(error?.response?.data?.message || 'Unable to delete announcements', 'error')
+    }
+  }
 
   function buildPayload(extra: Record<string, any> = {}) {
     const payload = new FormData()
@@ -225,16 +302,71 @@ export default function AnnouncementsPage({ mode, title }: { mode?: 'create' | '
           </LettersCard>
         )}
         <LettersCard>
+          {mode === 'scheduled' && (
+            <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              Scheduled announcements send automatically at the chosen time. Use <strong>Send</strong> if a scheduled time has passed and the message did not go out.
+            </div>
+          )}
+          {selectedIds.length > 0 && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span className="text-sm text-slate-700">{selectedIds.length} selected</span>
+              <button
+                type="button"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+                onClick={deleteSelected}
+              >
+                Delete Selected
+              </button>
+            </div>
+          )}
           <table className="min-w-full text-sm">
-            <thead><tr className="border-b text-left text-slate-500"><th className="py-3 pr-4">{t('title')}</th><th className="py-3 pr-4">{t('status')}</th><th className="py-3 pr-4">WhatsApp</th><th className="py-3">{t('actions')}</th></tr></thead>
+            <thead>
+              <tr className="border-b text-left text-slate-500">
+                <th className="py-3 pr-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all announcements"
+                  />
+                </th>
+                <th className="py-3 pr-4">Reference</th>
+                <th className="py-3 pr-4">{mode === 'scheduled' ? t('subject') : t('title')}</th>
+                {mode === 'scheduled' && <th className="py-3 pr-4">Scheduled Send Time</th>}
+                <th className="py-3 pr-4">{t('status')}</th>
+                <th className="py-3 pr-4">WhatsApp</th>
+                <th className="py-3">{t('actions')}</th>
+              </tr>
+            </thead>
             <tbody>
               {items.map(item => (
                 <tr key={item.id} className="border-b">
-                  <td className="py-3 pr-4 font-semibold">{item.title}</td>
-                  <td className="py-3 pr-4"><StatusBadge status={item.status} /></td>
+                  <td className="py-3 pr-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      aria-label={`Select ${item.title}`}
+                    />
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-xs text-slate-600">{item.reference || '—'}</td>
+                  <td className="py-3 pr-4 font-semibold">{item.title || '—'}</td>
+                  {mode === 'scheduled' && (
+                    <td className="py-3 pr-4 text-slate-700">
+                      <div className="space-y-1">
+                        {scheduleTimesFor(item).map((time, index) => (
+                          <div key={`${item.id}-schedule-${index}`} className="text-xs">{time}</div>
+                        ))}
+                        {!scheduleTimesFor(item).length && '—'}
+                      </div>
+                    </td>
+                  )}
+                  <td className="py-3 pr-4"><StatusBadge status={hasOverdueSchedule(item) ? 'overdue' : item.status} /></td>
                   <td className="py-3 pr-4 capitalize">{item.whatsapp_status?.replace(/_/g, ' ')}</td>
                   <td className="py-3">
-                    {!['sent'].includes(item.status) && <PrimaryButton className="mr-2" onClick={() => resend(item)}>{t('send')}</PrimaryButton>}
+                    {(mode !== 'scheduled' ? !['sent'].includes(item.status) : canManualSend(item)) && (
+                      <PrimaryButton className="mr-2" onClick={() => resend(item)}>{t('send')}</PrimaryButton>
+                    )}
                     <button className="text-red-600" onClick={async () => { await deleteAnnouncement(item.id); await load() }}>{t('delete')}</button>
                   </td>
                 </tr>

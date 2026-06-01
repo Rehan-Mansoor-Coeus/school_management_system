@@ -11,7 +11,7 @@ export default function AddUserPage() {
   const { pushToast } = useToast()
   const [roles, setRoles] = useState<{ id: number; name: string }[]>([])
   const [form, setForm] = useState({
-    name: '', email: '', password: '', phone_number: '', additional_phone_number: '', status: 'active', roles: [] as number[],
+    name: '', username: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', primary_role: '' as number | '', roles: [] as number[],
   })
   const [letterWorkflow, setLetterWorkflow] = useState({
     can_edit_letters: false,
@@ -29,13 +29,16 @@ export default function AddUserPage() {
   async function save(e: React.FormEvent) {
     e.preventDefault()
     try {
-      const res = await createUser({ ...form, roles: form.roles })
+      const roleIds = form.primary_role
+        ? Array.from(new Set([Number(form.primary_role), ...form.roles.filter(id => id !== Number(form.primary_role))]))
+        : form.roles
+      const res = await createUser({ ...form, roles: roleIds })
       const userId = res.data?.user?.id
       if (userId && (letterWorkflow.can_edit_letters || letterWorkflow.can_approve_letters || letterWorkflow.can_sign_letters || letterWorkflow.editor_signature_data || letterWorkflow.approver_signature_data || letterWorkflow.signer_signature_data)) {
         await saveUserLetterWorkflow(userId, letterWorkflow)
       }
       pushToast('User created successfully.')
-      navigate('/people/users')
+      navigate('/users')
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Unable to create user', 'error')
     }
@@ -48,22 +51,31 @@ export default function AddUserPage() {
           <h1 className="text-3xl font-bold text-[#1e3a5f]">Add User</h1>
           <p className="text-sm text-slate-500">Create a user with phone number and optional letter workflow permissions.</p>
         </div>
-        <SecondaryButton onClick={() => navigate('/people/users')}>Back to list</SecondaryButton>
+        <SecondaryButton onClick={() => navigate('/users')}>Back to list</SecondaryButton>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <form onSubmit={save} className="grid gap-4 md:grid-cols-2">
           <div><FieldLabel required>Name</FieldLabel><TextInput value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
+          <div><FieldLabel>Username</FieldLabel><TextInput value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} placeholder="Optional — used for login" /></div>
           <div><FieldLabel required>Email</FieldLabel><TextInput type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required /></div>
           <div><FieldLabel required>Password</FieldLabel><TextInput type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required /></div>
           <div>
-            <FieldLabel required>Role</FieldLabel>
+            <FieldLabel required>Primary Role</FieldLabel>
+            <select value={form.primary_role} onChange={e => setForm({ ...form, primary_role: e.target.value ? Number(e.target.value) : '' })} required className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
+              <option value="">Select role</option>
+              {roleOptions.map(role => <option key={role.id} value={role.id}>{role.label}</option>)}
+            </select>
+          </div>
+          <div><FieldLabel required>Phone Number</FieldLabel><TextInput value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} required /></div>
+          <div><FieldLabel>Additional Phone Number</FieldLabel><TextInput value={form.additional_phone_number} onChange={e => setForm({ ...form, additional_phone_number: e.target.value })} /></div>
+          <div className="md:col-span-2"><FieldLabel>Address</FieldLabel><TextInput value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+          <div>
+            <FieldLabel>Additional Roles</FieldLabel>
             <select multiple value={form.roles.map(String)} onChange={e => setForm({ ...form, roles: Array.from(e.target.selectedOptions, o => Number(o.value)) })} className="min-h-[120px] w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
               {roleOptions.map(role => <option key={role.id} value={role.id}>{role.label}</option>)}
             </select>
           </div>
-          <div><FieldLabel>Phone Number</FieldLabel><TextInput value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} /></div>
-          <div><FieldLabel>Additional Phone Number</FieldLabel><TextInput value={form.additional_phone_number} onChange={e => setForm({ ...form, additional_phone_number: e.target.value })} /></div>
           <div>
             <FieldLabel>Status</FieldLabel>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">
@@ -88,7 +100,7 @@ export default function AddUserPage() {
 
           <div className="md:col-span-2 flex gap-3">
             <PrimaryButton type="submit">Submit</PrimaryButton>
-            <SecondaryButton type="button" onClick={() => navigate('/people/users')}>Cancel</SecondaryButton>
+            <SecondaryButton type="button" onClick={() => navigate('/users')}>Cancel</SecondaryButton>
           </div>
         </form>
       </div>

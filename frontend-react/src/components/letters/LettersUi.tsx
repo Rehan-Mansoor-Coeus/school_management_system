@@ -109,125 +109,150 @@ function Barcode({ value }: { value?: string }) {
   return <div className="mt-1">{bars}<div className="mt-1 font-mono text-[10px]">{value}</div></div>
 }
 
+function resolveStorageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined
+  const apiBase = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
+  const apiOrigin = apiBase.replace(/\/api\/?$/, '')
+  try {
+    const parsed = new URL(url)
+    if (parsed.pathname.startsWith('/storage/')) {
+      return `${apiOrigin}${parsed.pathname}`
+    }
+  } catch {
+    if (url.startsWith('/storage/')) return `${apiOrigin}${url}`
+  }
+  return url
+}
+
 export function A4Preview({ preview, printMode = false }: { preview: any; printMode?: boolean }) {
   if (!preview) return null
 
+  const letterheadUrl = resolveStorageUrl(preview.letterhead_url)
+  const footerUrl = resolveStorageUrl(preview.footer_url)
+  const logoUrl = resolveStorageUrl(preview.logo_url)
+  const editorSig = preview.editor_indicator?.signature_url ? resolveStorageUrl(preview.editor_indicator.signature_url) : undefined
+  const approverSig = preview.approver_indicator?.signature_url ? resolveStorageUrl(preview.approver_indicator.signature_url) : undefined
+  const signerSig = preview.signer_signature_url ? resolveStorageUrl(preview.signer_signature_url) : undefined
+  const hasApprovalSigs = Boolean(editorSig || approverSig)
+
   return (
-    <div className={`letter-a4 mx-auto bg-white text-slate-900 shadow-lg ${printMode ? 'print-shadow-none' : ''}`}>
-      <div className="relative border-b border-slate-200">
-        {preview.letterhead_url ? (
-          <img src={preview.letterhead_url} alt="Letterhead" className="h-36 w-full object-cover" />
+    <div className={`letter-a4 relative mx-auto flex min-h-[297mm] w-[210mm] flex-col bg-white text-slate-900 shadow-lg ${printMode ? 'print:shadow-none' : ''}`}>
+      {logoUrl && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.07]">
+          <img src={logoUrl} alt="" className="max-h-72 max-w-[280px] object-contain" />
+        </div>
+      )}
+
+      <div className="relative z-10">
+        {letterheadUrl ? (
+          <img src={letterheadUrl} alt="Letterhead" className="block h-auto max-h-[100px] w-full object-contain" />
         ) : (
-          <div className="flex h-36 items-center justify-center bg-gradient-to-r from-[#1e3a5f] to-[#2a4a73] text-white">
-            <div>
-              {preview.logo_url && <img src={preview.logo_url} alt="Logo" className="mb-2 h-12 object-contain" />}
-              <div className="text-2xl font-bold">{preview.company_name || 'Institution Letterhead'}</div>
+          <div className="flex min-h-[80px] items-center justify-center bg-gradient-to-r from-[#1e3a5f] to-[#2a4a73] text-white">
+            <div className="text-center">
+              {logoUrl && <img src={logoUrl} alt="Logo" className="mx-auto mb-2 h-10 object-contain" />}
+              <div className="text-lg font-bold">{preview.company_name || 'Institution Letterhead'}</div>
             </div>
           </div>
         )}
-        <div className="absolute right-4 top-4 space-y-2 text-right text-xs">
-          {preview.editor_indicator && (
-            <div className="rounded bg-white/90 p-2 shadow">
-              {preview.editor_indicator.signature_url && (
-                <img src={preview.editor_indicator.signature_url} alt="Editor" className="ml-auto h-8 object-contain" />
-              )}
-              <div className="font-semibold">Editor: {preview.editor_indicator.name}</div>
-            </div>
-          )}
-          {preview.approver_indicator && (
-            <div className="rounded bg-white/90 p-2 shadow">
-              {preview.approver_indicator.signature_url && (
-                <img src={preview.approver_indicator.signature_url} alt="Approver" className="ml-auto h-8 object-contain" />
-              )}
-              <div className="font-semibold">Approver: {preview.approver_indicator.name}</div>
-            </div>
-          )}
-        </div>
+
+        {hasApprovalSigs && (
+          <div className="flex justify-end gap-2 px-10 py-1">
+            {editorSig && <img src={editorSig} alt="Editor signature" className="h-7 max-w-[72px] object-contain" />}
+            {approverSig && <img src={approverSig} alt="Approver signature" className="h-7 max-w-[72px] object-contain" />}
+          </div>
+        )}
       </div>
 
-      <div className="px-10 py-8">
-        <div className="mb-6 text-sm">
-          <div><strong>Ref:</strong> {preview.reference}</div>
+      <div className="relative z-10 flex-1 px-10 py-6">
+        <div className="mb-4 text-sm leading-relaxed">
+          {preview.reference && <div><strong>Ref:</strong> {preview.reference}</div>}
           <div>{preview.date}</div>
         </div>
 
-        <div className="mb-6 text-sm">
+        <div className="mb-4 text-sm leading-relaxed">
           <div>{preview.recipient_name}</div>
           {preview.recipient_address && <div>{preview.recipient_address}</div>}
-          <div className="mt-3">Dear {preview.recipient_name},</div>
+          <div className="mt-2">Dear: {preview.recipient_name},</div>
         </div>
 
-        <div className="mb-6 text-sm font-bold underline uppercase">{preview.subject}</div>
+        <div className="mb-4 text-sm font-bold uppercase underline">Subject: {preview.subject}</div>
 
         {preview.header_html && (
-          <div className="letter-content mb-4 text-sm" dangerouslySetInnerHTML={{ __html: preview.header_html }} />
+          <div className="letter-content mb-3 text-sm" dangerouslySetInnerHTML={{ __html: preview.header_html }} />
         )}
-        <div className="letter-content mb-8 min-h-[120px] text-sm leading-7" dangerouslySetInnerHTML={{ __html: preview.body_html }} />
+        <div className="letter-content mb-4 text-sm leading-7" dangerouslySetInnerHTML={{ __html: preview.body_html }} />
         {preview.footer_html && (
-          <div className="letter-content mb-8 text-sm" dangerouslySetInnerHTML={{ __html: preview.footer_html }} />
+          <div className="letter-content mb-4 text-sm" dangerouslySetInnerHTML={{ __html: preview.footer_html }} />
         )}
 
-        <div className="mt-10 text-sm">Sincerely,</div>
-        <div className="mt-8 grid grid-cols-2 gap-6 border-t border-slate-200 pt-6">
-          <div>
-            {preview.signer_signature_url ? (
-              <img src={preview.signer_signature_url} alt="Signature" className="mb-2 h-16 object-contain" />
+        <div className="mt-6 flex items-end justify-between gap-6">
+          <div className="min-w-0 flex-1 text-sm">
+            <div>Sincerely,</div>
+            {signerSig ? (
+              <img src={signerSig} alt="Signature" className="my-2 h-11 object-contain object-left" />
             ) : (
-              <div className="mb-2 h-16 border-b border-dashed border-slate-400" />
+              <div className="my-2 h-10 w-40 border-b border-dashed border-slate-400" />
             )}
             <div className="font-semibold">{preview.signer_name || preview.author_name}</div>
             {preview.signer_title && <div className="text-slate-600">{preview.signer_title}</div>}
             {preview.company_name && <div className="text-slate-600">{preview.company_name}</div>}
           </div>
-          <div className="text-right">
-            <Barcode value={preview.barcode_value} />
+
+          <div className="flex shrink-0 flex-col items-end">
+            {preview.barcode_url && (
+              <img src={preview.barcode_url} alt="Barcode" className="h-9 object-contain" />
+            )}
             {preview.qr_code_url && (
-              <img src={preview.qr_code_url} alt="QR Code" className="ml-auto mt-3 h-24 w-24 border border-slate-200" />
+              <img src={preview.qr_code_url} alt="QR Code" className="mt-1 h-[72px] w-[72px] object-contain" />
             )}
           </div>
         </div>
 
         {preview.cc?.length > 0 && (
-          <div className="mt-8 border-t border-slate-200 pt-4 text-xs">
+          <div className="mt-4 text-xs">
             <strong>CC:</strong> {preview.cc.join(', ')}
-          </div>
-        )}
-
-        {preview.attachments?.length > 0 && (
-          <div className="mt-6 border-t border-slate-200 pt-4 text-xs">
-            <strong>Attachments:</strong>
-            <ul className="mt-2 list-disc pl-5">
-              {preview.attachments.map((file: { id: number; original_name: string; url: string }) => (
-                <li key={file.id}>
-                  <a href={file.url} target="_blank" rel="noreferrer" className="text-[#1e3a5f] underline">
-                    {file.original_name}
-                  </a>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </div>
 
-      <div className="border-t border-slate-200">
-        {preview.footer_url ? (
-          <img src={preview.footer_url} alt="Footer" className="h-24 w-full object-cover" />
+      <div className="letter-footer relative z-10 mt-auto">
+        {footerUrl ? (
+          <img src={footerUrl} alt="Footer" className="block h-auto max-h-[70px] w-full object-contain" />
         ) : (
-          <div className="bg-slate-800 px-10 py-4 text-xs text-white">
+          <div className="bg-slate-900 px-10 py-3 text-center text-xs text-white">
             {preview.company_name || 'Institution footer'}
           </div>
         )}
       </div>
 
       <style>{`
-        .letter-a4 { width: 210mm; min-height: 297mm; }
         .letter-content p { margin: 0 0 0.75rem; }
         .letter-content ul, .letter-content ol { margin: 0 0 0.75rem 1.25rem; }
-        @media print {
-          body * { visibility: hidden; }
-          .letter-a4, .letter-a4 * { visibility: visible; }
-          .letter-a4 { position: absolute; left: 0; top: 0; width: 210mm; box-shadow: none; }
-        }
+        ${printMode ? `
+          @media print {
+            @page { size: A4 portrait; margin: 0; }
+            html, body { margin: 0; padding: 0; background: white; }
+            .letter-a4 { box-shadow: none; width: 210mm; min-height: 297mm; }
+            .letter-footer { break-inside: avoid; page-break-inside: avoid; }
+          }
+        ` : `
+          @media print {
+            @page { size: A4 portrait; margin: 0; }
+            body * { visibility: hidden; }
+            .letter-a4, .letter-a4 * { visibility: visible; }
+            .letter-a4 {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 210mm;
+              min-height: 297mm;
+              box-shadow: none;
+              display: flex;
+              flex-direction: column;
+            }
+            .letter-footer { break-inside: avoid; page-break-inside: avoid; margin-top: auto; }
+          }
+        `}
       `}</style>
     </div>
   )
