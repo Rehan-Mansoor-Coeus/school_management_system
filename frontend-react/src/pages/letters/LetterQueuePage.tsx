@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   approveLetter, bulkLetterAction, deleteLetter, fetchLetters, forwardLetter,
-  previewLetter, rejectLetter, sendLetter, signLetter,
+  previewLetter as fetchLetterPreview, rejectLetter, sendLetter, signLetter,
 } from '../../api/letters'
+import LetterActionDropdown from '../../components/letters/LetterActionDropdown'
 import {
   A4Preview, DangerButton, LettersCard, LettersPageHeader, PrimaryButton,
   SecondaryButton, StatusBadge, SuccessButton, TextInput,
@@ -34,29 +35,51 @@ export default function LetterQueuePage({
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<number[]>([])
   const [preview, setPreview] = useState<any>(null)
+  const [activeLetter, setActiveLetter] = useState<any>(null)
   const [error, setError] = useState('')
-  const [openActionId, setOpenActionId] = useState<number | null>(null)
   const [otpModal, setOtpModal] = useState<{ letter: any; action: string } | null>(null)
 
   const otpActions = ['approve', 'reject', 'sign', 'send']
-
   const can = (perm: string) => permissions.includes(perm)
+  const canEditLetter = (letter: any) =>
+    ['draft', 'awaiting_editing', 'awaiting_approval', 'awaiting_signature', 'rejected'].includes(letter.status)
+    && (can('edit_letters') || can('edit_awaiting_letters') || can('approve_letters') || can('sign_letters'))
 
   async function load() {
     const params: any = { search, per_page: 50 }
     if (statusIn) params.status_in = statusIn
     else if (status) params.status = status
-    const res = await fetchLetters(params)
-    setLetters(res.data?.data || [])
-    window.dispatchEvent(new Event('letters:refresh-counts'))
+    try {
+      const res = await fetchLetters(params)
+      setLetters(res.data?.data || res.data || [])
+      setError('')
+      window.dispatchEvent(new Event('letters:refresh-counts'))
+    } catch (err: any) {
+      setLetters([])
+      setError(err?.response?.data?.message || 'Failed to load letters')
+    }
   }
 
   useEffect(() => {
-    load().catch(() => setError('Failed to load letters'))
+    load()
   }, [status, statusIn, search])
 
   function toggle(id: number) {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function confirmBulkDelete() {
+    if (!selected.length) return
+    const msg = selected.length === 1
+      ? 'Delete the selected letter? This cannot be undone.'
+      : `Delete ${selected.length} selected letters? This cannot be undone.`
+    if (!window.confirm(msg)) return
+    bulk('delete')
+  }
+
+  function confirmDelete(letter: any) {
+    if (!window.confirm(`Delete letter "${letter.reference}"? This cannot be undone.`)) return
+    rowAction('delete', letter)
   }
 
   async function bulk(action: string, extra: any = {}) {
@@ -67,7 +90,6 @@ export default function LetterQueuePage({
   }
 
   async function rowAction(action: string, letter: any, otp?: string) {
-    setOpenActionId(null)
     try {
       const payload = otp ? { otp } : undefined
       if (action === 'approve') await approveLetter(letter.id, payload)
@@ -78,16 +100,26 @@ export default function LetterQueuePage({
       if (action === 'forward-signer') await forwardLetter(letter.id, { to: 'signer' })
       if (action === 'delete') await deleteLetter(letter.id)
       if (action === 'preview') {
-        const res = await previewLetter(letter.id)
+        const res = await fetchLetterPreview(letter.id)
         setPreview(res.data.preview)
+        setActiveLetter(letter)
+        setError('')
+        return
       }
       if (action === 'print') navigate(`/letters/print-view/${letter.id}`)
       if (action === 'download') {
-        const res = await previewLetter(letter.id)
+        const res = await fetchLetterPreview(letter.id)
         setPreview(res.data.preview)
+        setActiveLetter(letter)
         setTimeout(() => window.print(), 300)
+        return
       }
-      if (!['preview', 'print', 'download'].includes(action)) await load()
+      if (activeLetter?.id === letter.id) {
+        setPreview(null)
+        setActiveLetter(null)
+      }
+      setError('')
+      await load()
     } catch (err: any) {
       if (err?.response?.status === 422 && err?.response?.data?.otp_required && otpActions.includes(action)) {
         setOtpModal({ letter, action })
@@ -97,23 +129,51 @@ export default function LetterQueuePage({
     }
   }
 
-  function handleRowAction(action: string, letter: any) {
-    rowAction(action, letter)
+  function okActionForLetter(letter: any) {
+    if (letter.status === 'awaiting_editing') return 'forward-approver'
+    if (letter.status === 'awaiting_approval') return 'approve'
+    if (letter.status === 'awaiting_signature') return 'sign'
+    if (letter.status === 'ready_to_send') return 'send'
+    return null
   }
 
-  const actionOptions = useMemo(() => (letter: any) => {
-    const options: { key: string; label: string }[] = [{ key: 'preview', label: t('preview') }]
-    if (can('edit_letters') || can('edit_awaiting_letters')) options.push({ key: 'edit', label: t('edit') })
-    if (letter.status === 'awaiting_editing' && can('forward_letter_to_approver')) options.push({ key: 'forward-approver', label: `${t('forward')} approver` })
-    if (letter.status === 'awaiting_approval' && can('approve_letters')) options.push({ key: 'approve', label: t('approve') })
-    if (letter.status === 'awaiting_approval' && can('reject_letters')) options.push({ key: 'reject', label: t('reject') })
-    if (letter.status === 'awaiting_signature' && can('sign_letters')) options.push({ key: 'sign', label: t('sign') })
-    if (letter.status === 'ready_to_send' && can('send_letters')) options.push({ key: 'send', label: t('send') })
-    if (allowPrint || ['ready_to_send', 'sent'].includes(letter.status)) options.push({ key: 'print', label: t('printLetters') })
-    if (allowDownload || ['ready_to_send', 'sent'].includes(letter.status)) options.push({ key: 'download', label: t('downloadLetters') })
-    if (can('delete_letters')) options.push({ key: 'delete', label: t('delete') })
-    return options
-  }, [permissions, allowPrint, allowDownload, t])
+  function okLabelForLetter(letter: any) {
+    const action = okActionForLetter(letter)
+    if (action === 'forward-approver') return 'OK — Send to Approver'
+    if (action === 'approve') return 'OK — Approve'
+    if (action === 'sign') return 'OK — Sign'
+    if (action === 'send') return 'OK — Send via WhatsApp'
+    return null
+  }
+
+  async function openPreview(letter: any) {
+    if (!letter?.id) {
+      setError('Invalid letter record.')
+      return
+    }
+    try {
+      setError('')
+      const res = await fetchLetterPreview(letter.id)
+      if (!res.data?.preview) {
+        setError('Preview data was not returned.')
+        return
+      }
+      setPreview(res.data.preview)
+      setActiveLetter(letter)
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Unable to load preview')
+    }
+  }
+
+  function openPrint(letter: any) {
+    navigate(`/letters/print-view/${letter.id}`)
+  }
+
+  function openEdit(letter: any) {
+    setPreview(null)
+    setActiveLetter(null)
+    navigate(`/letters/edit/${letter.id}`)
+  }
 
   return (
     <div className="space-y-6">
@@ -125,7 +185,7 @@ export default function LetterQueuePage({
             {allowBulkSign && can('sign_letters') && <SuccessButton onClick={() => bulk('sign')}>{t('bulkSign')}</SuccessButton>}
             {allowBulkSend && can('send_letters') && <PrimaryButton onClick={() => bulk('send')}>{t('bulkSend')}</PrimaryButton>}
             {allowPrint && selected.length > 0 && <SecondaryButton onClick={() => navigate(`/letters/print-view/${selected[0]}`)}>{t('printLetters')}</SecondaryButton>}
-            {can('delete_letters') && <DangerButton onClick={() => bulk('delete')}>{t('bulkDelete')}</DangerButton>}
+            {can('delete_letters') && <DangerButton onClick={confirmBulkDelete} disabled={!selected.length}>{t('bulkDelete')}</DangerButton>}
           </div>
         }
       />
@@ -157,36 +217,42 @@ export default function LetterQueuePage({
             </thead>
             <tbody>
               {letters.map(letter => (
-                <tr key={letter.id} className="border-b align-top">
-                  <td className="py-3 pr-3"><input type="checkbox" checked={selected.includes(letter.id)} onChange={() => toggle(letter.id)} /></td>
-                  <td className="py-3 pr-4">{letter.recipients?.[0]?.name || letter.author_name || '—'}</td>
-                  <td className="py-3 pr-4 font-mono text-xs">{letter.reference}</td>
-                  <td className="py-3 pr-4">{letter.category?.name || '—'}</td>
-                  <td className="py-3 pr-4">{letter.subject}</td>
-                  <td className="py-3 pr-4"><StatusBadge status={letter.status} /></td>
-                  <td className="py-3 pr-4">{letter.creator?.name || '—'}</td>
-                  <td className="py-3 pr-4">{letter.edited_by || letter.updater?.name || '—'}</td>
-                  <td className="py-3 pr-4">{letter.approved_by || '—'}</td>
-                  <td className="py-3 pr-4">{letter.signed_by || '—'}</td>
-                  <td className="py-3 pr-4">{letter.created_at ? new Date(letter.created_at).toLocaleDateString() : '—'}</td>
-                  <td className="py-3">
-                    <div className="relative">
-                      <SecondaryButton onClick={() => setOpenActionId(openActionId === letter.id ? null : letter.id)}>{t('actions')} ▾</SecondaryButton>
-                      {openActionId === letter.id && (
-                        <div className="absolute right-0 z-20 mt-1 min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                          {actionOptions(letter).map(option => (
-                            <button
-                              key={option.key}
-                              type="button"
-                              className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                              onClick={() => handleRowAction(option.key, letter)}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                <tr key={letter.id} className="border-b align-top transition hover:bg-slate-50/80">
+                  <td className="py-3 pr-3" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.includes(letter.id)} onChange={() => toggle(letter.id)} />
+                  </td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.recipients?.[0]?.name || letter.author_name || '—'}</td>
+                  <td className="cursor-pointer py-3 pr-4 font-mono text-xs" onClick={() => openPreview(letter)}>{letter.reference}</td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>
+                    <span className="inline-flex items-center gap-2">
+                      {letter.category?.color_tag && <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: letter.category.color_tag }} />}
+                      {letter.category?.name || '—'}
+                    </span>
+                  </td>
+                  <td className="cursor-pointer py-3 pr-4 font-medium text-[#1e3a5f] hover:underline" onClick={() => openPreview(letter)}>{letter.subject}</td>
+                  <td className="py-3 pr-4">
+                    <button type="button" className="cursor-pointer" onClick={() => openPreview(letter)}>
+                      <StatusBadge status={letter.status} />
+                    </button>
+                  </td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.creator?.name || '—'}</td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.edited_by || letter.updater?.name || '—'}</td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.approved_by || '—'}</td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.signed_by || '—'}</td>
+                  <td className="cursor-pointer py-3 pr-4" onClick={() => openPreview(letter)}>{letter.created_at ? new Date(letter.created_at).toLocaleDateString() : '—'}</td>
+                  <td className="py-3" onClick={e => e.stopPropagation()}>
+                    <LetterActionDropdown
+                      letter={letter}
+                      onPreview={() => openPreview(letter)}
+                      onEdit={() => openEdit(letter)}
+                      onForward={() => rowAction('forward-approver', letter)}
+                      onPrint={() => openPrint(letter)}
+                      onDelete={() => confirmDelete(letter)}
+                      onApprove={() => rowAction('approve', letter)}
+                      onReject={() => rowAction('reject', letter)}
+                      onSign={() => rowAction('sign', letter)}
+                      onSend={() => rowAction('send', letter)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -212,14 +278,25 @@ export default function LetterQueuePage({
       />
 
       <Modal
-        title={t('preview')}
+        title="Preview"
         open={!!preview}
-        onClose={() => setPreview(null)}
+        onClose={() => { setPreview(null); setActiveLetter(null) }}
         wide
         footer={
-          <div className="flex justify-end gap-2 print:hidden">
+          <div className="flex flex-wrap justify-end gap-2 print:hidden">
+            {activeLetter && canEditLetter(activeLetter) && (
+              <PrimaryButton onClick={() => openEdit(activeLetter)}>Edit Letter</PrimaryButton>
+            )}
+            {activeLetter && okLabelForLetter(activeLetter) && (
+              <SuccessButton onClick={() => {
+                const action = okActionForLetter(activeLetter)
+                if (action) rowAction(action, activeLetter)
+              }}>
+                {okLabelForLetter(activeLetter)}
+              </SuccessButton>
+            )}
             <SecondaryButton onClick={() => window.print()}>{t('printLetters')}</SecondaryButton>
-            <SecondaryButton onClick={() => setPreview(null)}>{t('cancel')}</SecondaryButton>
+            <SecondaryButton onClick={() => { setPreview(null); setActiveLetter(null) }}>{t('cancel')}</SecondaryButton>
           </div>
         }
       >

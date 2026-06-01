@@ -1,7 +1,8 @@
 import api from './client'
 
 export const fetchLetterCounts = () => api.get('/letters/counts')
-export const searchLetterRecipients = (query: string) => api.get('/letters/recipients/search', { params: { query } })
+export const searchLetterRecipients = (query: string, category?: string, all = false) =>
+  api.get('/letters/recipients/search', { params: { query, type: category, all: all ? 1 : undefined } })
 export const fetchUserLetterWorkflow = (userId: number) => api.get(`/letters/users/${userId}/letter-workflow`)
 export const saveUserLetterWorkflow = (userId: number, payload: Record<string, any>) => api.post(`/letters/users/${userId}/letter-workflow`, payload)
 
@@ -31,15 +32,26 @@ export const sendLetter = (id: number, payload?: any) => api.post(`/letters/${id
 export const bulkLetterAction = (payload: any) => api.post('/letters/bulk', payload)
 export const previewLetter = (id: number) => api.get(`/letters/${id}/preview`)
 
-export const searchAnnouncementRecipients = (category: string, query = '') =>
-  api.get('/letters/announcements/recipients/search', { params: { category, query } })
+export const searchAnnouncementRecipients = (category: string, query = '', all = false) =>
+  api.get('/letters/announcements/recipients/search', { params: { category, query, all: all ? 1 : undefined } })
 
 export const fetchAnnouncements = (params?: any) => api.get('/letters/announcements', { params })
+export const processScheduledAnnouncements = () => api.post('/letters/announcements/process-scheduled')
 export const createAnnouncement = (payload: FormData) => api.post('/letters/announcements', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const updateAnnouncement = (id: number, payload: FormData) => api.put(`/letters/announcements/${id}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const previewAnnouncement = (payload: FormData) => api.post('/letters/announcements/preview', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const sendAnnouncement = (id: number) => api.post(`/letters/announcements/${id}/send`)
 export const deleteAnnouncement = (id: number) => api.delete(`/letters/announcements/${id}`)
+export const bulkDeleteAnnouncements = (ids: number[]) => api.post('/letters/announcements/bulk-delete', { ids })
+
+export const fetchAnnouncementTemplates = (search?: string) =>
+  api.get('/letters/announcements/templates', { params: search ? { search } : undefined })
+export const createAnnouncementTemplate = (payload: Record<string, unknown>) =>
+  api.post('/letters/announcements/templates', payload)
+export const updateAnnouncementTemplate = (id: number, payload: Record<string, unknown>) =>
+  api.put(`/letters/announcements/templates/${id}`, payload)
+export const deleteAnnouncementTemplate = (id: number) =>
+  api.delete(`/letters/announcements/templates/${id}`)
 
 export const requestOtp = (payload: any) => api.post('/letters/otp/request', payload)
 export const verifyOtp = (payload: any) => api.post('/letters/otp/verify', payload)

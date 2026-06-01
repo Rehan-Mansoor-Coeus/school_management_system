@@ -18,6 +18,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'institution_id' => 'nullable|integer|min:1',
             'name' => 'required|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
@@ -29,6 +30,7 @@ class AuthController extends Controller
         $user = User::create([
             'institution_id' => $request->institution_id ?: 1,
             'name' => $request->name,
+            'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'api_token' => Str::random(60),
@@ -44,7 +46,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email',
+            'login' => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -52,12 +54,19 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $login = trim($request->login);
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (!Auth::attempt($credentials)) {
+        $credentials = [
+            $field => $login,
+            'password' => $request->password,
+        ];
+
+        if (! Auth::attempt($credentials)) {
             if (config('app.debug')) {
                 Log::warning('Login failed', [
-                    'email' => $request->email,
+                    'login' => $login,
+                    'field' => $field,
                     'ip' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);

@@ -1,6 +1,6 @@
 import api from './client'
 
-export type PeopleEntity = 'customers' | 'billers' | 'suppliers'
+export type PeopleEntity = 'customers' | 'billers' | 'suppliers' | 'students' | 'teachers' | 'staff'
 
 export type PeopleRecord = {
   id: number
@@ -10,6 +10,8 @@ export type PeopleRecord = {
   additional_phone_number?: string | null
   address?: string | null
   status: 'active' | 'inactive'
+  role_ids?: number[]
+  roles?: number[]
 }
 
 export const fetchPeople = (entity: PeopleEntity, params?: { search?: string; status?: string; page?: number }) =>

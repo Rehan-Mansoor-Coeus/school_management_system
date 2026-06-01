@@ -32,25 +32,7 @@ class AnnouncementMessagingService
         $announcement->whatsapp_status = 'sending';
         $announcement->save();
 
-        $mediaUrl = null;
-        $mediaMime = null;
-        $mediaName = null;
-        $attachment = $announcement->attachments->first();
-        if ($attachment) {
-            $upload = $this->whatsapp->uploadLocalFile($attachment->path, $attachment->mime_type);
-            if ($upload['success']) {
-                $mediaUrl = $upload['public_url'];
-                $mediaMime = $attachment->mime_type;
-                $mediaName = $attachment->original_name;
-            }
-        } elseif ($announcement->attachment_path) {
-            $upload = $this->whatsapp->uploadLocalFile($announcement->attachment_path);
-            if ($upload['success']) {
-                $mediaUrl = $upload['public_url'];
-                $mediaName = basename($announcement->attachment_path);
-                $mediaMime = Storage::disk('public')->mimeType($announcement->attachment_path);
-            }
-        }
+        $mediaItems = $this->prepareMediaItems($announcement);
 
         $results = [
             'total' => $announcement->recipients->count(),
@@ -60,8 +42,13 @@ class AnnouncementMessagingService
             'failed_recipients' => [],
         ];
 
+        $index = 0;
         foreach ($announcement->recipients as $recipient) {
-            $outcome = $this->sendToRecipient($announcement, $recipient, $institutionName, $mediaUrl, $mediaMime, $mediaName);
+            if ($index > 0) {
+                sleep(6);
+            }
+
+            $outcome = $this->sendToRecipient($announcement, $recipient, $institutionName, $mediaItems);
 
             if ($outcome['status'] === 'sent') {
                 $results['sent']++;
@@ -80,6 +67,8 @@ class AnnouncementMessagingService
                     'error' => $outcome['error'],
                 ];
             }
+
+            $index++;
         }
 
         if ($results['total'] === 0) {
@@ -106,13 +95,45 @@ class AnnouncementMessagingService
         return $results;
     }
 
+    protected function prepareMediaItems(Announcement $announcement): array
+    {
+        $items = [];
+        $paths = $announcement->attachments->map(function ($attachment) {
+            return [
+                'path' => $attachment->path,
+                'mime' => $attachment->mime_type,
+                'name' => $attachment->original_name,
+            ];
+        });
+
+        if ($paths->isEmpty() && $announcement->attachment_path) {
+            $paths = collect([[
+                'path' => $announcement->attachment_path,
+                'mime' => Storage::disk('public')->mimeType($announcement->attachment_path),
+                'name' => basename($announcement->attachment_path),
+            ]]);
+        }
+
+        foreach ($paths as $item) {
+            $upload = $this->whatsapp->uploadLocalFile($item['path'], $item['mime']);
+            if ($upload['success']) {
+                $items[] = [
+                    'url' => $upload['public_url'],
+                    'mime' => $item['mime'],
+                    'name' => $item['name'],
+                    'path' => $item['path'],
+                ];
+            }
+        }
+
+        return $items;
+    }
+
     protected function sendToRecipient(
         Announcement $announcement,
         AnnouncementRecipient $recipient,
         $institutionName,
-        ?string $mediaUrl,
-        ?string $mediaMime,
-        ?string $mediaName
+        array $mediaItems = []
     ) {
         $phone = trim((string) $recipient->phone);
         $normalized = $this->whatsapp->normalizePhoneNumber($phone);
@@ -128,18 +149,41 @@ class AnnouncementMessagingService
         $recipient->personalized_message = $messageBody;
         $recipient->save();
 
-        if ($mediaUrl) {
-            $response = $this->sendWithMedia($normalized, $messageBody, $mediaUrl, $mediaMime, $mediaName);
-        } else {
+        if (empty($mediaItems)) {
             $response = $this->whatsapp->sendTextMessage($normalized, $messageBody);
+        } else {
+            $response = $this->sendWithMedia(
+                $normalized,
+                $messageBody,
+                $mediaItems[0]['url'],
+                $mediaItems[0]['mime'],
+                $mediaItems[0]['name']
+            );
+
+            for ($i = 1; $i < count($mediaItems); $i++) {
+                sleep(6);
+                $extra = $this->sendWithMedia(
+                    $normalized,
+                    $mediaItems[$i]['name'],
+                    $mediaItems[$i]['url'],
+                    $mediaItems[$i]['mime'],
+                    $mediaItems[$i]['name']
+                );
+                if (! $extra['success']) {
+                    $response = $extra;
+                    break;
+                }
+            }
         }
+
+        $primaryPath = $mediaItems[0]['path'] ?? ($announcement->attachment_path ?: optional($announcement->attachments->first())->path);
 
         $this->logAttempt(
             $announcement,
             $recipient,
             $response['phone_number'] ?? $normalized,
             $messageBody,
-            $announcement->attachment_path ?: optional($announcement->attachments->first())->path,
+            $primaryPath,
             $response['success'] ? 'sent' : 'failed',
             $response['provider_response'] ?? null,
             $response['error'] ?? null
@@ -179,11 +223,17 @@ class AnnouncementMessagingService
 
     protected function buildMessageBody(Announcement $announcement, AnnouncementRecipient $recipient, $institutionName): string
     {
-        $parts = array_filter([
-            $this->personalize($announcement->header_html, $recipient, $institutionName),
-            $this->personalize($announcement->body_html, $recipient, $institutionName),
-            $this->personalize($announcement->footer_html, $recipient, $institutionName),
-        ]);
+        $parts = [];
+
+        if ($announcement->reference) {
+            $parts[] = 'Ref: '.$announcement->reference;
+        }
+
+        $parts = array_merge($parts, array_filter([
+            $this->personalize($announcement->header_html, $announcement, $recipient, $institutionName),
+            $this->personalize($announcement->body_html, $announcement, $recipient, $institutionName),
+            $this->personalize($announcement->footer_html, $announcement, $recipient, $institutionName),
+        ]));
 
         $html = implode("\n\n", $parts);
         $text = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], "\n", $html)));
@@ -191,7 +241,7 @@ class AnnouncementMessagingService
         return $text !== '' ? $text : ($announcement->title ?: 'Announcement');
     }
 
-    protected function personalize($template, AnnouncementRecipient $recipient, $institutionName = null): string
+    protected function personalize($template, Announcement $announcement, AnnouncementRecipient $recipient, $institutionName = null): string
     {
         if (! $template) {
             return '';
@@ -202,7 +252,9 @@ class AnnouncementMessagingService
             'phone' => $recipient->phone,
             'phone_number' => $recipient->phone,
             'email' => $recipient->email,
+            'address' => $recipient->address,
             'institution_name' => $institutionName,
+            'reference' => $announcement->reference,
             'date' => now()->format('M d, Y'),
         ]);
     }

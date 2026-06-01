@@ -11,4 +11,9 @@ class AnnouncementSchedule extends Model
     ];
 
     protected $dates = ['scheduled_at', 'sent_at'];
+
+    public function announcement()
+    {
+        return $this->belongsTo(Announcement::class);
+    }
 }

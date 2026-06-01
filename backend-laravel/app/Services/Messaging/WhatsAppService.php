@@ -40,12 +40,20 @@ class WhatsAppService
             return null;
         }
 
+        if (strpos($clean, '00') === 0 && strlen($clean) > 2) {
+            $clean = '+'.substr($clean, 2);
+        }
+
         if (strpos($clean, '+') === 0) {
             $normalized = $clean;
         } elseif (ctype_digit($clean)) {
             $normalized = '+'.$clean;
         } else {
-            return null;
+            $digits = preg_replace('/\D/', '', $clean);
+            if ($digits === '') {
+                return null;
+            }
+            $normalized = '+'.$digits;
         }
 
         $digitsOnly = preg_replace('/\D/', '', $normalized);

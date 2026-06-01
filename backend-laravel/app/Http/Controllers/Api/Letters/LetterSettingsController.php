@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Letters;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Letters\Concerns\ResolvesLettersContext;
 use App\LetterSetting;
+use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -25,7 +26,7 @@ class LetterSettingsController extends Controller
             ['serial_prefix' => 'LTR-', 'serial_counter' => 0]
         );
 
-        return response()->json($this->formatSettings($settings));
+        return response()->json($this->formatSettings($settings, $request));
     }
 
     public function update(Request $request)
@@ -59,6 +60,12 @@ class LetterSettingsController extends Controller
         ]));
 
         foreach (['letterhead' => 'letterhead_path', 'footer' => 'footer_path', 'logo' => 'logo_path'] as $field => $column) {
+            if ($request->boolean('remove_'.$field)) {
+                if ($settings->{$column}) {
+                    Storage::disk('public')->delete($settings->{$column});
+                }
+                $settings->{$column} = null;
+            }
             if ($request->hasFile($field)) {
                 if ($settings->{$column}) {
                     Storage::disk('public')->delete($settings->{$column});
@@ -69,10 +76,10 @@ class LetterSettingsController extends Controller
 
         $settings->save();
 
-        return response()->json(['message' => 'Letter settings saved.', 'settings' => $this->formatSettings($settings)]);
+        return response()->json(['message' => 'Letter settings saved.', 'settings' => $this->formatSettings($settings, $request)]);
     }
 
-    protected function formatSettings(LetterSetting $settings)
+    protected function formatSettings(LetterSetting $settings, ?Request $request = null)
     {
         return [
             'id' => $settings->id,
@@ -82,9 +89,9 @@ class LetterSettingsController extends Controller
             'default_footer_text' => $settings->default_footer_text,
             'serial_prefix' => $settings->serial_prefix,
             'serial_counter' => $settings->serial_counter,
-            'letterhead_url' => $settings->letterhead_path ? Storage::disk('public')->url($settings->letterhead_path) : null,
-            'footer_url' => $settings->footer_path ? Storage::disk('public')->url($settings->footer_path) : null,
-            'logo_url' => $settings->logo_path ? Storage::disk('public')->url($settings->logo_path) : null,
+            'letterhead_url' => LetterAssetHelper::url($settings->letterhead_path, $request),
+            'footer_url' => LetterAssetHelper::url($settings->footer_path, $request),
+            'logo_url' => LetterAssetHelper::url($settings->logo_path, $request),
         ];
     }
 }

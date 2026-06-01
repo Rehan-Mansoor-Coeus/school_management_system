@@ -15,7 +15,7 @@ class UserController extends Controller
     public function index()
     {
         $institutionId = (int) (optional(request()->user())->institution_id ?: 1);
-        return response()->json(User::with('roles')->where('institution_id', $institutionId)->get());
+        return response()->json(User::with('roles')->loginAccounts()->where('institution_id', $institutionId)->get());
     }
 
     public function store(Request $request)
@@ -23,8 +23,13 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'institution_id' => 'nullable|integer|min:1',
             'name' => 'required|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
+            'phone_number' => 'nullable|string|max:50',
+            'additional_phone_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string',
+            'status' => 'nullable|in:active,inactive',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -36,8 +41,14 @@ class UserController extends Controller
         $user = User::create([
             'institution_id' => $request->institution_id ?: (optional($request->user())->institution_id ?: 1),
             'name' => $request->name,
+            'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'phone_number' => $request->phone_number,
+            'additional_phone_number' => $request->additional_phone_number,
+            'address' => $request->address,
+            'status' => $request->get('status', 'active'),
+            'category' => 'user',
             'api_token' => Str::random(60),
         ]);
 
@@ -59,8 +70,13 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'institution_id' => 'nullable|integer|min:1',
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'username' => 'nullable|string|max:255|unique:users,username,'.$user->id,
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'password' => 'nullable|string|min:8',
+            'phone_number' => 'nullable|string|max:50',
+            'additional_phone_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string',
+            'status' => 'nullable|in:active,inactive',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -72,8 +88,13 @@ class UserController extends Controller
         $user->update([
             'institution_id' => $request->institution_id ?: $user->institution_id,
             'name' => $request->name,
+            'username' => $request->username,
             'email' => $request->email,
             'password' => $request->filled('password') ? Hash::make($request->password) : $user->password,
+            'phone_number' => $request->get('phone_number', $user->phone_number),
+            'additional_phone_number' => $request->get('additional_phone_number', $user->additional_phone_number),
+            'address' => $request->get('address', $user->address),
+            'status' => $request->get('status', $user->status ?: 'active'),
         ]);
 
         if ($request->filled('roles')) {

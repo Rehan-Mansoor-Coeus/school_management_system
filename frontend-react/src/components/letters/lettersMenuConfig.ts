@@ -30,6 +30,7 @@ export type LettersMenuItem = {
 
 export const announcementMenuItems: LettersMenuItem[] = [
   { labelKey: 'createAnnouncement', path: '/letters/announcements/create', icon: Plus },
+  { labelKey: 'announcementTemplates', path: '/letters/announcements/templates', icon: FileText },
   { labelKey: 'announcementList', path: '/letters/announcements', icon: Megaphone },
   { labelKey: 'scheduledAnnouncements', path: '/letters/announcements/scheduled', icon: CalendarClock },
   { labelKey: 'messageLogs', path: '/letters/message-logs', icon: MessageSquare },

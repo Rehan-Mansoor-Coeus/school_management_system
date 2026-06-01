@@ -35,6 +35,7 @@ class LetterCategoryController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'color_tag' => 'nullable|string|max:20',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -46,6 +47,7 @@ class LetterCategoryController extends Controller
             'institution_id' => $this->institutionId($request),
             'name' => $request->name,
             'description' => $request->description,
+            'color_tag' => $request->color_tag,
             'is_active' => $request->boolean('is_active', true),
         ]);
 
@@ -64,6 +66,7 @@ class LetterCategoryController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'color_tag' => 'nullable|string|max:20',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -71,7 +74,7 @@ class LetterCategoryController extends Controller
             return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed.'], 422);
         }
 
-        $category->fill($request->only(['name', 'description', 'is_active']));
+        $category->fill($request->only(['name', 'description', 'color_tag', 'is_active']));
         $category->save();
 
         return response()->json(['message' => 'Category updated.', 'category' => $category]);

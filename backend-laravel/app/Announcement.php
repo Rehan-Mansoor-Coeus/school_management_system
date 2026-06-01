@@ -10,7 +10,7 @@ class Announcement extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'institution_id', 'title', 'category', 'header_html', 'body_html', 'footer_html', 'attachment_path',
+        'institution_id', 'title', 'reference', 'category', 'header_html', 'body_html', 'footer_html', 'attachment_path',
         'audience_type', 'status', 'scheduled_at', 'sent_at', 'created_by', 'whatsapp_status',
     ];
 
