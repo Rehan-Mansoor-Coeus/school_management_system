@@ -5,6 +5,11 @@ namespace App\Http\Controllers\Api\People\Concerns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * Generic CRUD for standalone "people" entities that have their own table
+ * (customers, billers, suppliers). Student/teacher/staff are NOT handled here —
+ * they live in the `users` table and use HandlesUserPeopleCrud.
+ */
 trait HandlesPeopleCrud
 {
     abstract protected function modelClass(): string;
@@ -54,7 +59,7 @@ trait HandlesPeopleCrud
         }
 
         $record = $this->modelClass()::create(array_merge(
-            $validator->validated(),
+            $this->preparePayload($validator->validated(), $request),
             ['institution_id' => $this->institutionId($request), 'status' => $request->get('status', 'active')]
         ));
 
@@ -79,7 +84,7 @@ trait HandlesPeopleCrud
             return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed.'], 422);
         }
 
-        $record->update($validator->validated());
+        $record->update($this->preparePayload($validator->validated(), $request));
 
         return response()->json(['message' => 'Record updated.', 'data' => $record]);
     }
@@ -105,7 +110,7 @@ trait HandlesPeopleCrud
 
     protected function rules($updating = false): array
     {
-        return [
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone_number' => 'required|string|max:50',
@@ -113,5 +118,33 @@ trait HandlesPeopleCrud
             'address' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
         ];
+
+        if ($this->supportsRoles()) {
+            $rules['roles'] = 'nullable|array';
+            $rules['roles.*'] = 'integer|exists:roles,id';
+        }
+
+        return $rules;
+    }
+
+    protected function supportsRoles(): bool
+    {
+        return false;
+    }
+
+    protected function preparePayload(array $data, Request $request): array
+    {
+        if ($this->supportsRoles()) {
+            $data['role_ids'] = collect($request->get('roles', []))
+                ->filter()
+                ->map(function ($roleId) {
+                    return (int) $roleId;
+                })
+                ->values()
+                ->all();
+            unset($data['roles']);
+        }
+
+        return $data;
     }
 }

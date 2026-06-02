@@ -28,24 +28,29 @@ class LetterMessagingService
 
     public function queueLetterDelivery(Letter $letter, ?int $senderId = null): array
     {
-        $letter->loadMissing('recipients');
+        $letter->loadMissing(['recipients', 'schedules']);
         $queued = 0;
+        $scheduleTimes = $letter->schedules->pluck('scheduled_at')->filter();
 
         foreach ($letter->recipients as $recipient) {
-            $row = MessageQueue::create([
-                'institution_id' => $letter->institution_id,
-                'module' => 'letter',
-                'related_id' => $letter->id,
-                'recipient_id' => $recipient->id,
-                'payload' => [
-                    'sender_id' => $senderId,
-                ],
-                'scheduled_at' => $letter->scheduled_at,
-                'status' => 'pending',
-            ]);
+            $times = $scheduleTimes->isNotEmpty() ? $scheduleTimes : collect([$letter->scheduled_at]);
 
-            SendLetterJob::dispatch($row->id)->onQueue('whatsapp');
-            $queued++;
+            foreach ($times as $when) {
+                $row = MessageQueue::create([
+                    'institution_id' => $letter->institution_id,
+                    'module' => 'letter',
+                    'related_id' => $letter->id,
+                    'recipient_id' => $recipient->id,
+                    'payload' => [
+                        'sender_id' => $senderId,
+                    ],
+                    'scheduled_at' => $when,
+                    'status' => 'pending',
+                ]);
+
+                SendLetterJob::dispatch($row->id)->onQueue('whatsapp');
+                $queued++;
+            }
         }
 
         return ['queued' => $queued];
@@ -66,7 +71,7 @@ class LetterMessagingService
         $queue->attempts = (int) $queue->attempts + 1;
         $queue->save();
 
-        $letter = Letter::with('recipients')->find($queue->related_id);
+        $letter = Letter::with(['recipients', 'attachments'])->find($queue->related_id);
         $recipient = LetterRecipient::find($queue->recipient_id);
 
         if (! $letter || ! $recipient) {
@@ -89,7 +94,7 @@ class LetterMessagingService
             return $this->failQueue($queue, $upload['error'] ?? 'Unable to prepare PDF attachment.', $letter, $recipient, $pdfPath);
         }
 
-        $caption = 'Please find attached: '.$letter->subject;
+        $caption = trim($letter->reference.': '.$letter->subject);
         $result = $this->whatsapp->sendDocumentMessage(
             $normalized,
             $documentUrl,
@@ -108,6 +113,11 @@ class LetterMessagingService
         ]);
 
         if ($result['success'] ?? false) {
+            $attachmentError = $this->sendLetterAttachments($letter, $normalized);
+            if ($attachmentError) {
+                return $this->failQueue($queue, $attachmentError, $letter, $recipient, $pdfPath);
+            }
+
             $recipient->delivery_status = 'sent';
             $recipient->save();
             $queue->status = 'sent';
@@ -118,6 +128,55 @@ class LetterMessagingService
         }
 
         return $this->failQueue($queue, $result['error'] ?? 'Send failed.', $letter, $recipient, $pdfPath);
+    }
+
+    protected function sendLetterAttachments(Letter $letter, string $normalizedPhone): ?string
+    {
+        $attachments = $letter->attachments ?? collect();
+        if ($attachments->isEmpty()) {
+            return null;
+        }
+
+        foreach ($attachments as $index => $attachment) {
+            if ($index > 0) {
+                sleep(6);
+            }
+
+            $upload = $this->whatsapp->uploadLocalFile($attachment->path, $attachment->mime_type);
+            $mediaUrl = $upload['public_url'] ?? $this->whatsapp->publicUrlForStoragePath($attachment->path);
+
+            if (! $mediaUrl) {
+                return $upload['error'] ?? 'Unable to prepare attachment for WhatsApp.';
+            }
+
+            $mime = strtolower((string) $attachment->mime_type);
+            if (strpos($mime, 'image/') === 0) {
+                $result = $this->whatsapp->sendImageMessage($normalizedPhone, $mediaUrl, $attachment->original_name);
+            } else {
+                $result = $this->whatsapp->sendDocumentMessage(
+                    $normalizedPhone,
+                    $mediaUrl,
+                    $attachment->original_name,
+                    $attachment->original_name
+                );
+            }
+
+            $this->messageLogs->logWhatsAppResult($letter->institution_id, $result, [
+                'recipient_name' => null,
+                'phone_number' => $normalizedPhone,
+                'message_type' => strpos($mime, 'image/') === 0 ? 'image' : 'document',
+                'module' => 'letter',
+                'related_id' => $letter->id,
+                'message' => $attachment->original_name,
+                'attachment_url' => $mediaUrl,
+            ]);
+
+            if (! ($result['success'] ?? false)) {
+                return $result['error'] ?? 'Failed to send letter attachment.';
+            }
+        }
+
+        return null;
     }
 
     protected function failQueue(

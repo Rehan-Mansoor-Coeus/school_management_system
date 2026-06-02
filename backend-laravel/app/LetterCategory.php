@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class LetterCategory extends Model
 {
-    protected $fillable = ['institution_id', 'name', 'description', 'is_active'];
+    protected $fillable = ['institution_id', 'name', 'description', 'color_tag', 'is_active'];
 }

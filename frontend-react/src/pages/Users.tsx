@@ -19,6 +19,10 @@ interface User {
   id: number
   name: string
   email: string
+  phone_number?: string | null
+  additional_phone_number?: string | null
+  address?: string | null
+  status?: string
   roles: Role[]
 }
 
@@ -29,7 +33,17 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [activeUser, setActiveUser] = useState<User | null>(null)
-  const [form, setForm] = useState({ name: '', email: '', password: '', roles: [] as number[] })
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone_number: '',
+    additional_phone_number: '',
+    address: '',
+    status: 'active',
+    primary_role: '' as number | '',
+    roles: [] as number[],
+  })
   const [selectedRoles, setSelectedRoles] = useState<number[]>([])
   const { pushToast } = useToast()
 
@@ -54,17 +68,25 @@ export default function UsersPage() {
 
   const openCreateModal = () => {
     setActiveUser(null)
-    setForm({ name: '', email: '', password: '', roles: [] })
+    setForm({
+      name: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', primary_role: '', roles: [],
+    })
     setModalOpen(true)
   }
 
   const openEditModal = (user: User) => {
     setActiveUser(user)
+    const roleIds = user.roles.map((role) => role.id)
     setForm({
       name: user.name,
       email: user.email,
       password: '',
-      roles: user.roles.map((role) => role.id),
+      phone_number: user.phone_number || '',
+      additional_phone_number: user.additional_phone_number || '',
+      address: user.address || '',
+      status: user.status || 'active',
+      primary_role: roleIds[0] || '',
+      roles: roleIds,
     })
     setModalOpen(true)
   }
@@ -77,12 +99,25 @@ export default function UsersPage() {
 
   const handleFormSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
+    const roleIds = form.primary_role
+      ? Array.from(new Set([Number(form.primary_role), ...form.roles.filter(id => id !== Number(form.primary_role))]))
+      : form.roles
+    const payload = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      phone_number: form.phone_number,
+      additional_phone_number: form.additional_phone_number,
+      address: form.address,
+      status: form.status,
+      roles: roleIds,
+    }
     try {
       if (activeUser) {
-        await updateUser(activeUser.id, { ...form, roles: form.roles })
+        await updateUser(activeUser.id, payload)
         pushToast('User updated successfully.')
       } else {
-        await createUser({ ...form, roles: form.roles })
+        await createUser(payload)
         pushToast('User created successfully.')
       }
       setModalOpen(false)
@@ -136,6 +171,7 @@ export default function UsersPage() {
             <tr>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Name</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Email</th>
+              <th className="px-6 py-3 text-sm font-semibold text-slate-700">Phone</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Roles</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Actions</th>
             </tr>
@@ -143,13 +179,13 @@ export default function UsersPage() {
           <tbody className="divide-y divide-slate-200">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+                <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
                   Loading users...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+                <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
                   No users found.
                 </td>
               </tr>
@@ -158,6 +194,7 @@ export default function UsersPage() {
                 <tr key={user.id}>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{user.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{user.phone_number || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.roles.map((role) => role.name).join(', ') || 'None'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     <div className="flex flex-wrap gap-2">
@@ -228,7 +265,61 @@ export default function UsersPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Roles</label>
+            <label className="block text-sm font-medium text-slate-700">Phone Number</label>
+            <input
+              value={form.phone_number}
+              onChange={(event) => setForm((prev) => ({ ...prev, phone_number: event.target.value }))}
+              type="text"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Additional Phone Number</label>
+            <input
+              value={form.additional_phone_number}
+              onChange={(event) => setForm((prev) => ({ ...prev, additional_phone_number: event.target.value }))}
+              type="text"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700">Address</label>
+            <input
+              value={form.address}
+              onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
+              type="text"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Status</label>
+            <select
+              value={form.status}
+              onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Primary Role</label>
+            <select
+              value={form.primary_role}
+              onChange={(event) => setForm((prev) => ({ ...prev, primary_role: event.target.value ? Number(event.target.value) : '' }))}
+              required
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            >
+              <option value="">Select role</option>
+              {roleOptions.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Additional Roles</label>
             <select
               value={form.roles.map(String)}
               onChange={(event) => {
@@ -236,7 +327,7 @@ export default function UsersPage() {
                 setForm((prev) => ({ ...prev, roles: selected }))
               }}
               multiple
-              className="mt-2 w-full min-h-[140px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+              className="mt-2 w-full min-h-[120px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             >
               {roleOptions.map((role) => (
                 <option key={role.id} value={role.id}>

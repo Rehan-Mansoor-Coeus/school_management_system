@@ -12,7 +12,8 @@ use App\LetterCcRecipient;
 use App\LetterComment;
 use App\LetterRecipient;
 use App\LetterSetting;
-use App\LetterTemplate;
+use App\LetterSchedule;
+use App\Services\Letters\LetterAssetHelper;
 use App\Services\Letters\LetterWorkflowService;
 use App\Services\Letters\LetterMessagingService;
 use App\UserSignature;
@@ -51,23 +52,23 @@ class LetterController extends Controller
             $payload['rejected'] = (clone $base)->where('status', 'rejected')->count();
         }
 
-        if ($this->hasAnyPermission($request, ['view_awaiting_editing', 'edit_awaiting_letters'])) {
+        if ($this->hasAnyPermission($request, ['view_awaiting_editing', 'edit_awaiting_letters', 'view_letters_menu'])) {
             $payload['awaiting_editing'] = (clone $base)->where('status', 'awaiting_editing')->count();
         }
 
-        if ($this->hasAnyPermission($request, ['view_awaiting_approval', 'approve_letters'])) {
+        if ($this->hasAnyPermission($request, ['view_awaiting_approval', 'approve_letters', 'view_letters_menu'])) {
             $payload['awaiting_approval'] = (clone $base)->where('status', 'awaiting_approval')->count();
         }
 
-        if ($this->hasAnyPermission($request, ['view_awaiting_signature', 'sign_letters', 'bulk_sign_letters'])) {
+        if ($this->hasAnyPermission($request, ['view_awaiting_signature', 'sign_letters', 'bulk_sign_letters', 'view_letters_menu'])) {
             $payload['awaiting_signature'] = (clone $base)->where('status', 'awaiting_signature')->count();
         }
 
-        if ($this->hasAnyPermission($request, ['view_ready_to_send_letters', 'send_letters', 'bulk_send_letters'])) {
+        if ($this->hasAnyPermission($request, ['view_ready_to_send_letters', 'send_letters', 'bulk_send_letters', 'view_letters_menu'])) {
             $payload['ready_to_send'] = (clone $base)->where('status', 'ready_to_send')->count();
         }
 
-        if ($this->hasAnyPermission($request, ['view_sent_letters'])) {
+        if ($this->hasAnyPermission($request, ['view_sent_letters', 'view_letters_menu'])) {
             $payload['sent'] = (clone $base)->where('status', 'sent')->count();
         }
 
@@ -91,7 +92,7 @@ class LetterController extends Controller
         $institutionId = $this->institutionId($request);
         $query = Letter::query()
             ->with([
-                'category:id,name',
+                'category:id,name,color_tag',
                 'creator:id,name',
                 'updater:id,name',
                 'recipients',
@@ -99,10 +100,12 @@ class LetterController extends Controller
             ])
             ->where('institution_id', $institutionId);
 
-        if ($request->filled('status_in')) {
-            $query->whereIn('status', array_filter(explode(',', $request->status_in)));
-        } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
+        $allowedStatuses = $this->resolveAllowedStatuses($request, $request->get('status'), $request->get('status_in'));
+        if ($allowedStatuses !== null) {
+            if (empty($allowedStatuses)) {
+                return response()->json(['message' => 'Unauthorized for this letter queue.'], 403);
+            }
+            $query->whereIn('status', $allowedStatuses);
         }
 
         if ($request->filled('search')) {
@@ -155,6 +158,9 @@ class LetterController extends Controller
         if (is_string($request->cc_recipients)) {
             $request->merge(['cc_recipients' => json_decode($request->cc_recipients, true) ?: []]);
         }
+        if (is_string($request->schedules)) {
+            $request->merge(['schedules' => json_decode($request->schedules, true) ?: []]);
+        }
 
         $validator = Validator::make($request->all(), [
             'category_id' => 'nullable|integer',
@@ -167,6 +173,8 @@ class LetterController extends Controller
             'footer_html' => 'nullable|string',
             'comment' => 'nullable|string',
             'scheduled_at' => 'nullable|date',
+            'schedules' => 'nullable|array',
+            'schedules.*' => 'date',
             'forward_to' => 'nullable|in:editor,approver,signer,sender',
             'save_as_template' => 'nullable|boolean',
             'template_name' => 'nullable|string|max:255',
@@ -180,8 +188,7 @@ class LetterController extends Controller
             'recipients.*.placeholder_data' => 'nullable|array',
             'cc_recipients' => 'nullable|array',
             'cc_recipients.*.name' => 'required|string|max:255',
-            'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:10240',
+            'attachments.*' => 'nullable|file|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -247,6 +254,21 @@ class LetterController extends Controller
                 ]);
             }
 
+            $scheduleList = collect($request->get('schedules', []))
+                ->filter()
+                ->map(function ($when) use ($institutionId, $letter) {
+                    return LetterSchedule::create([
+                        'institution_id' => $institutionId,
+                        'letter_id' => $letter->id,
+                        'scheduled_at' => $when,
+                        'status' => 'pending',
+                    ]);
+                });
+            if ($scheduleList->isNotEmpty() && ! $letter->scheduled_at) {
+                $letter->scheduled_at = $scheduleList->first()->scheduled_at;
+                $letter->save();
+            }
+
             if ($request->boolean('save_as_template') && $request->template_name) {
                 LetterTemplate::create([
                     'institution_id' => $institutionId,
@@ -272,11 +294,11 @@ class LetterController extends Controller
         if (! $this->canAccessInstitution($request, $letter->institution_id)) {
             return response()->json(['message' => 'Letter not found.'], 404);
         }
-        if (! $this->hasAnyPermission($request, ['edit_letters', 'edit_awaiting_letters', 'approve_letters'])) {
+        if (! $this->hasAnyPermission($request, ['edit_letters', 'edit_awaiting_letters', 'approve_letters', 'sign_letters'])) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        if (! in_array($letter->status, ['draft', 'awaiting_editing', 'awaiting_approval', 'rejected'], true)) {
+        if (! in_array($letter->status, ['draft', 'awaiting_editing', 'awaiting_approval', 'awaiting_signature', 'rejected'], true)) {
             return response()->json(['message' => 'Letter cannot be edited in current status.'], 422);
         }
 
@@ -519,7 +541,7 @@ class LetterController extends Controller
         if (! $this->canAccessInstitution($request, $letter->institution_id)) {
             return response()->json(['message' => 'Letter not found.'], 404);
         }
-        if (! $this->hasAnyPermission($request, ['view_letters_menu', 'print_letters', 'download_letters'])) {
+        if (! $this->hasAnyLetterAccess($request)) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -550,6 +572,8 @@ class LetterController extends Controller
             return $a->action === 'sign' || $a->stage === 'signer';
         });
 
+        $verifyUrl = rtrim(env('FRONTEND_URL', config('app.url')), '/').'/letters/verify/'.$letter->id;
+
         return response()->json([
             'letter' => $this->formatLetter($letter),
             'preview' => [
@@ -565,24 +589,25 @@ class LetterController extends Controller
                 'signer_title' => optional($settings)->default_signer_title,
                 'company_name' => optional($settings)->company_name,
                 'cc' => $letter->ccRecipients->pluck('name'),
-                'letterhead_url' => $settings && $settings->letterhead_path ? Storage::disk('public')->url($settings->letterhead_path) : null,
-                'footer_url' => $settings && $settings->footer_path ? Storage::disk('public')->url($settings->footer_path) : null,
-                'logo_url' => $settings && $settings->logo_path ? Storage::disk('public')->url($settings->logo_path) : null,
-                'barcode_value' => $letter->barcode_value,
-                'qr_code_value' => $letter->qr_code_value,
-                'qr_code_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data='.urlencode($letter->qr_code_value ?: $letter->reference),
+                'letterhead_url' => LetterAssetHelper::url($settings ? $settings->letterhead_path : null, $request),
+                'footer_url' => LetterAssetHelper::url($settings ? $settings->footer_path : null, $request),
+                'logo_url' => LetterAssetHelper::url($settings ? $settings->logo_path : null, $request),
+                'barcode_value' => $letter->reference,
+                'verify_url' => $verifyUrl,
+                'qr_code_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='.urlencode($verifyUrl),
+                'barcode_url' => 'https://barcode.tec-it.com/barcode.ashx?data='.urlencode($verifyUrl).'&code=Code128&translate-esc=on',
                 'editor_indicator' => $editorApproval ? [
                     'name' => optional($editorApproval->user)->name,
                     'comment' => $editorApproval->comment,
-                    'signature_url' => $editorApproval->signature_path ? Storage::disk('public')->url($editorApproval->signature_path) : null,
+                    'signature_url' => $editorApproval->signature_path ? LetterAssetHelper::url($editorApproval->signature_path, $request) : null,
                 ] : null,
                 'approver_indicator' => $approverApproval ? [
                     'name' => optional($approverApproval->user)->name,
                     'comment' => $approverApproval->comment,
-                    'signature_url' => $approverApproval->signature_path ? Storage::disk('public')->url($approverApproval->signature_path) : null,
+                    'signature_url' => $approverApproval->signature_path ? LetterAssetHelper::url($approverApproval->signature_path, $request) : null,
                 ] : null,
                 'signer_signature_url' => $signerApproval && $signerApproval->signature_path
-                    ? Storage::disk('public')->url($signerApproval->signature_path)
+                    ? LetterAssetHelper::url($signerApproval->signature_path, $request)
                     : null,
                 'signer_name' => optional(optional($signerApproval)->user)->name ?: $letter->author_name,
                 'approvals' => $letter->approvals,
@@ -603,10 +628,14 @@ class LetterController extends Controller
     {
         $files = $request->file('attachments');
         if (! $files) {
+            $all = $request->allFiles();
+            $files = $all['attachments'] ?? null;
+        }
+        if (! $files) {
             return [];
         }
 
-        return is_array($files) ? $files : [$files];
+        return is_array($files) ? array_values($files) : [$files];
     }
 
     public function destroy(Request $request, Letter $letter)
@@ -746,6 +775,15 @@ class LetterController extends Controller
             return $this->hasAnyPermission($request, ['view_letters_menu', 'create_letters']);
         }
 
+        return count($this->resolveAllowedStatuses($request, $status, $statusIn)) > 0;
+    }
+
+    protected function resolveAllowedStatuses(Request $request, $status = null, $statusIn = null)
+    {
+        if (! $status && ! $statusIn) {
+            return null;
+        }
+
         $statuses = $statusIn ? array_filter(explode(',', $statusIn)) : [$status];
         $map = [
             'rejected' => ['view_letters_menu', 'create_letters'],
@@ -757,17 +795,12 @@ class LetterController extends Controller
             'draft' => ['view_letters_menu', 'create_letters'],
         ];
 
-        foreach ($statuses as $item) {
+        return array_values(array_filter($statuses, function ($item) use ($request, $map) {
             if ($item === 'ready_to_send' || $item === 'sent') {
-                if ($this->hasAnyPermission($request, array_merge($map['ready_to_send'], $map['sent']))) {
-                    continue;
-                }
+                return $this->hasAnyPermission($request, array_merge($map['ready_to_send'], $map['sent']));
             }
-            if (! isset($map[$item]) || ! $this->hasAnyPermission($request, $map[$item])) {
-                return false;
-            }
-        }
 
-        return true;
+            return isset($map[$item]) && $this->hasAnyPermission($request, $map[$item]);
+        }));
     }
 }

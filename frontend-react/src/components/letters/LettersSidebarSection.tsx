@@ -63,8 +63,8 @@ export default function LettersSidebarSection() {
   const { hasPermission } = useAuth()
   const location = useLocation()
   const [counts, setCounts] = useState<Counts>({})
-  const [announcementsOpen, setAnnouncementsOpen] = useState(true)
-  const [lettersOpen, setLettersOpen] = useState(true)
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false)
+  const [lettersOpen, setLettersOpen] = useState(false)
 
   const canViewLetters = hasPermission('view_letters_menu') || hasPermission('create_letters')
   const canViewAnnouncements = hasPermission('view_announcements') || hasPermission('create_announcements')

@@ -28,6 +28,7 @@ import CreateLetterPage from './pages/letters/CreateLetterPage'
 import LetterCategoriesPage from './pages/letters/LetterCategoriesPage'
 import LetterListingPage from './pages/letters/LetterListingPage'
 import LetterPrintPage from './pages/letters/LetterPrintPage'
+import LetterVerifyPage from './pages/letters/LetterVerifyPage'
 import LetterSettingsPage from './pages/letters/LetterSettingsPage'
 import LetterTemplatesPage from './pages/letters/LetterTemplatesPage'
 import {
@@ -45,11 +46,16 @@ import MessageLogsPage from './pages/letters/MessageLogsPage'
 import WhatsAppSettingsPage from './pages/letters/WhatsAppSettingsPage'
 import {
   AnnouncementListPage,
+  AnnouncementTemplatesPage,
   CreateAnnouncementPage,
   ScheduledAnnouncementsPage,
 } from './pages/letters/AnnouncementPages'
 import AddUserPage from './pages/people/AddUserPage'
 import PeopleEntityPage from './pages/people/PeopleEntityPage'
+import CustomersPage from './pages/people/CustomersPage'
+import StudentsPage from './pages/people/StudentsPage'
+import TeachersPage from './pages/people/TeachersPage'
+import StaffPage from './pages/people/StaffPage'
 
 export default function App(){
   return (
@@ -58,12 +64,21 @@ export default function App(){
       <LettersI18nProvider>
       <Routes>
         <Route path="/login" element={<LoginPage/>} />
+        <Route path="/letters/verify/:id" element={<LetterVerifyPage />} />
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route index element={<DashboardPage/>} />
           <Route path="users" element={<UsersPage/>} />
-          <Route path="teachers" element={<RoleUsersPage role="teacher" title="Teachers" subtitle="Manage teacher accounts." />} />
-          <Route path="students" element={<RoleUsersPage role="student" title="Students" subtitle="Manage student accounts." />} />
+          <Route path="access/teachers" element={<RoleUsersPage role="teacher" title="Teachers" subtitle="Manage teacher accounts." />} />
+          <Route path="access/students" element={<RoleUsersPage role="student" title="Students" subtitle="Manage student accounts." />} />
+          <Route path="customers" element={<CustomersPage/>} />
+          <Route path="customers/add" element={<CustomersPage/>} />
+          <Route path="students" element={<StudentsPage/>} />
+          <Route path="students/add" element={<StudentsPage/>} />
+          <Route path="teachers" element={<TeachersPage/>} />
+          <Route path="teachers/add" element={<TeachersPage/>} />
+          <Route path="staff" element={<StaffPage/>} />
+          <Route path="staff/add" element={<StaffPage/>} />
           <Route path="roles" element={<RolesPage/>} />
           <Route path="permissions" element={<PermissionsPage/>} />
           <Route path="modules" element={<ModulesPage/>} />
@@ -101,6 +116,7 @@ export default function App(){
             <Route index element={<Navigate to="/letters/listing" replace />} />
             <Route path="listing" element={<LetterListingPage />} />
             <Route path="create" element={<CreateLetterPage />} />
+            <Route path="edit/:id" element={<CreateLetterPage />} />
             <Route path="templates" element={<LetterTemplatesPage />} />
             <Route path="sent" element={<SentLettersPage />} />
             <Route path="pending" element={<PendingLettersPage />} />
@@ -114,6 +130,7 @@ export default function App(){
             <Route path="print" element={<PrintableLettersPage />} />
             <Route path="download" element={<DownloadableLettersPage />} />
             <Route path="announcements/create" element={<CreateAnnouncementPage />} />
+            <Route path="announcements/templates" element={<AnnouncementTemplatesPage />} />
             <Route path="announcements/scheduled" element={<ScheduledAnnouncementsPage />} />
             <Route path="announcements" element={<AnnouncementListPage />} />
             <Route path="message-logs" element={<MessageLogsPage />} />
