@@ -6,8 +6,10 @@ import UsersPage from './pages/Users'
 import RolesPage from './pages/Roles'
 import PermissionsPage from './pages/Permissions'
 import ModulesPage from './pages/Modules'
+import RoleUsersPage from './pages/RoleUsers'
 import InstitutionList from './modules/Institutions/pages/InstitutionList'
 import DepartmentsPage from './pages/Departments'
+import AcademicsPage from './pages/Academics'
 import PlaceholderModulePage from './pages/PlaceholderModule'
 import TimesheetCategoriesPage from './pages/TimesheetCategories'
 import TimesheetActivitiesPage from './pages/TimesheetActivities'
@@ -67,6 +69,8 @@ export default function App(){
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route index element={<DashboardPage/>} />
           <Route path="users" element={<UsersPage/>} />
+          <Route path="access/teachers" element={<RoleUsersPage role="teacher" title="Teachers" subtitle="Manage teacher accounts." />} />
+          <Route path="access/students" element={<RoleUsersPage role="student" title="Students" subtitle="Manage student accounts." />} />
           <Route path="customers" element={<CustomersPage/>} />
           <Route path="customers/add" element={<CustomersPage/>} />
           <Route path="students" element={<StudentsPage/>} />
@@ -81,7 +85,9 @@ export default function App(){
           <Route path="institutions" element={<InstitutionList />} />
           <Route path="departments" element={<DepartmentsPage />} />
           <Route path="admissions" element={<PlaceholderModulePage title="Admissions" />} />
-          <Route path="academics" element={<PlaceholderModulePage title="Academics" />} />
+          <Route path="academics" element={<AcademicsPage />} />
+          <Route path="academics/programmes" element={<AcademicsPage initialTab="programmes" />} />
+          <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />
           <Route path="results" element={<PlaceholderModulePage title="Results" />} />
           <Route path="fees" element={<PlaceholderModulePage title="Fees & Payments" />} />

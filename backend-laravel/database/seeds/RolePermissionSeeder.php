@@ -284,6 +284,7 @@ class RolePermissionSeeder extends Seeder
             'view_permissions', 'assign_permissions',
             'institutions.view', 'institutions.create', 'institutions.edit', 'institutions.delete', 'institutions.settings',
             'modules.view', 'modules.manage',
+            'academics.view', 'academics.manage',
             'view_customers', 'create_customers', 'edit_customers', 'delete_customers',
             'view_students', 'create_students', 'edit_students', 'delete_students',
         ];
@@ -292,10 +293,11 @@ class RolePermissionSeeder extends Seeder
             $fullAccessControl,
             $timesheetPermissions,
             $adminTimesheetPermissions,
-            $legacyTimesheetPermissions
+            $legacyTimesheetPermissions,
+            $lettersPermissions
         );
 
-        $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, [
+        $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, [
             'timesheets.manage',
             'timesheets.report',
             'timesheets.review',
@@ -407,6 +409,47 @@ class RolePermissionSeeder extends Seeder
 
         if (! $admin->hasRole($superAdmin)) {
             $admin->assignRole($superAdmin);
+        }
+
+        // Seed a demo teacher and student for every institution so they are
+        // visible in Access Control regardless of which institution the
+        // logged-in admin belongs to (Users are scoped by institution_id).
+        foreach (Institution::all() as $institution) {
+            $isDefault = $institution->id === $defaultInstitution->id;
+            $teacherEmail = $isDefault ? 'teacher@test.com' : 'teacher.inst' . $institution->id . '@test.com';
+            $studentEmail = $isDefault ? 'student@test.com' : 'student.inst' . $institution->id . '@test.com';
+
+            $teacher = User::updateOrCreate(
+                ['email' => $teacherEmail],
+                [
+                    'institution_id' => $institution->id,
+                    'name' => 'Test Teacher',
+                    'password' => Hash::make('teacher123'),
+                    'api_token' => Str::random(60),
+                    'is_active' => true,
+                    'locale' => 'en',
+                ]
+            );
+
+            if (! $teacher->hasRole($teacherRole)) {
+                $teacher->assignRole($teacherRole);
+            }
+
+            $student = User::updateOrCreate(
+                ['email' => $studentEmail],
+                [
+                    'institution_id' => $institution->id,
+                    'name' => 'Test Student',
+                    'password' => Hash::make('student123'),
+                    'api_token' => Str::random(60),
+                    'is_active' => true,
+                    'locale' => 'en',
+                ]
+            );
+
+            if (! $student->hasRole($studentRole)) {
+                $student->assignRole($studentRole);
+            }
         }
     }
 }

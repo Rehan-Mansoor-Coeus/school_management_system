@@ -45,6 +45,8 @@ type SidebarItem = {
   icon: ComponentType<{ className?: string }>
 }
 
+type ModuleItem = SidebarItem & { key: string }
+
 const navItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
 ]
@@ -60,11 +62,8 @@ const accessItems: SidebarItem[] = [
   { label: 'Modules', path: '/modules', icon: Puzzle },
 ]
 
-const moduleItems: Array<{ key: string; label: string; path: string; icon: ComponentType<{ className?: string }> }> = [
-  { key: 'institutions', label: 'Institutions', path: '/institutions', icon: Building2 },
-  { key: 'departments', label: 'Departments', path: '/departments', icon: LayoutGrid },
+const moduleItems: ModuleItem[] = [
   { key: 'admissions', label: 'Admissions', path: '/admissions', icon: UserPlus },
-  { key: 'academics', label: 'Academics', path: '/academics', icon: BookOpen },
   { key: 'attendance', label: 'Attendance', path: '/attendance', icon: ClipboardCheck },
   { key: 'results', label: 'Results', path: '/results', icon: Award },
   { key: 'fees', label: 'Fees & Payments', path: '/fees', icon: Wallet },
@@ -75,6 +74,13 @@ const moduleItems: Array<{ key: string; label: string; path: string; icon: Compo
   { key: 'canteen', label: 'Canteen', path: '/canteen', icon: UtensilsCrossed },
   { key: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell },
   { key: 'audit', label: 'Audit Logs', path: '/audit', icon: ScrollText },
+]
+
+const academicsChildren: ModuleItem[] = [
+  { key: 'institutions', label: 'Institutions', path: '/institutions', icon: Building2 },
+  { key: 'departments', label: 'Departments', path: '/departments', icon: LayoutGrid },
+  { key: 'academics', label: 'Programmes', path: '/academics/programmes', icon: BookOpen },
+  { key: 'academics', label: 'Subjects', path: '/academics/subjects', icon: Library },
 ]
 
 const employeeItems = [
@@ -154,6 +160,7 @@ export default function Sidebar() {
 
   const safeEnabledModules = Array.isArray(enabledModules) ? enabledModules : []
   const visibleModuleItems = moduleItems.filter((item) => safeEnabledModules.includes(item.key))
+  const visibleAcademicsChildren = academicsChildren.filter((item) => safeEnabledModules.includes(item.key))
 
   const [accessOpen, setAccessOpen] = useSidebarSection(false, [
     '/users', '/customers', '/students', '/teachers', '/staff', '/roles', '/permissions', '/modules',
@@ -161,7 +168,8 @@ export default function Sidebar() {
   const [timesheetOpen, setTimesheetOpen] = useSidebarSection(false, ['/timesheets'])
   const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets/admin'])
   const [adminOpen, setAdminOpen] = useSidebarSection(false, ['/timesheets/admin'])
-  const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map(item => item.path))
+  const [academicsOpen, setAcademicsOpen] = useSidebarSection(false, academicsChildren.map((item) => item.path))
+  const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
 
   const institutionName = institution?.name || 'School Management'
   const institutionSubtitle = institution?.acronym || ''
@@ -179,13 +187,13 @@ export default function Sidebar() {
       </div>
 
       <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-        {navItems.map(item => (
+        {navItems.map((item) => (
           <SidebarLink key={item.path} item={item} />
         ))}
 
         <button
           type="button"
-          onClick={() => setAccessOpen(v => !v)}
+          onClick={() => setAccessOpen((v) => !v)}
           className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
         >
           <span className="flex items-center gap-2.5">
@@ -194,13 +202,13 @@ export default function Sidebar() {
           </span>
           <span className={`transition ${accessOpen ? 'rotate-180' : ''}`}>▾</span>
         </button>
-        {accessOpen && accessItems.map(item => (
+        {accessOpen && accessItems.map((item) => (
           <SidebarLink key={item.path} item={item} nested />
         ))}
 
         <button
           type="button"
-          onClick={() => setTimesheetOpen(v => !v)}
+          onClick={() => setTimesheetOpen((v) => !v)}
           className="mt-4 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-blue-200 hover:bg-[#2a4a73]/70"
         >
           <span className="flex items-center gap-2.5">
@@ -210,13 +218,13 @@ export default function Sidebar() {
           <span className={`transition ${timesheetOpen ? 'rotate-180' : ''}`}>▾</span>
         </button>
 
-        {timesheetOpen && employeeItems.map(item => (
+        {timesheetOpen && employeeItems.map((item) => (
           <SidebarI18nLink key={item.path} labelKey={item.labelKey} path={item.path} icon={item.icon} t={t} />
         ))}
 
         <button
           type="button"
-          onClick={() => setOperationsOpen(v => !v)}
+          onClick={() => setOperationsOpen((v) => !v)}
           className="mt-4 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-blue-200 hover:bg-[#2a4a73]/70"
         >
           <span className="flex items-center gap-2.5">
@@ -230,7 +238,7 @@ export default function Sidebar() {
           <>
             <button
               type="button"
-              onClick={() => setAdminOpen(v => !v)}
+              onClick={() => setAdminOpen((v) => !v)}
               className="flex w-full items-center justify-between rounded-xl bg-[#2a4a73] px-4 py-3 text-left text-sm font-semibold text-white"
             >
               <span className="flex items-center gap-2.5">
@@ -240,13 +248,32 @@ export default function Sidebar() {
               <span className={`transition ${adminOpen ? 'rotate-180' : ''}`}>▾</span>
             </button>
 
-            {adminOpen && adminItems.map(item => (
+            {adminOpen && adminItems.map((item) => (
               <SidebarI18nLink key={item.path} labelKey={item.labelKey} path={item.path} icon={item.icon} nested t={t} />
             ))}
           </>
         )}
 
         {safeEnabledModules.includes('letters') && <LettersSidebarSection />}
+
+        {visibleAcademicsChildren.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setAcademicsOpen((current) => !current)}
+              className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <GraduationCap className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Academics
+              </span>
+              <span className={`transition ${academicsOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {academicsOpen && visibleAcademicsChildren.map((child) => (
+              <SidebarLink key={child.path} item={child} nested />
+            ))}
+          </>
+        )}
 
         <button
           type="button"
@@ -268,23 +295,9 @@ export default function Sidebar() {
                 No modules enabled.
               </div>
             ) : (
-              visibleModuleItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) => linkClass(isActive, true)}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon className={iconClass(isActive)} aria-hidden="true" />
-                        <span className="truncate">{item.label}</span>
-                      </>
-                    )}
-                  </NavLink>
-                )
-              })
+              visibleModuleItems.map((item) => (
+                <SidebarLink key={item.path} item={item} nested />
+              ))
             )}
           </div>
         )}
