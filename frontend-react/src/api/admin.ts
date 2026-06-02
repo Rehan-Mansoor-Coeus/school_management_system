@@ -76,6 +76,58 @@ export function deleteDepartment(id: number) {
   return api.delete(`/departments/${id}`)
 }
 
+export function fetchPrograms(params?: Record<string, any>) {
+  return api.get('/academics/programs', { params })
+}
+
+export function fetchProgram(id: number) {
+  return api.get(`/academics/programs/${id}`)
+}
+
+export function createProgram(payload: any) {
+  return api.post('/academics/programs', payload)
+}
+
+export function updateProgram(id: number, payload: any) {
+  return api.put(`/academics/programs/${id}`, payload)
+}
+
+export function deleteProgram(id: number) {
+  return api.delete(`/academics/programs/${id}`)
+}
+
+export function fetchSubjects(params?: Record<string, any>) {
+  return api.get('/academics/subjects', { params })
+}
+
+export function createSubject(payload: any) {
+  return api.post('/academics/subjects', payload)
+}
+
+export function updateSubject(id: number, payload: any) {
+  return api.put(`/academics/subjects/${id}`, payload)
+}
+
+export function deleteSubject(id: number) {
+  return api.delete(`/academics/subjects/${id}`)
+}
+
+export function updateSemester(id: number, payload: any) {
+  return api.put(`/academics/semesters/${id}`, payload)
+}
+
+export function assignSemesterSubject(programId: number, payload: any) {
+  return api.post(`/academics/programs/${programId}/semester-subjects`, payload)
+}
+
+export function updateSemesterSubject(id: number, payload: any) {
+  return api.put(`/academics/semester-subjects/${id}`, payload)
+}
+
+export function deleteSemesterSubject(id: number) {
+  return api.delete(`/academics/semester-subjects/${id}`)
+}
+
 export function fetchInstitutionModules(institutionId: number) {
   return api.get(`/institutions/${institutionId}/modules`)
 }

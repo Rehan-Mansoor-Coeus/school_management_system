@@ -4,30 +4,61 @@ import { NavLink } from 'react-router-dom'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAuth } from '../context/AuthContext'
 import LettersSidebarSection from './letters/LettersSidebarSection'
+import {
+  Award,
+  BedDouble,
+  Bell,
+  BookMarked,
+  BookOpen,
+  Boxes,
+  Briefcase,
+  Building2,
+  CalendarCheck,
+  CreditCard,
+  GraduationCap,
+  KeyRound,
+  LayoutDashboard,
+  LayoutGrid,
+  Library,
+  Network,
+  Presentation,
+  ScrollText,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserPlus,
+  Users,
+  Utensils,
+  type LucideIcon,
+} from 'lucide-react'
 
-const navItems = [{ label: 'Dashboard', path: '/' }]
-const accessItems = [
-  { label: 'Users', path: '/users' },
-  { label: 'Roles', path: '/roles' },
-  { label: 'Permissions', path: '/permissions' },
-  { label: 'Modules', path: '/modules' },
+const accessItems: { label: string; path: string; icon: LucideIcon }[] = [
+  { label: 'Users', path: '/users', icon: Users },
+  { label: 'Teachers', path: '/teachers', icon: Presentation },
+  { label: 'Students', path: '/students', icon: GraduationCap },
+  { label: 'Roles', path: '/roles', icon: ShieldCheck },
+  { label: 'Permissions', path: '/permissions', icon: KeyRound },
+  { label: 'Modules', path: '/modules', icon: SlidersHorizontal },
 ]
 
-const moduleItems = [
-  { key: 'institutions', label: 'Institutions', path: '/institutions' },
-  { key: 'departments', label: 'Departments', path: '/departments' },
-  { key: 'admissions', label: 'Admissions', path: '/admissions' },
-  { key: 'academics', label: 'Academics', path: '/academics' },
-  { key: 'attendance', label: 'Attendance', path: '/attendance' },
-  { key: 'results', label: 'Results', path: '/results' },
-  { key: 'fees', label: 'Fees & Payments', path: '/fees' },
-  { key: 'hr', label: 'HR & Payroll', path: '/hr' },
-  { key: 'assets', label: 'Assets', path: '/assets' },
-  { key: 'library', label: 'Library', path: '/library' },
-  { key: 'hostel', label: 'Hostel', path: '/hostel' },
-  { key: 'canteen', label: 'Canteen', path: '/canteen' },
-  { key: 'notifications', label: 'Notifications', path: '/notifications' },
-  { key: 'audit', label: 'Audit Logs', path: '/audit' },
+const moduleItems: { key: string; label: string; path: string; icon: LucideIcon }[] = [
+  { key: 'admissions', label: 'Admissions', path: '/admissions', icon: UserPlus },
+  { key: 'attendance', label: 'Attendance', path: '/attendance', icon: CalendarCheck },
+  { key: 'results', label: 'Results', path: '/results', icon: Award },
+  { key: 'fees', label: 'Fees & Payments', path: '/fees', icon: CreditCard },
+  { key: 'hr', label: 'HR & Payroll', path: '/hr', icon: Briefcase },
+  { key: 'assets', label: 'Assets', path: '/assets', icon: Boxes },
+  { key: 'library', label: 'Library', path: '/library', icon: Library },
+  { key: 'hostel', label: 'Hostel', path: '/hostel', icon: BedDouble },
+  { key: 'canteen', label: 'Canteen', path: '/canteen', icon: Utensils },
+  { key: 'notifications', label: 'Notifications', path: '/notifications', icon: Bell },
+  { key: 'audit', label: 'Audit Logs', path: '/audit', icon: ScrollText },
+]
+
+const academicsChildren: { key: string; label: string; path: string; icon: LucideIcon }[] = [
+  { key: 'institutions', label: 'Institutions', path: '/institutions', icon: Building2 },
+  { key: 'departments', label: 'Departments', path: '/departments', icon: Network },
+  { key: 'academics', label: 'Programmes', path: '/academics/programmes', icon: BookOpen },
+  { key: 'academics', label: 'Subjects', path: '/academics/subjects', icon: BookMarked },
 ]
 
 const employeeItems = [
@@ -59,7 +90,9 @@ export default function Sidebar() {
 
   const safeEnabledModules = Array.isArray(enabledModules) ? enabledModules : []
   const visibleModuleItems = moduleItems.filter((item) => safeEnabledModules.includes(item.key))
+  const visibleAcademicsChildren = academicsChildren.filter((item) => safeEnabledModules.includes(item.key))
   const [adminOpen, setAdminOpen] = useState(true)
+  const [academicsOpen, setAcademicsOpen] = useState(true)
 
   const institutionName = institution?.name || 'School Management'
   const institutionSubtitle = institution?.acronym || ''
@@ -78,7 +111,12 @@ export default function Sidebar() {
 
       <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
         <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>
-          Dashboard
+          {({ isActive }) => (
+            <>
+              <LayoutDashboard className={`mr-2 h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`} aria-hidden="true" />
+              Dashboard
+            </>
+          )}
         </NavLink>
 
         <button
@@ -86,14 +124,25 @@ export default function Sidebar() {
           onClick={() => setAccessOpen(v => !v)}
           className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
         >
-          <span>Access Control</span>
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+            Access Control
+          </span>
           <span className={`transition ${accessOpen ? 'rotate-180' : ''}`}>▾</span>
         </button>
-        {accessOpen && accessItems.map(item => (
-          <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive, true)}>
-            {item.label}
-          </NavLink>
-        ))}
+        {accessOpen && accessItems.map(item => {
+          const Icon = item.icon
+          return (
+            <NavLink key={item.path} to={item.path} className={({ isActive }) => linkClass(isActive, true)}>
+              {({ isActive }) => (
+                <>
+                  <Icon className={`mr-2 h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`} aria-hidden="true" />
+                  {item.label}
+                </>
+              )}
+            </NavLink>
+          )
+        })}
 
         <div className="pt-4 text-xs font-semibold uppercase tracking-wider text-blue-200">
           {t('timesheetsEmployee')}
@@ -127,12 +176,49 @@ export default function Sidebar() {
 
         {safeEnabledModules.includes('letters') && <LettersSidebarSection />}
 
+        {visibleAcademicsChildren.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setAcademicsOpen((current) => !current)}
+              className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Academics
+              </span>
+              <span className={`transition ${academicsOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {academicsOpen &&
+              visibleAcademicsChildren.map((child) => {
+                const Icon = child.icon
+                return (
+                  <NavLink
+                    key={child.path}
+                    to={child.path}
+                    className={({ isActive }) => linkClass(isActive, true)}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon className={`mr-2 h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`} aria-hidden="true" />
+                        {child.label}
+                      </>
+                    )}
+                  </NavLink>
+                )
+              })}
+          </>
+        )}
+
         <button
           type="button"
           onClick={() => setModulesOpen((current) => !current)}
           className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
         >
-          <span>Modules</span>
+          <span className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+            Modules
+          </span>
           <span className={`transition ${modulesOpen ? 'rotate-180' : ''}`}>▾</span>
         </button>
 
@@ -141,15 +227,23 @@ export default function Sidebar() {
             {visibleModuleItems.length === 0 ? (
               <div className="px-4 py-2 text-sm text-slate-400">No modules enabled.</div>
             ) : (
-              visibleModuleItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) => linkClass(isActive, true)}
-                >
-                  {item.label}
-                </NavLink>
-              ))
+              visibleModuleItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => linkClass(isActive, true)}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon className={`mr-2 h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`} aria-hidden="true" />
+                        {item.label}
+                      </>
+                    )}
+                  </NavLink>
+                )
+              })
             )}
           </div>
         )}

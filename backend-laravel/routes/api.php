@@ -138,6 +138,23 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('departments', 'Api\DepartmentController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('departments/{department}', 'Api\DepartmentController@update');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('departments/{department}', 'Api\DepartmentController@destroy');
+
+    Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academics/programs', 'Api\AcademicController@programs');
+    Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academics/programs/{programme}', 'Api\AcademicController@showProgram');
+    Route::middleware(['module_enabled:academics', 'permission:academics.create'])->post('academics/programs', 'Api\AcademicController@storeProgram');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/programs/{programme}', 'Api\AcademicController@updateProgram');
+    Route::middleware(['module_enabled:academics', 'permission:academics.delete'])->delete('academics/programs/{programme}', 'Api\AcademicController@destroyProgram');
+
+    Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academics/subjects', 'Api\AcademicController@subjects');
+    Route::middleware(['module_enabled:academics', 'permission:academics.create'])->post('academics/subjects', 'Api\AcademicController@storeSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/subjects/{subject}', 'Api\AcademicController@updateSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.delete'])->delete('academics/subjects/{subject}', 'Api\AcademicController@deleteSubject');
+
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/semesters/{semester}', 'Api\AcademicController@updateSemester');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->post('academics/programs/{programme}/semester-subjects', 'Api\AcademicController@assignSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/semester-subjects/{assignment}', 'Api\AcademicController@updateSemesterSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->delete('academics/semester-subjects/{assignment}', 'Api\AcademicController@deleteSemesterSubject');
+
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->get('institutions/{id}/settings', 'Api\InstitutionController@getSettings');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->put('institutions/{id}/settings', 'Api\InstitutionController@updateSettings');
 
