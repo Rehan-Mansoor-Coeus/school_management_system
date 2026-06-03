@@ -1,13 +1,30 @@
 import { useState, useCallback } from 'react';
 import AdmissionsService from '../services/AdmissionsService';
 import { Applicant } from '../types';
+import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
+import { formatValidationError } from '../../../api/admissions';
 
 export const useApplicationForm = () => {
+  const { t } = useAdmissionsI18n();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applicant, setApplicant] = useState<Partial<Applicant> | null>(null);
   const [applicationId, setApplicationId] = useState<number | null>(null);
+
+  const loadExistingApplicant = useCallback(async () => {
+    try {
+      const existing = await AdmissionsService.getMyApplicant();
+      if (existing?.id) {
+        setApplicant(existing);
+        setStep(2);
+        return existing;
+      }
+    } catch {
+      // No applicant yet — stay on step 1
+    }
+    return null;
+  }, []);
 
   const submitApplicantInfo = useCallback(async (data: Partial<Applicant>) => {
     setLoading(true);
@@ -17,19 +34,19 @@ export const useApplicationForm = () => {
       setApplicant(response.data);
       setStep(2);
       return response.data;
-    } catch (err: any) {
-      const message = err.response?.data?.message || 'Failed to create applicant profile';
+    } catch (err: unknown) {
+      const message = formatValidationError(err, t('errorCreateApplicant'));
       setError(message);
       throw err;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const submitApplication = useCallback(
-    async (academicYearId: number, programmeId: number, documents?: any) => {
-      if (!applicant) {
-        setError('Applicant information is required');
+    async (academicYearId: number, programmeId: number, documents?: { passport?: File; transcript?: File }) => {
+      if (!applicant?.id) {
+        setError(t('errorApplicantRequired'));
         return;
       }
 
@@ -37,7 +54,7 @@ export const useApplicationForm = () => {
       setError(null);
       try {
         const formData = new FormData();
-        formData.append('applicant_id', applicant.id?.toString() || '');
+        formData.append('applicant_id', applicant.id.toString());
         formData.append('academic_year_id', academicYearId.toString());
         formData.append('programme_id', programmeId.toString());
 
@@ -52,15 +69,15 @@ export const useApplicationForm = () => {
         setApplicationId(response.data.id);
         setStep(3);
         return response.data;
-      } catch (err: any) {
-        const message = err.response?.data?.message || 'Failed to submit application';
+      } catch (err: unknown) {
+        const message = formatValidationError(err, t('errorSubmitApplication'));
         setError(message);
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [applicant]
+    [applicant, t]
   );
 
   const reset = useCallback(() => {
@@ -77,6 +94,7 @@ export const useApplicationForm = () => {
     error,
     applicant,
     applicationId,
+    loadExistingApplicant,
     submitApplicantInfo,
     submitApplication,
     reset,

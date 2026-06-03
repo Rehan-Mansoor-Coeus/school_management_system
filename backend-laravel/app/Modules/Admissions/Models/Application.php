@@ -2,10 +2,10 @@
 
 namespace App\Modules\Admissions\Models;
 
-use App\Models\User;
-use App\Models\Institution;
-use App\Models\Programme;
-use App\Models\AcademicYear;
+use App\AcademicYear;
+use App\Institution;
+use App\Programme;
+use App\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -18,24 +18,30 @@ class Application extends Model
     protected $fillable = [
         'institution_id', 'applicant_id', 'academic_year_id', 'programme_id',
         'application_number', 'status', 'application_fee', 'application_fee_paid',
-        'fee_paid_at', 'rejection_reason', 'admission_comment', 'reviewed_by',
-        'reviewed_at', 'approved_by', 'approved_at', 'admitted_by', 'admitted_at',
+        'fee_paid_at', 'tuition_fee', 'tuition_fee_paid', 'tuition_paid_at',
+        'tuition_verified_by', 'tuition_verified_at',
+        'rejection_reason', 'admission_comment', 'department_review_comment',
+        'reviewed_by', 'reviewed_at', 'registry_reviewed_by', 'registry_reviewed_at',
+        'department_reviewed_by', 'department_reviewed_at',
+        'approved_by', 'approved_at', 'admitted_by', 'admitted_at',
         'admission_letter_sent', 'admission_letter_sent_at', 'admission_accepted',
-        'admission_accepted_at'
+        'admission_accepted_at',
     ];
 
     protected $dates = [
-        'fee_paid_at', 'reviewed_at', 'approved_at', 'admitted_at',
-        'admission_letter_sent_at', 'admission_accepted_at', 'deleted_at'
+        'fee_paid_at', 'tuition_paid_at', 'tuition_verified_at',
+        'reviewed_at', 'registry_reviewed_at', 'department_reviewed_at',
+        'approved_at', 'admitted_at', 'admission_letter_sent_at',
+        'admission_accepted_at', 'deleted_at',
     ];
 
     protected $casts = [
         'application_fee_paid' => 'boolean',
+        'tuition_fee_paid' => 'boolean',
         'admission_letter_sent' => 'boolean',
         'admission_accepted' => 'boolean',
     ];
 
-    // Relationships
     public function institution()
     {
         return $this->belongsTo(Institution::class);
@@ -61,6 +67,16 @@ class Application extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function registryReviewedBy()
+    {
+        return $this->belongsTo(User::class, 'registry_reviewed_by');
+    }
+
+    public function departmentReviewedBy()
+    {
+        return $this->belongsTo(User::class, 'department_reviewed_by');
+    }
+
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
@@ -71,30 +87,19 @@ class Application extends Model
         return $this->belongsTo(User::class, 'admitted_by');
     }
 
-    public function payments()
+    public function tuitionVerifiedBy()
     {
-        return $this->hasMany(ApplicationPayment::class);
+        return $this->belongsTo(User::class, 'tuition_verified_by');
     }
 
-    // Scopes
+    public function payments()
+    {
+        return $this->hasMany(ApplicationPayment::class, 'application_id');
+    }
+
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'submitted');
-    }
-
-    public function scopeApproved($query)
-    {
-        return $query->where('status', 'approved');
-    }
-
-    public function scopeAdmitted($query)
-    {
-        return $query->where('status', 'admitted');
     }
 
     public function scopeByInstitution($query, $institutionId)
@@ -102,52 +107,81 @@ class Application extends Model
         return $query->where('institution_id', $institutionId);
     }
 
-    public function scopeByAcademicYear($query, $academicYearId)
+    public function canPayApplicationFee()
     {
-        return $query->where('academic_year_id', $academicYearId);
+        return in_array($this->status, ['submitted'], true) && ! $this->application_fee_paid;
     }
 
-    // Methods
-    public function canReview()
+    public function canRegistryReview()
     {
-        return $this->status === 'submitted';
+        return $this->status === 'submitted' && $this->application_fee_paid;
     }
 
-    public function canApprove()
+    public function canDepartmentReview()
     {
-        return $this->status === 'under_review';
+        return $this->status === 'registry_reviewed';
     }
 
     public function canAdmit()
     {
-        return $this->status === 'approved' && $this->application_fee_paid;
+        return $this->status === 'department_approved';
     }
 
-    public function markAsReviewed($userId, $comment = null)
+    public function canResendAdmissionLetter()
+    {
+        return in_array($this->status, ['admitted', 'accepted', 'tuition_paid', 'enrolled'], true);
+    }
+
+    public function canAcceptAdmission()
+    {
+        return $this->status === 'admitted' && ! $this->admission_accepted;
+    }
+
+    public function canPayTuition()
+    {
+        return $this->status === 'accepted' && $this->admission_accepted && ! $this->tuition_fee_paid;
+    }
+
+    public function markRegistryReviewed($userId, $comment = null)
     {
         $this->update([
-            'status' => 'under_review',
+            'status' => 'registry_reviewed',
+            'registry_reviewed_by' => $userId,
+            'registry_reviewed_at' => now(),
             'reviewed_by' => $userId,
             'reviewed_at' => now(),
             'admission_comment' => $comment,
         ]);
     }
 
-    public function approve($userId)
+    public function markDepartmentApproved($userId, $comment = null)
     {
         $this->update([
-            'status' => 'approved',
+            'status' => 'department_approved',
+            'department_reviewed_by' => $userId,
+            'department_reviewed_at' => now(),
+            'department_review_comment' => $comment,
             'approved_by' => $userId,
             'approved_at' => now(),
         ]);
     }
 
-    public function reject($userId, $reason)
+    public function markDepartmentRejected($userId, $reason)
     {
         $this->update([
             'status' => 'rejected',
-            'approved_by' => $userId,
-            'approved_at' => now(),
+            'department_reviewed_by' => $userId,
+            'department_reviewed_at' => now(),
+            'rejection_reason' => $reason,
+        ]);
+    }
+
+    public function markRegistryRejected($userId, $reason)
+    {
+        $this->update([
+            'status' => 'rejected',
+            'registry_reviewed_by' => $userId,
+            'registry_reviewed_at' => now(),
             'rejection_reason' => $reason,
         ]);
     }
@@ -161,20 +195,38 @@ class Application extends Model
         ]);
     }
 
-    public function markAdmissionLetterSent()
-    {
-        $this->update([
-            'admission_letter_sent' => true,
-            'admission_letter_sent_at' => now(),
-        ]);
-    }
-
     public function markAdmissionAccepted()
     {
         $this->update([
             'admission_accepted' => true,
             'admission_accepted_at' => now(),
+            'status' => 'accepted',
+        ]);
+    }
+
+    public function markTuitionPaid()
+    {
+        $this->update([
+            'tuition_fee_paid' => true,
+            'tuition_paid_at' => now(),
+            'status' => 'tuition_paid',
+        ]);
+    }
+
+    public function markTuitionVerified($userId)
+    {
+        $this->update([
+            'tuition_verified_by' => $userId,
+            'tuition_verified_at' => now(),
             'status' => 'enrolled',
+        ]);
+    }
+
+    public function markAdmissionLetterSent()
+    {
+        $this->update([
+            'admission_letter_sent' => true,
+            'admission_letter_sent_at' => now(),
         ]);
     }
 }

@@ -56,6 +56,18 @@ import CustomersPage from './pages/people/CustomersPage'
 import StudentsPage from './pages/people/StudentsPage'
 import TeachersPage from './pages/people/TeachersPage'
 import StaffPage from './pages/people/StaffPage'
+import AdmissionsLayout from './modules/admissions/components/AdmissionsLayout'
+import AdmissionsOverviewPage from './modules/admissions/pages/AdmissionsOverviewPage'
+import { ApplicationPage } from './modules/admissions/pages/ApplicationPage'
+import MyApplicationsPage from './modules/admissions/pages/MyApplicationsPage'
+import ApplicationDetailPage from './modules/admissions/pages/ApplicationDetailPage'
+import AllApplicationsPage from './modules/admissions/pages/AllApplicationsPage'
+import RegistryPage from './modules/admissions/pages/RegistryPage'
+import DepartmentPage from './modules/admissions/pages/DepartmentPage'
+import RegistrarAdmissionsPage from './modules/admissions/pages/RegistrarAdmissionsPage'
+import FinancePage from './modules/admissions/pages/FinancePage'
+import CourseRegistrationPage from './modules/admissions/pages/CourseRegistrationPage'
+import HodCourseApprovalPage from './modules/admissions/pages/HodCourseApprovalPage'
 
 export default function App(){
   return (
@@ -84,7 +96,20 @@ export default function App(){
           <Route path="modules" element={<ModulesPage/>} />
           <Route path="institutions" element={<InstitutionList />} />
           <Route path="departments" element={<DepartmentsPage />} />
-          <Route path="admissions" element={<PlaceholderModulePage title="Admissions" />} />
+          <Route path="admissions" element={<AdmissionsLayout />}>
+            <Route index element={<AdmissionsOverviewPage />} />
+            <Route path="apply" element={<ApplicationPage />} />
+            <Route path="my-applications" element={<MyApplicationsPage />} />
+            <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="applications" element={<AllApplicationsPage />} />
+            <Route path="applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="registry" element={<RegistryPage />} />
+            <Route path="department" element={<DepartmentPage />} />
+            <Route path="registrar" element={<RegistrarAdmissionsPage />} />
+            <Route path="finance" element={<FinancePage />} />
+            <Route path="courses" element={<CourseRegistrationPage />} />
+            <Route path="hod-courses" element={<HodCourseApprovalPage />} />
+          </Route>
           <Route path="academics" element={<AcademicsPage />} />
           <Route path="academics/programmes" element={<AcademicsPage initialTab="programmes" />} />
           <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />

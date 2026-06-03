@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronRight, Upload } from 'lucide-react';
 import { useApplicationForm } from '../hooks/useApplicationForm';
-import api from '@/api';
+import { fetchAdmissionsReferenceData } from '../../../api/admissions';
+import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
+import { useAuth } from '../../../context/AuthContext';
 
 interface Programme {
   id: number;
@@ -16,7 +18,9 @@ interface AcademicYear {
 }
 
 export const ApplicationForm: React.FC = () => {
-  const { step, loading, error, applicant, submitApplicantInfo, submitApplication, reset } =
+  const { t } = useAdmissionsI18n();
+  const { user } = useAuth();
+  const { step, loading, error, applicant, submitApplicantInfo, submitApplication, reset, loadExistingApplicant } =
     useApplicationForm();
 
   const [programmes, setProgrammes] = React.useState<Programme[]>([]);
@@ -46,12 +50,27 @@ export const ApplicationForm: React.FC = () => {
   React.useEffect(() => {
     fetchProgrammes();
     fetchAcademicYears();
-  }, []);
+    loadExistingApplicant();
+  }, [loadExistingApplicant]);
+
+  React.useEffect(() => {
+    if (!user || applicant) {
+      return;
+    }
+    const nameParts = String(user.name || '').trim().split(/\s+/);
+    setFormData((prev) => ({
+      ...prev,
+      first_name: prev.first_name || nameParts[0] || '',
+      last_name: prev.last_name || nameParts.slice(1).join(' ') || '',
+      email: prev.email || user.email || '',
+      phone: prev.phone || user.phone_number || '',
+    }));
+  }, [user, applicant]);
 
   const fetchProgrammes = async () => {
     try {
-      const response = await api.get('/programmes');
-      setProgrammes(response.data.data || []);
+      const data = await fetchAdmissionsReferenceData();
+      setProgrammes(data.programmes || []);
     } catch (error) {
       console.error('Failed to fetch programmes:', error);
     }
@@ -59,8 +78,8 @@ export const ApplicationForm: React.FC = () => {
 
   const fetchAcademicYears = async () => {
     try {
-      const response = await api.get('/academic-years');
-      setAcademicYears(response.data.data || []);
+      const data = await fetchAdmissionsReferenceData();
+      setAcademicYears(data.academic_years || []);
     } catch (error) {
       console.error('Failed to fetch academic years:', error);
     }
@@ -140,9 +159,9 @@ export const ApplicationForm: React.FC = () => {
           ))}
         </div>
         <div className="flex justify-between text-sm text-gray-600">
-          <span>Personal Info</span>
-          <span>Programme Selection</span>
-          <span>Confirmation</span>
+          <span>{t('personalInfo')}</span>
+          <span>{t('programmeSelection')}</span>
+          <span>{t('confirmation')}</span>
         </div>
       </div>
 
@@ -155,12 +174,12 @@ export const ApplicationForm: React.FC = () => {
       {/* Step 1: Personal Information */}
       {step === 1 && (
         <form onSubmit={handleStep1Submit} className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Personal Information</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('personalInformation')}</h2>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name *
+                {t('firstName')} *
               </label>
               <input
                 type="text"
@@ -173,7 +192,7 @@ export const ApplicationForm: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name *
+                {t('lastName')} *
               </label>
               <input
                 type="text"
@@ -188,7 +207,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Middle Name
+              {t('middleName')}
             </label>
             <input
               type="text"
@@ -202,7 +221,7 @@ export const ApplicationForm: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
+                {t('email')} *
               </label>
               <input
                 type="email"
@@ -215,7 +234,7 @@ export const ApplicationForm: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone *
+                {t('phone')} *
               </label>
               <input
                 type="tel"
@@ -231,7 +250,7 @@ export const ApplicationForm: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gender *
+                {t('gender')} *
               </label>
               <select
                 name="gender"
@@ -240,15 +259,15 @@ export const ApplicationForm: React.FC = () => {
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select...</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
+                <option value="">{t('select')}</option>
+                <option value="male">{t('male')}</option>
+                <option value="female">{t('female')}</option>
+                <option value="other">{t('other')}</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date of Birth *
+                {t('dateOfBirth')} *
               </label>
               <input
                 type="date"
@@ -264,7 +283,7 @@ export const ApplicationForm: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nationality *
+                {t('nationality')} *
               </label>
               <input
                 type="text"
@@ -277,7 +296,7 @@ export const ApplicationForm: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID Number
+                {t('idNumber')}
               </label>
               <input
                 type="text"
@@ -291,7 +310,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Address *
+              {t('address')} *
             </label>
             <input
               type="text"
@@ -306,7 +325,7 @@ export const ApplicationForm: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                City *
+                {t('city')} *
               </label>
               <input
                 type="text"
@@ -318,7 +337,7 @@ export const ApplicationForm: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('state')}</label>
               <input
                 type="text"
                 name="state"
@@ -329,7 +348,7 @@ export const ApplicationForm: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country *
+                {t('country')} *
               </label>
               <input
                 type="text"
@@ -351,7 +370,7 @@ export const ApplicationForm: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-4 h-4"
               />
-              <span className="text-sm text-gray-700">International Student</span>
+              <span className="text-sm text-gray-700">{t('internationalStudent')}</span>
             </label>
           </div>
 
@@ -360,7 +379,7 @@ export const ApplicationForm: React.FC = () => {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
           >
-            Continue <ChevronRight size={20} />
+            {t('continue')} <ChevronRight size={20} />
           </button>
         </form>
       )}
@@ -368,11 +387,11 @@ export const ApplicationForm: React.FC = () => {
       {/* Step 2: Programme and Academic Year */}
       {step === 2 && (
         <form onSubmit={handleStep2Submit} className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Select Programme</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('selectProgramme')}</h2>
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Academic Year *
+              {t('academicYear')} *
             </label>
             <select
               value={selectedAcademicYear}
@@ -380,10 +399,10 @@ export const ApplicationForm: React.FC = () => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select Academic Year</option>
+              <option value="">{t('selectAcademicYear')}</option>
               {academicYears.map((year) => (
                 <option key={year.id} value={year.id}>
-                  {year.name} {year.is_current ? '(Current)' : ''}
+                  {year.name} {year.is_current ? `(${t('current')})` : ''}
                 </option>
               ))}
             </select>
@@ -391,7 +410,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Programme *
+              {t('programme')} *
             </label>
             <select
               value={selectedProgramme}
@@ -399,7 +418,7 @@ export const ApplicationForm: React.FC = () => {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select Programme</option>
+              <option value="">{t('selectProgrammeOption')}</option>
               {programmes.map((prog) => (
                 <option key={prog.id} value={prog.id}>
                   {prog.name} ({prog.code})
@@ -410,7 +429,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Passport/ID
+              {t('passportId')}
             </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
               <input
@@ -426,7 +445,7 @@ export const ApplicationForm: React.FC = () => {
                 <span className="text-sm text-gray-600">
                   {documents.passport
                     ? documents.passport.name
-                    : 'Click to upload or drag and drop'}
+                    : t('uploadHint')}
                 </span>
               </label>
             </div>
@@ -434,7 +453,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Academic Transcript
+              {t('academicTranscript')}
             </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
               <input
@@ -450,7 +469,7 @@ export const ApplicationForm: React.FC = () => {
                 <span className="text-sm text-gray-600">
                   {documents.transcript
                     ? documents.transcript.name
-                    : 'Click to upload or drag and drop'}
+                    : t('uploadHint')}
                 </span>
               </label>
             </div>
@@ -462,14 +481,14 @@ export const ApplicationForm: React.FC = () => {
               onClick={() => reset()}
               className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300"
             >
-              Back
+              {t('back')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
-              Continue <ChevronRight size={20} />
+              {t('continue')} <ChevronRight size={20} />
             </button>
           </div>
         </form>
@@ -482,20 +501,21 @@ export const ApplicationForm: React.FC = () => {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">✓</span>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Application Submitted</h2>
-            <p className="text-gray-600">Your application has been successfully submitted.</p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('applicationSubmitted')}</h2>
+            <p className="text-gray-600">{t('applicationSubmittedDesc')}</p>
           </div>
 
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Application Number:</p>
+            <p className="text-sm font-semibold text-gray-700 mb-2">{t('applicationNumber')}</p>
             <p className="text-lg font-mono text-blue-600 mb-4">APP-2024-000001</p>
 
-            <p className="text-sm font-semibold text-gray-700 mb-2">Next Steps:</p>
+            <p className="text-sm font-semibold text-gray-700 mb-2">{t('nextSteps')}</p>
             <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-              <li>Pay the application fee</li>
-              <li>Wait for admission board review</li>
-              <li>Receive admission decision</li>
-              <li>Accept admission if approved</li>
+              <li>{t('nextPayFee')}</li>
+              <li>{t('nextRegistryReview')}</li>
+              <li>{t('nextDepartmentReview')}</li>
+              <li>{t('nextAdmissionDecision')}</li>
+              <li>{t('nextAcceptIfApproved')}</li>
             </ul>
           </div>
 
@@ -503,7 +523,7 @@ export const ApplicationForm: React.FC = () => {
             onClick={handleStep3Submit}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
           >
-            Proceed to Payment <ChevronRight size={20} />
+            {t('proceedToPayment')} <ChevronRight size={20} />
           </button>
         </div>
       )}

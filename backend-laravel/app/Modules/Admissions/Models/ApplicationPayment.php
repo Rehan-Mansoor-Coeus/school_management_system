@@ -2,7 +2,7 @@
 
 namespace App\Modules\Admissions\Models;
 
-use App\Models\Institution;
+use App\Institution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -13,9 +13,9 @@ class ApplicationPayment extends Model
     protected $table = 'payments';
 
     protected $fillable = [
-        'institution_id', 'student_id', 'fee_id', 'reference_number', 'transaction_id',
-        'payment_type', 'payment_method', 'amount', 'status', 'description',
-        'receipt_number', 'paid_at', 'gateway_response'
+        'institution_id', 'student_id', 'fee_id', 'application_id',
+        'reference_number', 'transaction_id', 'payment_type', 'payment_method',
+        'amount', 'status', 'description', 'receipt_number', 'paid_at', 'gateway_response',
     ];
 
     protected $dates = ['paid_at', 'deleted_at'];
@@ -24,29 +24,21 @@ class ApplicationPayment extends Model
         'gateway_response' => 'array',
     ];
 
-    // Relationships
     public function institution()
     {
         return $this->belongsTo(Institution::class);
     }
 
-    // Scopes
+    public function application()
+    {
+        return $this->belongsTo(Application::class);
+    }
+
     public function scopeByReference($query, $reference)
     {
         return $query->where('reference_number', $reference);
     }
 
-    public function scopeByStatus($query, $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', 'completed');
-    }
-
-    // Methods
     public function markAsCompleted($transactionId, $response = null)
     {
         $this->update([

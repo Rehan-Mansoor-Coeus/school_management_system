@@ -2,117 +2,315 @@
 
 namespace App\Modules\Admissions\Services;
 
+use App\AppNotification;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
-use App\Models\Notification;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Http;
+use App\User;
+use App\Services\Messaging\MessageLogService;
+use App\Services\Messaging\WhatsAppService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class NotificationService
 {
-    protected $twilio_url = 'https://api.twilio.com';
-    protected $twilio_account_sid;
-    protected $twilio_auth_token;
+    use TranslatesForUser;
+
+    protected $whatsapp;
+
+    protected $messageLogs;
 
     public function __construct()
     {
-        $this->twilio_account_sid = config('services.twilio.account_sid');
-        $this->twilio_auth_token = config('services.twilio.auth_token');
+        $this->whatsapp = new WhatsAppService();
+        $this->messageLogs = new MessageLogService();
     }
 
     public function sendAdmissionLetter(Application $application, $pdfPath)
     {
-        // Send via Email
-        $this->sendEmailNotification($application, $pdfPath);
-
-        // Send via WhatsApp
-        $this->sendWhatsAppNotification($application);
-
-        // Create in-app notification
+        $user = optional($application->applicant)->user;
+        $this->sendAdmissionEmail($application, $pdfPath);
+        $whatsappResult = $this->sendAdmissionWhatsApp($application, $pdfPath);
         $this->createInAppNotification(
             $application->applicant->user_id,
             $application->institution_id,
-            'Admission Letter',
-            'Your admission letter has been generated and sent to your email and WhatsApp.',
+            $this->transForUser('admissions.notify_admission_letter_title', [], $user),
+            $this->transForUser('admissions.notify_admission_letter_body', [], $user),
             'admission'
         );
-
         $application->markAdmissionLetterSent();
+
+        return $whatsappResult;
     }
 
-    protected function sendEmailNotification(Application $application, $pdfPath)
+    protected function sendAdmissionEmail(Application $application, $pdfPath)
     {
         try {
             $applicant = $application->applicant;
             $institution = $application->institution;
+            $user = $applicant->user;
+            $locale = $this->admissionsLocale($user);
 
-            // Here you would use your Mail class - creating a custom Mailable
-            $subject = "Admission Letter - {$application->application_number}";
-            $message = "Dear {$applicant->first_name},\n\nCongratulations on your admission to {$institution->name}. Please find attached your admission letter.";
+            $subject = $this->transForUser('admissions.email_subject', [
+                'number' => $application->application_number,
+            ], $user);
 
-            // Example: Mail::send(new AdmissionLetterMail($application, $pdfPath));
+            $body = $this->transForUser('admissions.email_admitted_body', [
+                'name' => $applicant->first_name,
+                'institution' => $institution->name,
+                'programme' => $application->programme->name,
+            ], $user);
 
-            Log::info("Admission letter sent to {$applicant->email}");
-
-            return true;
+            Mail::raw($body, function ($message) use ($applicant, $subject, $pdfPath, $locale) {
+                $message->to($applicant->email)->subject($subject);
+                if ($pdfPath && Storage::disk('public')->exists($pdfPath)) {
+                    $message->attach(Storage::disk('public')->path($pdfPath));
+                }
+            });
         } catch (\Exception $e) {
-            Log::error('Failed to send admission letter email: ' . $e->getMessage());
-            return false;
+            Log::warning('Admission letter email failed: '.$e->getMessage());
         }
     }
 
-    protected function sendWhatsAppNotification(Application $application)
+    protected function sendAdmissionWhatsApp(Application $application, $pdfPath)
     {
-        try {
-            $applicant = $application->applicant;
-            $institution = $application->institution;
+        $result = [
+            'whatsapp_text_sent' => false,
+            'whatsapp_document_sent' => false,
+            'error' => null,
+        ];
 
-            $message = "Hello {$applicant->first_name}, Congratulations! You have been admitted to {$institution->name} for the {$application->programme->name} programme. Please check your email for the admission letter. Thank you.";
+        if (! $this->whatsapp->isConfigured()) {
+            $result['error'] = 'WhatsApp API is not configured.';
+            Log::warning('Admission letter WhatsApp skipped: WASENDER_API_KEY not configured.');
 
-            // Use Twilio WhatsApp API or any WhatsApp gateway
-            // Example using a hypothetical WhatsApp service:
-            // $this->sendWhatsAppViaTwilio($applicant->phone, $message);
-
-            Log::info("WhatsApp notification sent to {$applicant->phone}");
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to send WhatsApp notification: ' . $e->getMessage());
-            return false;
+            return $result;
         }
+
+        try {
+            $application->loadMissing(['applicant.user', 'institution', 'programme']);
+            $applicant = $application->applicant;
+            $user = $applicant->user;
+            $normalizedPhone = $this->whatsapp->normalizePhoneNumber((string) $applicant->phone);
+
+            if (! $normalizedPhone) {
+                $result['error'] = 'Invalid or missing applicant phone number.';
+                Log::warning('Admission letter WhatsApp skipped: invalid phone', [
+                    'application_id' => $application->id,
+                    'phone' => $applicant->phone,
+                ]);
+
+                return $result;
+            }
+
+            $message = $this->transForUser('admissions.whatsapp_admitted', [
+                'name' => $applicant->first_name,
+                'institution' => $application->institution->name,
+                'programme' => $application->programme->name,
+                'number' => $application->application_number,
+            ], $user);
+
+            $textResult = $this->whatsapp->sendTextMessage($normalizedPhone, $message, 'admission_letter');
+            $this->messageLogs->logWhatsAppResult($application->institution_id, $textResult, [
+                'recipient_name' => $applicant->full_name,
+                'phone_number' => $normalizedPhone,
+                'message_type' => 'text',
+                'module' => 'admission',
+                'related_id' => $application->id,
+                'message' => $message,
+            ]);
+            $result['whatsapp_text_sent'] = (bool) ($textResult['success'] ?? false);
+
+            if (! $pdfPath || ! Storage::disk('public')->exists($pdfPath)) {
+                $result['error'] = 'Admission letter PDF file not found.';
+                Log::warning('Admission letter WhatsApp PDF missing', [
+                    'application_id' => $application->id,
+                    'path' => $pdfPath,
+                ]);
+
+                return $result;
+            }
+
+            // Wasender needs a short pause between consecutive messages (same as Letters module).
+            sleep(6);
+
+            $upload = $this->whatsapp->uploadLocalFile($pdfPath, 'application/pdf');
+            if (! ($upload['success'] ?? false) || empty($upload['public_url'])) {
+                $result['error'] = $upload['error'] ?? 'Unable to upload admission letter PDF to WhatsApp.';
+                Log::warning('Admission letter WhatsApp upload failed', [
+                    'application_id' => $application->id,
+                    'error' => $result['error'],
+                ]);
+
+                return $result;
+            }
+
+            $documentUrl = $upload['public_url'];
+            $fileName = $application->application_number.'-Admission-Letter.pdf';
+            $caption = $this->transForUser('admissions.whatsapp_letter_caption', [
+                'number' => $application->application_number,
+            ], $user);
+
+            $docResult = $this->whatsapp->sendDocumentMessage(
+                $normalizedPhone,
+                $documentUrl,
+                $caption,
+                $fileName
+            );
+
+            $this->messageLogs->logWhatsAppResult($application->institution_id, $docResult, [
+                'recipient_name' => $applicant->full_name,
+                'phone_number' => $normalizedPhone,
+                'message_type' => 'document',
+                'module' => 'admission',
+                'related_id' => $application->id,
+                'message' => $caption,
+                'attachment_url' => $documentUrl,
+            ]);
+
+            $result['whatsapp_document_sent'] = (bool) ($docResult['success'] ?? false);
+            if (! $result['whatsapp_document_sent']) {
+                $result['error'] = $docResult['error'] ?? 'WhatsApp document send failed.';
+                Log::warning('Admission letter WhatsApp document failed', [
+                    'application_id' => $application->id,
+                    'error' => $result['error'],
+                ]);
+            }
+        } catch (\Exception $e) {
+            $result['error'] = $e->getMessage();
+            Log::warning('Admission letter WhatsApp failed: '.$e->getMessage());
+        }
+
+        return $result;
     }
 
     public function sendApplicationStatusNotification(Application $application, $status)
     {
-        $messages = [
-            'submitted' => 'Your application has been received.',
-            'under_review' => 'Your application is under review.',
-            'approved' => 'Congratulations! Your application has been approved.',
-            'rejected' => 'Unfortunately, your application has been rejected.',
-            'admitted' => 'You have been admitted! Please check your email for the admission letter.',
+        $keys = [
+            'submitted' => 'notify_submitted',
+            'registry_reviewed' => 'notify_registry_reviewed',
+            'approved' => 'notify_approved',
+            'rejected' => 'notify_rejected',
+            'admitted' => 'notify_admitted',
+            'accepted' => 'notify_accepted',
+            'tuition_paid' => 'notify_tuition_paid',
+            'enrolled' => 'notify_enrolled',
         ];
 
-        $message = $messages[$status] ?? 'Your application status has been updated.';
+        $user = optional($application->applicant)->user;
+        $message = isset($keys[$status])
+            ? $this->transForUser('admissions.' . $keys[$status], [], $user)
+            : $this->transForUser('admissions.notify_status_title', [], $user);
 
         if ($application->applicant->user_id) {
             $this->createInAppNotification(
                 $application->applicant->user_id,
                 $application->institution_id,
-                'Application Status Update',
+                $this->transForUser('admissions.notify_status_title', [], $user),
                 $message,
                 'admission'
             );
         }
+    }
 
-        // Send email
-        if ($status === 'approved' || $status === 'rejected') {
-            $this->sendEmailNotification($application);
+    public function notifyRegistry(Application $application)
+    {
+        $this->notifyRoleUsers(
+            'registry',
+            $application,
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_registry_new', ['number' => $application->application_number])
+        );
+    }
+
+    public function notifyDepartment(Application $application)
+    {
+        $departmentId = optional($application->programme)->department_id;
+        $users = User::where('institution_id', $application->institution_id)
+            ->where('department_id', $departmentId)
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['hod', 'head-of-department']);
+            })
+            ->get();
+
+        foreach ($users as $user) {
+            $this->createInAppNotification(
+                $user->id,
+                $application->institution_id,
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_department_review', ['number' => $application->application_number], $user),
+                'admission'
+            );
+        }
+    }
+
+    public function notifyRegistrar(Application $application)
+    {
+        $this->notifyRoleUsers(
+            'registrar',
+            $application,
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_registrar_ready', ['number' => $application->application_number])
+        );
+    }
+
+    public function notifyFinanceOfficer(Application $application)
+    {
+        $this->notifyRoleUsers(
+            'finance-officer',
+            $application,
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_finance_action', ['number' => $application->application_number])
+        );
+    }
+
+    public function notifyHodForCourseRegistration($student)
+    {
+        $student->loadMissing('programme');
+        $users = User::where('institution_id', $student->institution_id)
+            ->where('department_id', optional($student->programme)->department_id)
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['hod', 'head-of-department']);
+            })
+            ->get();
+
+        foreach ($users as $user) {
+            $this->createInAppNotification(
+                $user->id,
+                $student->institution_id,
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_course_pending', ['reg' => $student->registration_number], $user),
+                'admission'
+            );
+        }
+    }
+
+    protected function notifyRoleUsers($roleName, Application $application, $title, $message)
+    {
+        $users = User::where('institution_id', $application->institution_id)
+            ->whereHas('roles', function ($q) use ($roleName) {
+                $q->where('name', $roleName);
+            })
+            ->get();
+
+        foreach ($users as $user) {
+            $this->createInAppNotification(
+                $user->id,
+                $application->institution_id,
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                $message,
+                'admission'
+            );
         }
     }
 
     protected function createInAppNotification($userId, $institutionId, $title, $message, $category)
     {
-        return Notification::create([
+        if (! $userId) {
+            return null;
+        }
+
+        return AppNotification::create([
             'user_id' => $userId,
             'institution_id' => $institutionId,
             'title' => $title,
@@ -121,63 +319,5 @@ class NotificationService
             'category' => $category,
             'is_read' => false,
         ]);
-    }
-
-    public function notifyAdmissionBoard(Application $application)
-    {
-        // Get all admission board members
-        $boardMembers = $application->institution->users()
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'admission_board');
-            })
-            ->get();
-
-        foreach ($boardMembers as $member) {
-            $this->createInAppNotification(
-                $member->id,
-                $application->institution_id,
-                'New Application Submitted',
-                "New application #{$application->application_number} from {$application->applicant->full_name} is awaiting review.",
-                'admission'
-            );
-        }
-    }
-
-    public function notifyRegistrar(Application $application)
-    {
-        $registrar = $application->institution->users()
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'registrar');
-            })
-            ->first();
-
-        if ($registrar) {
-            $this->createInAppNotification(
-                $registrar->id,
-                $application->institution_id,
-                'Application Ready for Admission',
-                "Application #{$application->application_number} is approved and ready for admission.",
-                'admission'
-            );
-        }
-    }
-
-    public function notifyFinanceOfficer(Application $application)
-    {
-        $financeOfficer = $application->institution->users()
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'finance_officer');
-            })
-            ->first();
-
-        if ($financeOfficer) {
-            $this->createInAppNotification(
-                $financeOfficer->id,
-                $application->institution_id,
-                'Application Fee Payment Received',
-                "Application fee of {$application->application_fee} received for application #{$application->application_number}.",
-                'admission'
-            );
-        }
     }
 }

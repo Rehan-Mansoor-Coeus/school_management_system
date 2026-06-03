@@ -5,6 +5,7 @@ use App\Module;
 use App\Permission;
 use App\Role;
 use App\User;
+use App\AcademicYear;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -75,6 +76,10 @@ class RolePermissionSeeder extends Seeder
         $staffRole = Role::firstOrCreate(['name' => 'staff'], ['guard_name' => 'api']);
         $hodRole = Role::firstOrCreate(['name' => 'head-of-department'], ['guard_name' => 'api']);
         $courseMasterRole = Role::firstOrCreate(['name' => 'course-master'], ['guard_name' => 'api']);
+        $registryRole = Role::firstOrCreate(['name' => 'registry'], ['guard_name' => 'api']);
+        $registrarRole = Role::firstOrCreate(['name' => 'registrar'], ['guard_name' => 'api']);
+        $hodAdmissionRole = Role::firstOrCreate(['name' => 'hod'], ['guard_name' => 'api']);
+        $financeOfficerRole = Role::firstOrCreate(['name' => 'finance-officer'], ['guard_name' => 'api']);
 
         $accessPermissions = [
             'users.view',
@@ -112,6 +117,13 @@ class RolePermissionSeeder extends Seeder
             'modules.manage',
             'admissions.view',
             'admissions.manage',
+            'admissions.apply',
+            'admissions.registry.review',
+            'admissions.department.review',
+            'admissions.registrar.admit',
+            'admissions.finance.verify',
+            'admissions.courses.register',
+            'admissions.hod.approve',
             'academics.view',
             'academics.manage',
             'attendance.view',
@@ -294,10 +306,13 @@ class RolePermissionSeeder extends Seeder
             $timesheetPermissions,
             $adminTimesheetPermissions,
             $legacyTimesheetPermissions,
-            $lettersPermissions
+            $lettersPermissions,
+            ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.hod.approve']
         );
 
         $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, [
+            'admissions.view',
+            'admissions.manage',
             'timesheets.manage',
             'timesheets.report',
             'timesheets.review',
@@ -323,7 +338,13 @@ class RolePermissionSeeder extends Seeder
             'timesheets.view_own',
         ]));
 
-        $studentRole->syncPermissions([]);
+        $studentRole->syncPermissions(['admissions.apply', 'admissions.courses.register']);
+
+        $admissionsStaffPermissions = ['admissions.view', 'admissions.manage'];
+        $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review']));
+        $registrarRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registrar.admit']));
+        $hodAdmissionRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.department.review', 'admissions.hod.approve', 'admissions.courses.register']));
+        $financeOfficerRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.finance.verify', 'fees.view', 'fees.manage']));
 
         $timesheetSupervisorRole->syncPermissions(array_merge($adminTimesheetPermissions, [
             'request_timesheet_correction',
@@ -364,6 +385,9 @@ class RolePermissionSeeder extends Seeder
             'request_timesheet_correction',
             'view_timesheet_reports',
             'view_course_hour_reports',
+            'admissions.view',
+            'admissions.department.review',
+            'admissions.hod.approve',
             'timesheets.view_teacher_schedules',
             'timesheets.assign_teacher_schedules',
             'timesheets.manage_teacher_availability',
@@ -450,6 +474,56 @@ class RolePermissionSeeder extends Seeder
             if (! $student->hasRole($studentRole)) {
                 $student->assignRole($studentRole);
             }
+
+            $this->seedAdmissionsStaff($institution);
         }
+    }
+
+    protected function seedAdmissionsStaff(Institution $institution)
+    {
+        $staff = [
+            ['email' => 'registry.inst'.$institution->id.'@test.com', 'name' => 'Registry Officer', 'role' => 'registry', 'password' => 'registry123'],
+            ['email' => 'registrar.inst'.$institution->id.'@test.com', 'name' => 'Registrar', 'role' => 'registrar', 'password' => 'registrar123'],
+            ['email' => 'hod.inst'.$institution->id.'@test.com', 'name' => 'Head of Department', 'role' => 'hod', 'password' => 'hod123'],
+            ['email' => 'finance.inst'.$institution->id.'@test.com', 'name' => 'Finance Officer', 'role' => 'finance-officer', 'password' => 'finance123'],
+        ];
+
+        if ($institution->code === 'DEF') {
+            $staff[0]['email'] = 'registry@test.com';
+            $staff[1]['email'] = 'registrar@test.com';
+            $staff[2]['email'] = 'hod@test.com';
+            $staff[3]['email'] = 'finance@test.com';
+        }
+
+        foreach ($staff as $entry) {
+            $user = User::updateOrCreate(
+                ['email' => $entry['email']],
+                [
+                    'institution_id' => $institution->id,
+                    'name' => $entry['name'],
+                    'password' => Hash::make($entry['password']),
+                    'api_token' => Str::random(60),
+                    'status' => 'active',
+                    'locale' => 'en',
+                ]
+            );
+
+            if (! $user->hasRole($entry['role'])) {
+                $user->assignRole(Role::where('name', $entry['role'])->first());
+            }
+        }
+
+        AcademicYear::firstOrCreate(
+            ['institution_id' => $institution->id, 'code' => 'AY'.date('Y').'-'.$institution->id],
+            [
+                'name' => date('Y').'/'.(date('Y') + 1),
+                'start_year' => (int) date('Y'),
+                'end_year' => (int) date('Y') + 1,
+                'start_date' => date('Y').'-09-01',
+                'end_date' => (date('Y') + 1).'-08-31',
+                'is_active' => true,
+                'is_current' => true,
+            ]
+        );
     }
 }

@@ -3,184 +3,126 @@
 namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admissions\Concerns\ResolvesInstitution;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Resources\ApplicationResource;
 use App\Modules\Admissions\Services\AdmissionLetterService;
 use App\Modules\Admissions\Services\NotificationService;
-use App\Models\Student;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class RegistrarController extends Controller
 {
+    use ResolvesInstitution, TranslatesForUser;
+
     public function __construct()
     {
         $this->middleware('auth:api');
-        $this->middleware('role:registrar|admin');
+        $this->middleware('role:registrar|institution-admin|admin|super-admin');
     }
 
-    /**
-     * Get applications ready for admission
-     */
     public function readyForAdmission()
     {
-        try {
-            $institutionId = auth()->user()->institutions()->first()->id;
+        $institutionId = $this->institutionId();
 
-            $applications = Application::where('institution_id', $institutionId)
-                ->where('status', 'approved')
-                ->where('application_fee_paid', true)
-                ->with(['applicant', 'programme'])
-                ->paginate(15);
+        $applications = Application::where('institution_id', $institutionId)
+            ->where('status', 'department_approved')
+            ->with(['applicant', 'programme'])
+            ->orderByDesc('approved_at')
+            ->paginate(15);
 
-            return response()->json([
-                'success' => true,
-                'data' => ApplicationResource::collection($applications),
-                'pagination' => [
-                    'total' => $applications->total(),
-                    'per_page' => $applications->perPage(),
-                    'current_page' => $applications->currentPage(),
-                ],
-            ]);
-        } catch (\Exception $e) {
+        return response()->json([
+            'success' => true,
+            'data' => ApplicationResource::collection($applications),
+            'pagination' => [
+                'total' => $applications->total(),
+                'per_page' => $applications->perPage(),
+                'current_page' => $applications->currentPage(),
+            ],
+        ]);
+    }
+
+    public function admit($applicationId)
+    {
+        $application = Application::with(['applicant', 'programme', 'institution'])->findOrFail($applicationId);
+
+        if (! $application->canAdmit()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch applications.',
-            ], 500);
+                'message' => $this->transForUser('admissions.not_ready_admission'),
+            ], 400);
         }
+
+        $application->admit(auth()->id());
+
+        $letterService = new AdmissionLetterService();
+        $letterPath = $letterService->generateAdmissionLetter($application);
+
+        $notificationService = new NotificationService();
+        $notificationService->sendAdmissionLetter($application, $letterPath);
+        $notificationService->sendApplicationStatusNotification($application, 'admitted');
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.admitted'),
+            'data' => new ApplicationResource($application->fresh()),
+        ]);
     }
 
-    /**
-     * Admit student and generate admission letter
-     */
-    public function admit(Request $request, $applicationId)
+    public function resendAdmissionLetter($applicationId)
     {
-        try {
-            $application = Application::findOrFail($applicationId);
+        $application = Application::with(['applicant', 'programme', 'institution'])->findOrFail($applicationId);
 
-            if (!$application->canAdmit()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Application is not ready for admission.',
-                ], 400);
-            }
+        if ((int) $application->institution_id !== $this->institutionId()) {
+            abort(403, $this->transForUser('admissions.unauthorized'));
+        }
 
-            // Create student record (if not exists)
-            $student = $this->createStudentFromApplication($application);
-
-            // Mark as admitted
-            $application->admit(auth()->id());
-
-            // Generate admission letter
-            $letterService = new AdmissionLetterService();
-            $letterPath = $letterService->generateAdmissionLetter($application);
-
-            // Send notifications
-            $notificationService = new NotificationService();
-            $notificationService->sendAdmissionLetter($application, $letterPath);
-            $notificationService->sendApplicationStatusNotification($application, 'admitted');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Student admitted successfully. Admission letter sent.',
-                'data' => [
-                    'application' => new ApplicationResource($application),
-                    'student' => $student,
-                ],
-            ]);
-        } catch (\Exception $e) {
+        if (! $application->canResendAdmissionLetter()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to admit student.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Create student account from application
-     */
-    protected function createStudentFromApplication(Application $application)
-    {
-        $applicant = $application->applicant;
-
-        // Create or get user
-        $user = $applicant->user ?? User::create([
-            'institution_id' => $application->institution_id,
-            'first_name' => $applicant->first_name,
-            'last_name' => $applicant->last_name,
-            'email' => $applicant->email,
-            'phone' => $applicant->phone,
-            'username' => Str::slug($applicant->first_name . '.' . $applicant->last_name) . '.' . Str::random(4),
-            'password' => bcrypt(Str::random(16)),
-            'is_active' => true,
-        ]);
-
-        // Create student record
-        $student = Student::create([
-            'institution_id' => $application->institution_id,
-            'user_id' => $user->id,
-            'applicant_id' => $applicant->id,
-            'programme_id' => $application->programme_id,
-            'registration_number' => $this->generateRegistrationNumber($application->institution_id),
-            'status' => 'active',
-            'admission_date' => now(),
-            'current_level' => $application->programme->accreditation_number ? 100 : 200,
-        ]);
-
-        // Assign student role
-        $studentRole = $application->institution->roles()->where('name', 'student')->first();
-        if ($studentRole) {
-            $user->roles()->attach($studentRole->id);
+                'message' => $this->transForUser('admissions.letter_cannot_resend'),
+            ], 400);
         }
 
-        return $student;
+        $letterPath = (new AdmissionLetterService())->generateAdmissionLetter($application);
+        $delivery = (new NotificationService())->sendAdmissionLetter($application, $letterPath);
+
+        if (! ($delivery['whatsapp_document_sent'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => $delivery['error'] ?? $this->transForUser('admissions.letter_whatsapp_failed'),
+                'delivery' => $delivery,
+                'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.letter_resent'),
+            'delivery' => $delivery,
+            'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
+        ]);
     }
 
-    /**
-     * Generate registration number
-     */
-    protected function generateRegistrationNumber($institutionId)
-    {
-        $year = date('y');
-        $count = Student::where('institution_id', $institutionId)
-            ->whereYear('created_at', date('Y'))
-            ->count() + 1;
-
-        return 'STU' . $year . str_pad($count, 5, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * Get registrar dashboard
-     */
     public function dashboard()
     {
-        try {
-            $institutionId = auth()->user()->institutions()->first()->id;
+        $institutionId = $this->institutionId();
 
-            $stats = [
+        return response()->json([
+            'success' => true,
+            'data' => [
                 'ready_for_admission' => Application::where('institution_id', $institutionId)
-                    ->where('status', 'approved')
-                    ->where('application_fee_paid', true)
+                    ->where('status', 'department_approved')
                     ->count(),
                 'admitted' => Application::where('institution_id', $institutionId)
                     ->where('status', 'admitted')
                     ->count(),
+                'accepted' => Application::where('institution_id', $institutionId)
+                    ->where('status', 'accepted')
+                    ->count(),
                 'enrolled' => Application::where('institution_id', $institutionId)
                     ->where('status', 'enrolled')
                     ->count(),
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => $stats,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch dashboard data.',
-            ], 500);
-        }
+            ],
+        ]);
     }
 }

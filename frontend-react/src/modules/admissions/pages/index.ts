@@ -1,5 +1,12 @@
-// Export all pages
 export { ApplicationPage } from './ApplicationPage';
+export { default as AdmissionsOverviewPage } from './AdmissionsOverviewPage';
+export { default as MyApplicationsPage } from './MyApplicationsPage';
+export { default as RegistryPage } from './RegistryPage';
+export { default as DepartmentPage } from './DepartmentPage';
+export { default as RegistrarAdmissionsPage } from './RegistrarAdmissionsPage';
+export { default as FinancePage } from './FinancePage';
+export { default as CourseRegistrationPage } from './CourseRegistrationPage';
+export { default as HodCourseApprovalPage } from './HodCourseApprovalPage';
 export { BoardPage } from './BoardPage';
 export { RegistrarPage } from './RegistrarPage';
 export { CheckoutPage } from './CheckoutPage';

@@ -31,10 +31,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         const user = res.data?.user ?? res.data
         const enabledModules = res.data?.enabled_modules ?? []
         const permissions = res.data?.permissions ?? []
+        const institution = res.data?.institution ?? user?.institution ?? null
         localStorage.setItem('me', JSON.stringify(user))
         localStorage.setItem('permissions', JSON.stringify(permissions))
         localStorage.setItem('enabled_modules', JSON.stringify(enabledModules))
-        setAuth({ user, permissions, enabledModules })
+        localStorage.setItem('institution', JSON.stringify(institution))
+        setAuth({ user, permissions, enabledModules, institution })
         setAuthed(true)
         setSessionExpired(false)
         setRateLimited(false)
@@ -51,8 +53,9 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
           localStorage.removeItem('me')
           localStorage.removeItem('permissions')
           localStorage.removeItem('enabled_modules')
+          localStorage.removeItem('institution')
           delete api.defaults.headers.common['Authorization']
-          setAuth({ user: null, permissions: [], enabledModules: [] })
+          setAuth({ user: null, permissions: [], enabledModules: [], institution: null })
           setSessionExpired(true)
         }
         setAuthed(false)

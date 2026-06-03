@@ -15,6 +15,10 @@ export interface Applicant {
   state?: string;
   country: string;
   is_international: boolean;
+  passport_path?: string | null;
+  transcript_path?: string | null;
+  passport_url?: string | null;
+  transcript_url?: string | null;
 }
 
 export interface Programme {
@@ -35,13 +39,17 @@ export interface AcademicYear {
   is_current: boolean;
 }
 
-export type ApplicationStatus = 
-  | 'draft' 
-  | 'submitted' 
-  | 'under_review' 
-  | 'approved' 
-  | 'rejected' 
-  | 'admitted' 
+export type ApplicationStatus =
+  | 'draft'
+  | 'submitted'
+  | 'registry_reviewed'
+  | 'department_approved'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'admitted'
+  | 'accepted'
+  | 'tuition_paid'
   | 'enrolled';
 
 export interface Application {
@@ -51,6 +59,8 @@ export interface Application {
   application_fee: number;
   application_fee_paid: boolean;
   fee_paid_at?: string;
+  tuition_fee?: number;
+  tuition_fee_paid?: boolean;
   admission_letter_sent: boolean;
   admission_accepted: boolean;
   rejection_reason?: string;
@@ -61,6 +71,11 @@ export interface Application {
   reviewed_at?: string;
   approved_at?: string;
   admitted_at?: string;
+  registry_reviewed_at?: string;
+  department_reviewed_at?: string;
+  admission_accepted_at?: string;
+  tuition_verified_at?: string;
+  department_review_comment?: string;
   created_at: string;
 }
 

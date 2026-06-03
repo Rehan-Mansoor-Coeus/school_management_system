@@ -2,53 +2,62 @@
 
 namespace App\Modules\Admissions\Services;
 
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
-use App\Models\Institution;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Illuminate\Support\Facades\Storage;
 
 class AdmissionLetterService
 {
+    use TranslatesForUser;
+
     public function generateAdmissionLetter(Application $application)
     {
-        $institution = $application->institution;
-        $applicant = $application->applicant;
-        $programme = $application->programme;
+        $application->load(['institution', 'applicant.user', 'programme', 'academicYear']);
 
-        // Prepare data for PDF
+        $user = optional($application->applicant)->user;
+        $locale = $this->admissionsLocale($user);
+        $session = $application->academicYear
+            ? $this->transForUser('admissions.letter_session', ['year' => $application->academicYear->name], $user)
+            : '';
+
         $data = [
-            'institution' => $institution,
-            'applicant' => $applicant,
+            'institution' => $application->institution,
+            'applicant' => $application->applicant,
             'application' => $application,
-            'programme' => $programme,
+            'programme' => $application->programme,
             'current_date' => Carbon::now()->format('d F Y'),
-            'admission_date' => $application->admitted_at->format('d F Y'),
+            'labels' => [
+                'title' => $this->transForUser('admissions.letter_title', [], $user),
+                'date' => $this->transForUser('admissions.letter_date', [], $user),
+                'application_no' => $this->transForUser('admissions.letter_application_no', [], $user),
+                'dear' => $this->transForUser('admissions.letter_dear', ['name' => $application->applicant->first_name.' '.$application->applicant->last_name], $user),
+                'body' => $this->transForUser('admissions.letter_body', [
+                    'institution' => $application->institution->name,
+                    'programme' => $application->programme->name,
+                    'session' => $session,
+                ], $user),
+                'conditions' => $this->transForUser('admissions.letter_conditions', [], $user),
+                'closing' => $this->transForUser('admissions.letter_closing', [], $user),
+                'yours' => $this->transForUser('admissions.letter_yours', [], $user),
+                'registrar' => $this->transForUser('admissions.letter_registrar', [], $user),
+            ],
         ];
 
-        // Generate PDF
-        $pdf = Pdf::loadView('admissions.letter', $data)
-            ->setOption('defaultFont', 'Helvetica')
-            ->setOption('margin-top', 20)
-            ->setOption('margin-left', 10)
-            ->setOption('margin-right', 10)
-            ->setOption('margin-bottom', 20);
+        $html = view('admissions.letter', $data)->render();
 
-        // Store PDF
-        $filename = 'admissions/letters/' . $application->application_number . '_' . time() . '.pdf';
-        Storage::disk('public')->put($filename, $pdf->output());
+        $options = new Options();
+        $options->set('defaultFont', 'Helvetica');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4');
+        $dompdf->render();
+
+        $filename = 'admissions/letters/'.$application->application_number.'_'.$locale.'_'.time().'.pdf';
+        Storage::disk('public')->put($filename, $dompdf->output());
 
         return $filename;
-    }
-
-    public function getAdmissionLetterTemplate($institution, $applicant, $application, $programme)
-    {
-        return view('admissions.letter', [
-            'institution' => $institution,
-            'applicant' => $applicant,
-            'application' => $application,
-            'programme' => $programme,
-            'current_date' => Carbon::now()->format('d F Y'),
-        ])->render();
     }
 }

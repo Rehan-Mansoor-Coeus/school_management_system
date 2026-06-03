@@ -18,6 +18,10 @@ class Programme extends Model
         'duration_years',
         'level',
         'semester_count',
+        'tuition_fee',
+        'registration_fee',
+        'application_fee',
+        'accreditation_number',
         'is_active',
     ];
 
