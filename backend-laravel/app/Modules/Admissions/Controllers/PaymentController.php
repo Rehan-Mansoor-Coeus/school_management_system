@@ -3,14 +3,14 @@
 namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Services\PaymentService;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
-    use TranslatesAdmissions;
+    use TranslatesForUser;
 
     protected $paymentService;
 
@@ -37,17 +37,17 @@ class PaymentController extends Controller
         $application = Application::with('applicant')->findOrFail($request->application_id);
 
         if ((int) $application->applicant->user_id !== (int) auth()->id()) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         if ($type === 'application_fee') {
             if (! $application->canPayApplicationFee()) {
-                return response()->json(['success' => false, 'message' => $this->admissionsTrans('fee_cannot_pay')], 400);
+                return response()->json(['success' => false, 'message' => $this->transForUser('admissions.fee_cannot_pay')], 400);
             }
             $amount = $application->application_fee;
         } else {
             if (! $application->canPayTuition()) {
-                return response()->json(['success' => false, 'message' => $this->admissionsTrans('tuition_cannot_pay')], 400);
+                return response()->json(['success' => false, 'message' => $this->transForUser('admissions.tuition_cannot_pay')], 400);
             }
             $amount = $application->tuition_fee;
         }
@@ -56,7 +56,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('payment_initialized'),
+            'message' => $this->transForUser('admissions.payment_initialized'),
             'data' => $paymentLink,
         ]);
     }
@@ -68,12 +68,12 @@ class PaymentController extends Controller
         $verificationResult = $this->paymentService->verifyPayment($request->transaction_id);
 
         if (! $verificationResult) {
-            return response()->json(['success' => false, 'message' => $this->admissionsTrans('payment_failed')], 400);
+            return response()->json(['success' => false, 'message' => $this->transForUser('admissions.payment_failed')], 400);
         }
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('payment_verified'),
+            'message' => $this->transForUser('admissions.payment_verified'),
             'data' => $verificationResult,
         ]);
     }
@@ -88,14 +88,14 @@ class PaymentController extends Controller
         $application = Application::with('applicant')->findOrFail($request->application_id);
 
         if ((int) $application->applicant->user_id !== (int) auth()->id()) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         $result = $this->paymentService->confirmOfflinePayment($application, $request->payment_type);
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('payment_recorded'),
+            'message' => $this->transForUser('admissions.payment_recorded'),
             'data' => $result,
         ]);
     }

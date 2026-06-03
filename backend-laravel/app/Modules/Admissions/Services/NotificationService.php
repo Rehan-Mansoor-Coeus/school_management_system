@@ -3,7 +3,7 @@
 namespace App\Modules\Admissions\Services;
 
 use App\AppNotification;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\User;
 use App\Services\Messaging\MessageLogService;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 class NotificationService
 {
-    use TranslatesAdmissions;
+    use TranslatesForUser;
 
     protected $whatsapp;
 
@@ -34,8 +34,8 @@ class NotificationService
         $this->createInAppNotification(
             $application->applicant->user_id,
             $application->institution_id,
-            $this->admissionsTrans('notify_admission_letter_title', [], $user),
-            $this->admissionsTrans('notify_admission_letter_body', [], $user),
+            $this->transForUser('admissions.notify_admission_letter_title', [], $user),
+            $this->transForUser('admissions.notify_admission_letter_body', [], $user),
             'admission'
         );
         $application->markAdmissionLetterSent();
@@ -51,11 +51,11 @@ class NotificationService
             $user = $applicant->user;
             $locale = $this->admissionsLocale($user);
 
-            $subject = $this->admissionsTrans('email_subject', [
+            $subject = $this->transForUser('admissions.email_subject', [
                 'number' => $application->application_number,
             ], $user);
 
-            $body = $this->admissionsTrans('email_admitted_body', [
+            $body = $this->transForUser('admissions.email_admitted_body', [
                 'name' => $applicant->first_name,
                 'institution' => $institution->name,
                 'programme' => $application->programme->name,
@@ -103,7 +103,7 @@ class NotificationService
                 return $result;
             }
 
-            $message = $this->admissionsTrans('whatsapp_admitted', [
+            $message = $this->transForUser('admissions.whatsapp_admitted', [
                 'name' => $applicant->first_name,
                 'institution' => $application->institution->name,
                 'programme' => $application->programme->name,
@@ -147,7 +147,7 @@ class NotificationService
 
             $documentUrl = $upload['public_url'];
             $fileName = $application->application_number.'-Admission-Letter.pdf';
-            $caption = $this->admissionsTrans('whatsapp_letter_caption', [
+            $caption = $this->transForUser('admissions.whatsapp_letter_caption', [
                 'number' => $application->application_number,
             ], $user);
 
@@ -199,14 +199,14 @@ class NotificationService
 
         $user = optional($application->applicant)->user;
         $message = isset($keys[$status])
-            ? $this->admissionsTrans($keys[$status], [], $user)
-            : $this->admissionsTrans('notify_status_title', [], $user);
+            ? $this->transForUser('admissions.' . $keys[$status], [], $user)
+            : $this->transForUser('admissions.notify_status_title', [], $user);
 
         if ($application->applicant->user_id) {
             $this->createInAppNotification(
                 $application->applicant->user_id,
                 $application->institution_id,
-                $this->admissionsTrans('notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_status_title', [], $user),
                 $message,
                 'admission'
             );
@@ -218,8 +218,8 @@ class NotificationService
         $this->notifyRoleUsers(
             'registry',
             $application,
-            $this->admissionsTrans('notify_status_title'),
-            $this->admissionsTrans('notify_registry_new', ['number' => $application->application_number])
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_registry_new', ['number' => $application->application_number])
         );
     }
 
@@ -237,8 +237,8 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
-                $this->admissionsTrans('notify_status_title', [], $user),
-                $this->admissionsTrans('notify_department_review', ['number' => $application->application_number], $user),
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_department_review', ['number' => $application->application_number], $user),
                 'admission'
             );
         }
@@ -249,8 +249,8 @@ class NotificationService
         $this->notifyRoleUsers(
             'registrar',
             $application,
-            $this->admissionsTrans('notify_status_title'),
-            $this->admissionsTrans('notify_registrar_ready', ['number' => $application->application_number])
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_registrar_ready', ['number' => $application->application_number])
         );
     }
 
@@ -259,8 +259,8 @@ class NotificationService
         $this->notifyRoleUsers(
             'finance-officer',
             $application,
-            $this->admissionsTrans('notify_status_title'),
-            $this->admissionsTrans('notify_finance_action', ['number' => $application->application_number])
+            $this->transForUser('admissions.notify_status_title'),
+            $this->transForUser('admissions.notify_finance_action', ['number' => $application->application_number])
         );
     }
 
@@ -278,8 +278,8 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $student->institution_id,
-                $this->admissionsTrans('notify_status_title', [], $user),
-                $this->admissionsTrans('notify_course_pending', ['reg' => $student->registration_number], $user),
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_course_pending', ['reg' => $student->registration_number], $user),
                 'admission'
             );
         }
@@ -297,7 +297,7 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
-                $this->admissionsTrans('notify_status_title', [], $user),
+                $this->transForUser('admissions.notify_status_title', [], $user),
                 $message,
                 'admission'
             );

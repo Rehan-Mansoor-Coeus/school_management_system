@@ -4,7 +4,7 @@ namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Applicant;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Requests\StoreApplicantRequest;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ApplicationController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -33,7 +33,7 @@ class ApplicationController extends Controller
         if ($existing) {
             return response()->json([
                 'success' => true,
-                'message' => $this->admissionsTrans('applicant_exists'),
+                'message' => $this->transForUser('admissions.applicant_exists'),
                 'data' => $existing,
             ]);
         }
@@ -54,9 +54,9 @@ class ApplicationController extends Controller
         if ($emailTaken) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('validation_email_unique'),
+                'message' => $this->transForUser('admissions.validation_email_unique'),
                 'errors' => [
-                    'email' => [$this->admissionsTrans('validation_email_unique')],
+                    'email' => [$this->transForUser('admissions.validation_email_unique')],
                 ],
             ], 422);
         }
@@ -69,9 +69,9 @@ class ApplicationController extends Controller
             if ($idTaken) {
                 return response()->json([
                     'success' => false,
-                    'message' => $this->admissionsTrans('validation_id_number_unique'),
+                    'message' => $this->transForUser('admissions.validation_id_number_unique'),
                     'errors' => [
-                        'id_number' => [$this->admissionsTrans('validation_id_number_unique')],
+                        'id_number' => [$this->transForUser('admissions.validation_id_number_unique')],
                     ],
                 ], 422);
             }
@@ -84,7 +84,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('applicant_created'),
+            'message' => $this->transForUser('admissions.applicant_created'),
             'data' => $applicant,
         ], 201);
     }
@@ -104,13 +104,13 @@ class ApplicationController extends Controller
         $applicant = Applicant::findOrFail($request->applicant_id);
 
         if ((int) $applicant->user_id !== (int) auth()->id()) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         if ($applicant->hasActiveApplication()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('active_application_exists'),
+                'message' => $this->transForUser('admissions.active_application_exists'),
             ], 400);
         }
 
@@ -138,7 +138,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('application_submitted'),
+            'message' => $this->transForUser('admissions.application_submitted'),
             'data' => new ApplicationResource($application),
         ], 201);
     }
@@ -220,7 +220,7 @@ class ApplicationController extends Controller
             && ! auth()->user()->can('admissions.view')
             && ! auth()->user()->can('admissions.manage')
             && ! auth()->user()->hasRole(['registry', 'hod', 'head-of-department', 'registrar', 'finance-officer', 'admin', 'institution-admin', 'super-admin'])) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         return response()->json([
@@ -234,13 +234,13 @@ class ApplicationController extends Controller
         $application = Application::with('applicant')->findOrFail($applicationId);
 
         if ((int) $application->applicant->user_id !== (int) auth()->id()) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         if (! $application->canAcceptAdmission()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('cannot_accept'),
+                'message' => $this->transForUser('admissions.cannot_accept'),
             ], 400);
         }
 
@@ -249,7 +249,7 @@ class ApplicationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('accepted'),
+            'message' => $this->transForUser('admissions.accepted'),
             'data' => new ApplicationResource($application->fresh()),
         ]);
     }

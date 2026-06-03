@@ -4,7 +4,7 @@ namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Modules\Admissions\Resources\ApplicationResource;
@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 
 class FinanceController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -53,7 +53,7 @@ class FinanceController extends Controller
         if ($application->status !== 'tuition_paid' || ! $application->tuition_fee_paid) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('tuition_not_paid'),
+                'message' => $this->transForUser('admissions.tuition_not_paid'),
             ], 400);
         }
 
@@ -64,7 +64,7 @@ class FinanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('tuition_verified'),
+            'message' => $this->transForUser('admissions.tuition_verified'),
             'data' => [
                 'application' => new ApplicationResource($application->fresh()),
                 'student' => $student,

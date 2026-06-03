@@ -5,7 +5,7 @@ namespace App\Modules\Admissions\Controllers;
 use App\CourseRegistration;
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Services\NotificationService;
 use App\ProgrammeSemester;
 use App\ProgrammeSemesterSubject;
@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
 
 class CourseRegistrationController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -30,7 +30,7 @@ class CourseRegistrationController extends Controller
         if (! $student) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('courses_no_student'),
+                'message' => $this->transForUser('admissions.courses_no_student'),
             ], 404);
         }
 
@@ -73,7 +73,7 @@ class CourseRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('courses_registered'),
+            'message' => $this->transForUser('admissions.courses_registered'),
             'data' => $registrations,
         ]);
     }
@@ -122,7 +122,7 @@ class CourseRegistrationController extends Controller
         $departmentId = optional($registration->student->programme)->department_id;
 
         if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
-            abort(403, $this->admissionsTrans('hod_unauthorized'));
+            abort(403, $this->transForUser('admissions.hod_unauthorized'));
         }
 
         $registration->update([
@@ -134,7 +134,7 @@ class CourseRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('course_approved'),
+            'message' => $this->transForUser('admissions.course_approved'),
             'data' => $registration,
         ]);
     }
@@ -148,7 +148,7 @@ class CourseRegistrationController extends Controller
         $departmentId = optional($registration->student->programme)->department_id;
 
         if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
-            abort(403, $this->admissionsTrans('hod_unauthorized'));
+            abort(403, $this->transForUser('admissions.hod_unauthorized'));
         }
 
         $registration->update([
@@ -160,7 +160,7 @@ class CourseRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('course_rejected'),
+            'message' => $this->transForUser('admissions.course_rejected'),
         ]);
     }
 
@@ -173,7 +173,7 @@ class CourseRegistrationController extends Controller
                 'success' => true,
                 'data' => [],
                 'reason' => 'no_student',
-                'message' => $this->admissionsTrans('courses_no_student'),
+                'message' => $this->transForUser('admissions.courses_no_student'),
             ]);
         }
 
@@ -184,7 +184,7 @@ class CourseRegistrationController extends Controller
                 'success' => true,
                 'data' => [],
                 'reason' => 'no_subjects',
-                'message' => $this->admissionsTrans('courses_no_subjects'),
+                'message' => $this->transForUser('admissions.courses_no_subjects'),
             ]);
         }
 

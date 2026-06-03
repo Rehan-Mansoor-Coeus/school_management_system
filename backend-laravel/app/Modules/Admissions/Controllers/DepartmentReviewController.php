@@ -4,7 +4,7 @@ namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Requests\ApproveApplicationRequest;
 use App\Modules\Admissions\Resources\ApplicationResource;
@@ -12,7 +12,7 @@ use App\Modules\Admissions\Services\NotificationService;
 
 class DepartmentReviewController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -55,13 +55,13 @@ class DepartmentReviewController extends Controller
         if (! $application->canDepartmentReview()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('department_not_ready'),
+                'message' => $this->transForUser('admissions.department_not_ready'),
             ], 400);
         }
 
         $user = auth()->user();
         if ($user->department_id && $application->programme->department_id !== (int) $user->department_id) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         $notificationService = new NotificationService();
@@ -69,11 +69,11 @@ class DepartmentReviewController extends Controller
         if ($request->status === 'approved') {
             $application->markDepartmentApproved(auth()->id(), $request->admission_comment);
             $notificationService->notifyRegistrar($application);
-            $message = $this->admissionsTrans('department_approved');
+            $message = $this->transForUser('admissions.department_approved');
         } else {
             $application->markDepartmentRejected(auth()->id(), $request->rejection_reason);
             $notificationService->sendApplicationStatusNotification($application, 'rejected');
-            $message = $this->admissionsTrans('department_rejected');
+            $message = $this->transForUser('admissions.department_rejected');
         }
 
         return response()->json([

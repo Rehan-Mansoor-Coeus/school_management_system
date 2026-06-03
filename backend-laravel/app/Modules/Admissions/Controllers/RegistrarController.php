@@ -4,7 +4,7 @@ namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Resources\ApplicationResource;
 use App\Modules\Admissions\Services\AdmissionLetterService;
@@ -12,7 +12,7 @@ use App\Modules\Admissions\Services\NotificationService;
 
 class RegistrarController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -48,7 +48,7 @@ class RegistrarController extends Controller
         if (! $application->canAdmit()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('not_ready_admission'),
+                'message' => $this->transForUser('admissions.not_ready_admission'),
             ], 400);
         }
 
@@ -63,7 +63,7 @@ class RegistrarController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('admitted'),
+            'message' => $this->transForUser('admissions.admitted'),
             'data' => new ApplicationResource($application->fresh()),
         ]);
     }
@@ -73,13 +73,13 @@ class RegistrarController extends Controller
         $application = Application::with(['applicant', 'programme', 'institution'])->findOrFail($applicationId);
 
         if ((int) $application->institution_id !== $this->institutionId()) {
-            abort(403, $this->admissionsTrans('unauthorized'));
+            abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
         if (! $application->canResendAdmissionLetter()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('letter_cannot_resend'),
+                'message' => $this->transForUser('admissions.letter_cannot_resend'),
             ], 400);
         }
 
@@ -89,7 +89,7 @@ class RegistrarController extends Controller
         if (! ($delivery['whatsapp_document_sent'] ?? false)) {
             return response()->json([
                 'success' => false,
-                'message' => $delivery['error'] ?? $this->admissionsTrans('letter_whatsapp_failed'),
+                'message' => $delivery['error'] ?? $this->transForUser('admissions.letter_whatsapp_failed'),
                 'delivery' => $delivery,
                 'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
             ], 422);
@@ -97,7 +97,7 @@ class RegistrarController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('letter_resent'),
+            'message' => $this->transForUser('admissions.letter_resent'),
             'delivery' => $delivery,
             'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
         ]);

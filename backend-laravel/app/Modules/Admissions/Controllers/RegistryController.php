@@ -4,7 +4,7 @@ namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admissions\Concerns\ResolvesInstitution;
-use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Requests\ReviewApplicationRequest;
 use App\Modules\Admissions\Resources\ApplicationResource;
@@ -12,7 +12,7 @@ use App\Modules\Admissions\Services\NotificationService;
 
 class RegistryController extends Controller
 {
-    use ResolvesInstitution, TranslatesAdmissions;
+    use ResolvesInstitution, TranslatesForUser;
 
     public function __construct()
     {
@@ -49,7 +49,7 @@ class RegistryController extends Controller
         if (! $application->canRegistryReview()) {
             return response()->json([
                 'success' => false,
-                'message' => $this->admissionsTrans('registry_not_ready'),
+                'message' => $this->transForUser('admissions.registry_not_ready'),
             ], 400);
         }
 
@@ -59,7 +59,7 @@ class RegistryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $this->admissionsTrans('registry_rejected'),
+                'message' => $this->transForUser('admissions.registry_rejected'),
                 'data' => new ApplicationResource($application->fresh()),
             ]);
         }
@@ -69,7 +69,7 @@ class RegistryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $this->admissionsTrans('registry_approved'),
+            'message' => $this->transForUser('admissions.registry_approved'),
             'data' => new ApplicationResource($application->fresh()),
         ]);
     }
