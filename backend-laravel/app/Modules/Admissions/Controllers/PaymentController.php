@@ -3,100 +3,112 @@
 namespace App\Modules\Admissions\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admissions\Concerns\TranslatesAdmissions;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Services\PaymentService;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
+    use TranslatesAdmissions;
+
     protected $paymentService;
 
     public function __construct()
     {
         $this->paymentService = new PaymentService();
-        $this->middleware('auth:api')->except('verify', 'webhook');
+        $this->middleware('auth:api')->except(['webhook', 'verify']);
     }
 
-    /**
-     * Initialize payment for application fee
-     */
-    public function initiate(Request $request)
+    public function initiateApplicationFee(Request $request)
     {
-        try {
-            $applicationId = $request->application_id;
-            $application = Application::findOrFail($applicationId);
-
-            // Check authorization
-            if ($application->applicant->user_id !== auth()->id()) {
-                abort(403, 'Unauthorized');
-            }
-
-            if ($application->application_fee_paid) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Application fee already paid.',
-                ], 400);
-            }
-
-            $paymentLink = $this->paymentService->initializePayment($application);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment link generated.',
-                'data' => $paymentLink,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to initialize payment.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return $this->initiatePayment($request, 'application_fee');
     }
 
-    /**
-     * Verify payment
-     */
+    public function initiateTuition(Request $request)
+    {
+        return $this->initiatePayment($request, 'tuition');
+    }
+
+    protected function initiatePayment(Request $request, $type)
+    {
+        $request->validate(['application_id' => 'required|exists:applications,id']);
+
+        $application = Application::with('applicant')->findOrFail($request->application_id);
+
+        if ((int) $application->applicant->user_id !== (int) auth()->id()) {
+            abort(403, $this->admissionsTrans('unauthorized'));
+        }
+
+        if ($type === 'application_fee') {
+            if (! $application->canPayApplicationFee()) {
+                return response()->json(['success' => false, 'message' => $this->admissionsTrans('fee_cannot_pay')], 400);
+            }
+            $amount = $application->application_fee;
+        } else {
+            if (! $application->canPayTuition()) {
+                return response()->json(['success' => false, 'message' => $this->admissionsTrans('tuition_cannot_pay')], 400);
+            }
+            $amount = $application->tuition_fee;
+        }
+
+        $paymentLink = $this->paymentService->initializePayment($application, $type, $amount);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('payment_initialized'),
+            'data' => $paymentLink,
+        ]);
+    }
+
     public function verify(Request $request)
     {
-        try {
-            $transactionId = $request->transaction_id;
+        $request->validate(['transaction_id' => 'required|string']);
 
-            $verificationResult = $this->paymentService->verifyPayment($transactionId);
+        $verificationResult = $this->paymentService->verifyPayment($request->transaction_id);
 
-            if (!$verificationResult) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Payment verification failed.',
-                ], 400);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment verified successfully.',
-                'data' => $verificationResult,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Verification failed.',
-            ], 500);
+        if (! $verificationResult) {
+            return response()->json(['success' => false, 'message' => $this->admissionsTrans('payment_failed')], 400);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('payment_verified'),
+            'data' => $verificationResult,
+        ]);
     }
 
-    /**
-     * Webhook for Flutterwave
-     */
+    public function confirmOffline(Request $request)
+    {
+        $request->validate([
+            'application_id' => 'required|exists:applications,id',
+            'payment_type' => 'required|in:application_fee,tuition',
+        ]);
+
+        $application = Application::with('applicant')->findOrFail($request->application_id);
+
+        if ((int) $application->applicant->user_id !== (int) auth()->id()) {
+            abort(403, $this->admissionsTrans('unauthorized'));
+        }
+
+        $result = $this->paymentService->confirmOfflinePayment($application, $request->payment_type);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('payment_recorded'),
+            'data' => $result,
+        ]);
+    }
+
     public function webhook(Request $request)
     {
         try {
-            $payload = $request->all();
-
-            $this->paymentService->processPaymentWebhook($payload);
+            $this->paymentService->processPaymentWebhook($request->all());
 
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
-            \Log::error('Webhook processing error: ' . $e->getMessage());
+            \Log::error('Webhook processing error: '.$e->getMessage());
+
             return response()->json(['status' => 'error'], 500);
         }
     }

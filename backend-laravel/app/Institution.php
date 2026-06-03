@@ -74,6 +74,16 @@ class Institution extends Model
         return $this->hasMany(Subject::class);
     }
 
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function academicYears()
+    {
+        return $this->hasMany(AcademicYear::class);
+    }
+
     public function getLogoUrlAttribute()
     {
         return $this->publicFileUrl($this->logo);

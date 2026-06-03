@@ -2,53 +2,67 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Modules\Admissions\Controllers\ApplicationController;
-use App\Modules\Admissions\Controllers\AdmissionBoardController;
+use App\Modules\Admissions\Controllers\RegistryController;
+use App\Modules\Admissions\Controllers\DepartmentReviewController;
 use App\Modules\Admissions\Controllers\RegistrarController;
+use App\Modules\Admissions\Controllers\FinanceController;
 use App\Modules\Admissions\Controllers\PaymentController;
 use App\Modules\Admissions\Controllers\CourseRegistrationController;
+use App\Modules\Admissions\Controllers\NotificationController;
 
-Route::prefix('api/v1/admissions')->middleware('api')->group(function () {
+Route::prefix('admissions')->group(function () {
+    Route::post('payment/webhook', [PaymentController::class, 'webhook']);
 
-    // Public routes (no auth needed)
-    Route::post('/payment/webhook', [PaymentController::class, 'webhook']);
+    Route::middleware(['auth:api', 'module_enabled:admissions'])->group(function () {
+        Route::get('reference-data', [ApplicationController::class, 'referenceData']);
+        Route::get('my-applicant', [ApplicationController::class, 'myApplicant']);
+        Route::post('applicant', [ApplicationController::class, 'createApplicant']);
+        Route::post('apply', [ApplicationController::class, 'submitApplication']);
+        Route::get('my-applications', [ApplicationController::class, 'getMyApplications']);
+        Route::middleware('role:registry|registrar|finance-officer|hod|head-of-department|institution-admin|admin|super-admin')->group(function () {
+            Route::get('applications', [ApplicationController::class, 'index']);
+        });
+        Route::get('applications/{applicationId}', [ApplicationController::class, 'show']);
+        Route::post('applications/{applicationId}/accept', [ApplicationController::class, 'acceptAdmission']);
 
-    // Authenticated routes
-    Route::middleware('auth:api')->group(function () {
+        Route::post('payment/application-fee', [PaymentController::class, 'initiateApplicationFee']);
+        Route::post('payment/tuition', [PaymentController::class, 'initiateTuition']);
+        Route::post('payment/confirm-offline', [PaymentController::class, 'confirmOffline']);
+        Route::get('payment/verify', [PaymentController::class, 'verify']);
 
-        // Applicant routes
-        Route::post('/applicant', [ApplicationController::class, 'createApplicant']);
-        Route::post('/apply', [ApplicationController::class, 'submitApplication']);
-        Route::get('/my-applications', [ApplicationController::class, 'getMyApplications']);
-        Route::get('/applications/{applicationId}', [ApplicationController::class, 'show']);
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markRead']);
 
-        // Payment routes
-        Route::post('/payment/initiate', [PaymentController::class, 'initiate']);
-        Route::get('/payment/verify', [PaymentController::class, 'verify']);
+        Route::get('courses/available', [CourseRegistrationController::class, 'availableCourses']);
+        Route::post('courses/register', [CourseRegistrationController::class, 'register']);
+        Route::get('courses/my-registrations', [CourseRegistrationController::class, 'myRegistrations']);
 
-        // Course registration
-        Route::post('/courses/register', [CourseRegistrationController::class, 'register']);
-
-        // Admission Board routes
-        Route::middleware('role:admission_board|admin')->group(function () {
-            Route::get('/board/pending', [AdmissionBoardController::class, 'pendingReview']);
-            Route::post('/board/review/{applicationId}', [AdmissionBoardController::class, 'review']);
-            Route::post('/board/decide/{applicationId}', [AdmissionBoardController::class, 'decide']);
-            Route::get('/board/dashboard', [AdmissionBoardController::class, 'dashboard']);
+        Route::middleware('role:registry|institution-admin|admin|super-admin')->group(function () {
+            Route::get('registry/pending', [RegistryController::class, 'pending']);
+            Route::post('registry/review/{applicationId}', [RegistryController::class, 'review']);
+            Route::get('registry/dashboard', [RegistryController::class, 'dashboard']);
         });
 
-        // Registrar routes
-        Route::middleware('role:registrar|admin')->group(function () {
-            Route::get('/registrar/ready', [RegistrarController::class, 'readyForAdmission']);
-            Route::post('/registrar/admit/{applicationId}', [RegistrarController::class, 'admit']);
-            Route::get('/registrar/dashboard', [RegistrarController::class, 'dashboard']);
+        Route::middleware('role:hod|head-of-department|institution-admin|admin|super-admin')->group(function () {
+            Route::get('department/pending', [DepartmentReviewController::class, 'pending']);
+            Route::post('department/decide/{applicationId}', [DepartmentReviewController::class, 'decide']);
+            Route::get('department/dashboard', [DepartmentReviewController::class, 'dashboard']);
+            Route::get('courses/pending-approval', [CourseRegistrationController::class, 'pendingHodApproval']);
+            Route::post('courses/{registrationId}/approve', [CourseRegistrationController::class, 'approveCourseRegistration']);
+            Route::post('courses/{registrationId}/reject', [CourseRegistrationController::class, 'rejectCourseRegistration']);
         });
 
-        // HOD routes - Course registration approval
-        Route::middleware('role:hod|admin')->group(function () {
-            Route::post('/courses/{registrationId}/approve', [CourseRegistrationController::class, 'approveCourseRegistration']);
-            Route::post('/courses/{registrationId}/reject', [CourseRegistrationController::class, 'rejectCourseRegistration']);
+        Route::middleware('role:registrar|institution-admin|admin|super-admin')->group(function () {
+            Route::get('registrar/ready', [RegistrarController::class, 'readyForAdmission']);
+            Route::post('registrar/admit/{applicationId}', [RegistrarController::class, 'admit']);
+            Route::post('registrar/resend-letter/{applicationId}', [RegistrarController::class, 'resendAdmissionLetter']);
+            Route::get('registrar/dashboard', [RegistrarController::class, 'dashboard']);
         });
 
+        Route::middleware('role:finance-officer|institution-admin|admin|super-admin')->group(function () {
+            Route::get('finance/pending-tuition', [FinanceController::class, 'pendingTuition']);
+            Route::post('finance/verify/{applicationId}', [FinanceController::class, 'verifyTuition']);
+            Route::get('finance/dashboard', [FinanceController::class, 'dashboard']);
+        });
     });
-
 });

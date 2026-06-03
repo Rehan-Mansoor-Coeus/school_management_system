@@ -45,4 +45,9 @@ return [
         'session_id' => env('WASENDER_SESSION_ID'),
     ],
 
+    'flutterwave' => [
+        'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
+        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
+    ],
+
 ];

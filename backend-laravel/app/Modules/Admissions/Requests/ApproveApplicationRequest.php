@@ -15,6 +15,7 @@ class ApproveApplicationRequest extends FormRequest
     {
         return [
             'status' => 'required|in:approved,rejected',
+            'admission_comment' => 'nullable|string|max:1000',
             'rejection_reason' => 'required_if:status,rejected|nullable|string|max:1000',
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Modules\Admissions\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ApplicantResource extends JsonResource
 {
@@ -25,6 +26,14 @@ class ApplicantResource extends JsonResource
             'state' => $this->state,
             'country' => $this->country,
             'is_international' => $this->is_international,
+            'passport_path' => $this->passport_path,
+            'transcript_path' => $this->transcript_path,
+            'passport_url' => $this->passport_path && Storage::disk('public')->exists($this->passport_path)
+                ? Storage::disk('public')->url($this->passport_path)
+                : null,
+            'transcript_url' => $this->transcript_path && Storage::disk('public')->exists($this->transcript_path)
+                ? Storage::disk('public')->url($this->transcript_path)
+                : null,
         ];
     }
 }

@@ -245,4 +245,6 @@ Route::middleware('auth:api')->group(function () {
         Route::put('staff/{id}', 'Api\People\StaffController@update');
         Route::delete('staff/{id}', 'Api\People\StaffController@destroy');
     });
+
+    require base_path('app/Modules/Admissions/Routes/api.php');
 });

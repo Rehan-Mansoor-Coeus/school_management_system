@@ -14,7 +14,9 @@ class ReviewApplicationRequest extends FormRequest
     public function rules()
     {
         return [
+            'decision' => 'required|in:approved,rejected',
             'admission_comment' => 'nullable|string|max:1000',
+            'rejection_reason' => 'required_if:decision,rejected|nullable|string|max:1000',
         ];
     }
 }

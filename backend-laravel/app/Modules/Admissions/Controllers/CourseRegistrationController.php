@@ -2,147 +2,243 @@
 
 namespace App\Modules\Admissions\Controllers;
 
+use App\CourseRegistration;
 use App\Http\Controllers\Controller;
-use App\Models\Student;
-use App\Models\CourseRegistration;
+use App\Modules\Admissions\Concerns\ResolvesInstitution;
+use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Modules\Admissions\Services\NotificationService;
+use App\ProgrammeSemester;
+use App\ProgrammeSemesterSubject;
+use App\Student;
+use App\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CourseRegistrationController extends Controller
 {
+    use ResolvesInstitution, TranslatesAdmissions;
+
     public function __construct()
     {
         $this->middleware('auth:api');
     }
 
-    /**
-     * Student registers for courses
-     */
     public function register(Request $request)
     {
-        try {
-            $student = Student::where('user_id', auth()->id())->first();
+        $student = Student::where('user_id', auth()->id())->first();
 
-            if (!$student) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Student record not found.',
-                ], 404);
-            }
-
-            $request->validate([
-                'semester_id' => 'required|exists:semesters,id',
-                'courses' => 'required|array|min:1',
-                'courses.*' => 'exists:courses,id',
-            ]);
-
-            $registrations = [];
-
-            foreach ($request->courses as $courseId) {
-                // Check if already registered
-                $existing = CourseRegistration::where('student_id', $student->id)
-                    ->where('course_id', $courseId)
-                    ->where('semester_id', $request->semester_id)
-                    ->first();
-
-                if ($existing) {
-                    continue;
-                }
-
-                $registration = CourseRegistration::create([
-                    'institution_id' => $student->institution_id,
-                    'student_id' => $student->id,
-                    'course_id' => $courseId,
-                    'semester_id' => $request->semester_id,
-                    'status' => 'registered',
-                    'approved_by_hod' => false,
-                ]);
-
-                $registrations[] = $registration;
-            }
-
-            // Notify HOD for approval
-            $this->notifyHODForApproval($student, $request->semester_id);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Courses registered. Awaiting HOD approval.',
-                'data' => $registrations,
-            ]);
-        } catch (\Exception $e) {
+        if (! $student) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to register courses.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => $this->admissionsTrans('courses_no_student'),
+            ], 404);
         }
+
+        $request->validate([
+            'courses' => 'required|array|min:1',
+            'courses.*' => [
+                'integer',
+                Rule::exists('subjects', 'id')->where(function ($query) use ($student) {
+                    $query->where('institution_id', $student->institution_id);
+                }),
+            ],
+            'programme_semester_id' => 'nullable|integer|exists:programme_semesters,id',
+        ]);
+
+        $registrations = [];
+
+        foreach ($request->courses as $subjectId) {
+            $existing = CourseRegistration::where('student_id', $student->id)
+                ->where('subject_id', $subjectId)
+                ->when($request->programme_semester_id, function ($query) use ($request) {
+                    $query->where('programme_semester_id', $request->programme_semester_id);
+                })
+                ->first();
+
+            if ($existing) {
+                continue;
+            }
+
+            $registrations[] = CourseRegistration::create([
+                'institution_id' => $student->institution_id,
+                'student_id' => $student->id,
+                'subject_id' => $subjectId,
+                'programme_semester_id' => $request->programme_semester_id,
+                'status' => 'registered',
+                'approved_by_hod' => false,
+            ]);
+        }
+
+        (new NotificationService())->notifyHodForCourseRegistration($student);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('courses_registered'),
+            'data' => $registrations,
+        ]);
     }
 
-    /**
-     * HOD approves course registration
-     */
+    public function myRegistrations()
+    {
+        $student = Student::where('user_id', auth()->id())->first();
+        if (! $student) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $registrations = CourseRegistration::where('student_id', $student->id)
+            ->with(['subject:id,name,code', 'course:id,name,code'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $registrations]);
+    }
+
+    public function pendingHodApproval()
+    {
+        $institutionId = $this->institutionId();
+        $user = auth()->user();
+
+        $query = CourseRegistration::where('institution_id', $institutionId)
+            ->where('approved_by_hod', false)
+            ->where('status', 'registered')
+            ->with(['student.user', 'student.programme', 'subject', 'course']);
+
+        if ($user->department_id) {
+            $query->whereHas('student.programme', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->orderByDesc('created_at')->paginate(20),
+        ]);
+    }
+
     public function approveCourseRegistration($registrationId)
     {
-        try {
-            $registration = CourseRegistration::findOrFail($registrationId);
+        $registration = CourseRegistration::with(['subject', 'course', 'student.programme'])->findOrFail($registrationId);
+        $user = auth()->user();
+        $departmentId = optional($registration->student->programme)->department_id;
 
-            // Check if user is HOD of the course's department
-            $userDepartment = auth()->user()->departments()->first();
-            $courseDepartment = $registration->course->department;
-
-            if ($userDepartment->id !== $courseDepartment->id) {
-                abort(403, 'You are not authorized to approve this registration.');
-            }
-
-            $registration->update([
-                'approved_by_hod' => true,
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-                'status' => 'completed',
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Course registration approved.',
-                'data' => $registration,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to approve registration.',
-            ], 500);
+        if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
+            abort(403, $this->admissionsTrans('hod_unauthorized'));
         }
+
+        $registration->update([
+            'approved_by_hod' => true,
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'status' => 'completed',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('course_approved'),
+            'data' => $registration,
+        ]);
     }
 
-    /**
-     * Reject course registration
-     */
     public function rejectCourseRegistration(Request $request, $registrationId)
     {
-        try {
-            $registration = CourseRegistration::findOrFail($registrationId);
+        $request->validate(['reason' => 'required|string|max:1000']);
 
-            $registration->update([
-                'status' => 'rejected',
-                'rejection_reason' => $request->reason,
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-            ]);
+        $registration = CourseRegistration::with(['subject', 'course', 'student.programme'])->findOrFail($registrationId);
+        $user = auth()->user();
+        $departmentId = optional($registration->student->programme)->department_id;
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Course registration rejected.',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to reject registration.',
-            ], 500);
+        if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
+            abort(403, $this->admissionsTrans('hod_unauthorized'));
         }
+
+        $registration->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->reason,
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('course_rejected'),
+        ]);
     }
 
-    protected function notifyHODForApproval($student, $semesterId)
+    public function availableCourses()
     {
-        // Notify all HODs in the student's programme's department
-        // Implementation depends on your notification system
+        $student = Student::where('user_id', auth()->id())->with('programme')->first();
+
+        if (! $student) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'reason' => 'no_student',
+                'message' => $this->admissionsTrans('courses_no_student'),
+            ]);
+        }
+
+        $subjects = $this->subjectsForStudent($student);
+
+        if ($subjects->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'reason' => 'no_subjects',
+                'message' => $this->admissionsTrans('courses_no_subjects'),
+            ]);
+        }
+
+        return response()->json(['success' => true, 'data' => $subjects->values()]);
+    }
+
+    protected function subjectsForStudent(Student $student)
+    {
+        $items = collect();
+
+        if ($student->programme_id) {
+            $semesterIds = ProgrammeSemester::where('programme_id', $student->programme_id)
+                ->where('is_active', true)
+                ->pluck('id');
+
+            if ($semesterIds->isNotEmpty()) {
+                $assignments = ProgrammeSemesterSubject::whereIn('programme_semester_id', $semesterIds)
+                    ->where('is_active', true)
+                    ->with('subject')
+                    ->get();
+
+                foreach ($assignments as $assignment) {
+                    $subject = $assignment->subject;
+                    if (! $subject || ! $subject->is_active) {
+                        continue;
+                    }
+
+                    $items->push([
+                        'id' => $subject->id,
+                        'name' => $subject->name,
+                        'code' => $subject->code,
+                        'credit_units' => $assignment->contact_hours ?: $subject->default_contact_hours,
+                        'programme_semester_id' => $assignment->programme_semester_id,
+                    ]);
+                }
+            }
+        }
+
+        if ($items->isEmpty()) {
+            $items = Subject::where('institution_id', $student->institution_id)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+                ->map(function (Subject $subject) {
+                    return [
+                        'id' => $subject->id,
+                        'name' => $subject->name,
+                        'code' => $subject->code,
+                        'credit_units' => $subject->default_contact_hours,
+                        'programme_semester_id' => null,
+                    ];
+                });
+        }
+
+        return $items->unique('id')->values();
     }
 }

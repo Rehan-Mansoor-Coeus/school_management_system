@@ -1,0 +1,97 @@
+<?php
+
+namespace App\Modules\Admissions\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Modules\Admissions\Concerns\ResolvesInstitution;
+use App\Modules\Admissions\Concerns\TranslatesAdmissions;
+use App\Modules\Admissions\Models\Application;
+use App\Modules\Admissions\Requests\ReviewApplicationRequest;
+use App\Modules\Admissions\Resources\ApplicationResource;
+use App\Modules\Admissions\Services\NotificationService;
+
+class RegistryController extends Controller
+{
+    use ResolvesInstitution, TranslatesAdmissions;
+
+    public function __construct()
+    {
+        $this->middleware('auth:api');
+        $this->middleware('role:registry|institution-admin|admin|super-admin');
+    }
+
+    public function pending()
+    {
+        $institutionId = $this->institutionId();
+
+        $applications = Application::where('institution_id', $institutionId)
+            ->where('status', 'submitted')
+            ->where('application_fee_paid', true)
+            ->with(['applicant', 'programme', 'academicYear'])
+            ->orderByDesc('created_at')
+            ->paginate(15);
+
+        return response()->json([
+            'success' => true,
+            'data' => ApplicationResource::collection($applications),
+            'pagination' => [
+                'total' => $applications->total(),
+                'per_page' => $applications->perPage(),
+                'current_page' => $applications->currentPage(),
+            ],
+        ]);
+    }
+
+    public function review(ReviewApplicationRequest $request, $applicationId)
+    {
+        $application = Application::findOrFail($applicationId);
+
+        if (! $application->canRegistryReview()) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->admissionsTrans('registry_not_ready'),
+            ], 400);
+        }
+
+        if ($request->decision === 'rejected') {
+            $application->markRegistryRejected(auth()->id(), $request->rejection_reason);
+            (new NotificationService())->sendApplicationStatusNotification($application, 'rejected');
+
+            return response()->json([
+                'success' => true,
+                'message' => $this->admissionsTrans('registry_rejected'),
+                'data' => new ApplicationResource($application->fresh()),
+            ]);
+        }
+
+        $application->markRegistryReviewed(auth()->id(), $request->admission_comment);
+        (new NotificationService())->notifyDepartment($application);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->admissionsTrans('registry_approved'),
+            'data' => new ApplicationResource($application->fresh()),
+        ]);
+    }
+
+    public function dashboard()
+    {
+        $institutionId = $this->institutionId();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'awaiting_review' => Application::where('institution_id', $institutionId)
+                    ->where('status', 'submitted')
+                    ->where('application_fee_paid', true)
+                    ->count(),
+                'registry_reviewed' => Application::where('institution_id', $institutionId)
+                    ->where('status', 'registry_reviewed')
+                    ->count(),
+                'rejected' => Application::where('institution_id', $institutionId)
+                    ->where('status', 'rejected')
+                    ->count(),
+            ],
+        ]);
+    }
+}
