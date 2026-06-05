@@ -59,7 +59,7 @@ export default function AdmissionsOverviewPage() {
             {canViewAllApplications && (
               <li><Link className="text-[#1e3a5f] hover:underline" to="/admissions/applications">{t('allApplications')}</Link></li>
             )}
-            <li><Link className="text-[#1e3a5f] hover:underline" to="/access/students">{t('manageStudentAccounts')}</Link></li>
+            <li><Link className="text-[#1e3a5f] hover:underline" to="/users/students">{t('manageStudentAccounts')}</Link></li>
           </ul>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">

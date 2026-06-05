@@ -6,10 +6,10 @@ import { FieldLabel, PrimaryButton, SecondaryButton, TextInput } from '../../com
 import { useToast } from '../../components/ui/ToastProvider'
 
 const labels: Record<PeopleEntity, { singular: string; plural: string; listPath: string; addPath: string; supportsRoles?: boolean; defaultRoles?: number[] }> = {
-  customers: { singular: 'Customer', plural: 'Customers', listPath: '/customers', addPath: '/customers/add' },
-  students: { singular: 'Student', plural: 'Students', listPath: '/students', addPath: '/students/add', supportsRoles: true },
-  teachers: { singular: 'Teacher', plural: 'Teachers', listPath: '/teachers', addPath: '/teachers/add', supportsRoles: true },
-  staff: { singular: 'Staff Member', plural: 'Staff', listPath: '/staff', addPath: '/staff/add', supportsRoles: true },
+  customers: { singular: 'Customer', plural: 'Customers', listPath: '/users/customers', addPath: '/users/customers/add' },
+  students: { singular: 'Student', plural: 'Students', listPath: '/users/students', addPath: '/users/students/add', supportsRoles: true },
+  teachers: { singular: 'Teacher', plural: 'Teachers', listPath: '/users/teachers', addPath: '/users/teachers/add', supportsRoles: true },
+  staff: { singular: 'Staff Member', plural: 'Staff', listPath: '/users/staff', addPath: '/users/staff/add', supportsRoles: true },
   billers: { singular: 'Biller', plural: 'Billers', listPath: '/people/billers', addPath: '/people/billers/add' },
   suppliers: { singular: 'Supplier', plural: 'Suppliers', listPath: '/people/suppliers', addPath: '/people/suppliers/add' },
 }
@@ -148,11 +148,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1e3a5f]">{title}</h1>
-          <p className="text-sm text-slate-500">Search, create, edit, and deactivate {meta.plural.toLowerCase()}.</p>
-        </div>
+      <div className="flex justify-end">
         <Link to={meta.addPath} className="inline-flex rounded-xl bg-[#1e3a5f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a]">+ Add {meta.singular}</Link>
       </div>
 

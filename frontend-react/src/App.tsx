@@ -2,11 +2,9 @@ import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
-import UsersPage from './pages/Users'
 import RolesPage from './pages/Roles'
 import PermissionsPage from './pages/Permissions'
 import ModulesPage from './pages/Modules'
-import RoleUsersPage from './pages/RoleUsers'
 import InstitutionList from './modules/Institutions/pages/InstitutionList'
 import DepartmentsPage from './pages/Departments'
 import AcademicsPage from './pages/Academics'
@@ -68,6 +66,7 @@ import RegistrarAdmissionsPage from './modules/admissions/pages/RegistrarAdmissi
 import FinancePage from './modules/admissions/pages/FinancePage'
 import CourseRegistrationPage from './modules/admissions/pages/CourseRegistrationPage'
 import HodCourseApprovalPage from './modules/admissions/pages/HodCourseApprovalPage'
+import UsersLayout, { UsersIndexPage } from './components/users/UsersLayout'
 
 export default function App(){
   return (
@@ -80,17 +79,27 @@ export default function App(){
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route index element={<DashboardPage/>} />
-          <Route path="users" element={<UsersPage/>} />
-          <Route path="access/teachers" element={<RoleUsersPage role="teacher" title="Teachers" subtitle="Manage teacher accounts." />} />
-          <Route path="access/students" element={<RoleUsersPage role="student" title="Students" subtitle="Manage student accounts." />} />
-          <Route path="customers" element={<CustomersPage/>} />
-          <Route path="customers/add" element={<CustomersPage/>} />
-          <Route path="students" element={<StudentsPage/>} />
-          <Route path="students/add" element={<StudentsPage/>} />
-          <Route path="teachers" element={<TeachersPage/>} />
-          <Route path="teachers/add" element={<TeachersPage/>} />
-          <Route path="staff" element={<StaffPage/>} />
-          <Route path="staff/add" element={<StaffPage/>} />
+          <Route path="users" element={<UsersLayout />}>
+            <Route index element={<UsersIndexPage />} />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route path="customers/add" element={<CustomersPage />} />
+            <Route path="students" element={<StudentsPage />} />
+            <Route path="students/add" element={<StudentsPage />} />
+            <Route path="teachers" element={<TeachersPage />} />
+            <Route path="teachers/add" element={<TeachersPage />} />
+            <Route path="staff" element={<StaffPage />} />
+            <Route path="staff/add" element={<StaffPage />} />
+          </Route>
+          <Route path="customers" element={<Navigate to="/users/customers" replace />} />
+          <Route path="customers/add" element={<Navigate to="/users/customers/add" replace />} />
+          <Route path="students" element={<Navigate to="/users/students" replace />} />
+          <Route path="students/add" element={<Navigate to="/users/students/add" replace />} />
+          <Route path="teachers" element={<Navigate to="/users/teachers" replace />} />
+          <Route path="teachers/add" element={<Navigate to="/users/teachers/add" replace />} />
+          <Route path="staff" element={<Navigate to="/users/staff" replace />} />
+          <Route path="staff/add" element={<Navigate to="/users/staff/add" replace />} />
+          <Route path="access/teachers" element={<Navigate to="/users/teachers" replace />} />
+          <Route path="access/students" element={<Navigate to="/users/students" replace />} />
           <Route path="roles" element={<RolesPage/>} />
           <Route path="permissions" element={<PermissionsPage/>} />
           <Route path="modules" element={<ModulesPage/>} />

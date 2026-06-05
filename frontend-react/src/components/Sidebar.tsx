@@ -6,7 +6,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  Briefcase,
   Building2,
   CalendarDays,
   ClipboardCheck,
@@ -30,7 +29,6 @@ import {
   UserCog,
   UserPlus,
   Users,
-  UserSquare2,
   UtensilsCrossed,
   Wallet,
 } from 'lucide-react'
@@ -54,11 +52,12 @@ const navItems: SidebarItem[] = [
 ]
 
 const accessItems: SidebarItem[] = [
-  { label: 'Users', path: '/users', icon: Users, permissions: ['view_users', 'manage_users'] },
-  { label: 'Customer', path: '/customers', icon: UserSquare2, permissions: ['view_customers', 'manage_users'] },
-  { label: 'Student', path: '/students', icon: GraduationCap, permissions: ['view_students', 'manage_users'] },
-  { label: 'Teacher', path: '/teachers', icon: BookOpen, permissions: ['view_teachers', 'manage_users'] },
-  { label: 'Staff', path: '/staff', icon: Briefcase, permissions: ['view_staff', 'manage_users'] },
+  {
+    label: 'Users',
+    path: '/users',
+    icon: Users,
+    permissions: ['view_users', 'manage_users', 'view_customers', 'view_students', 'view_teachers', 'view_staff'],
+  },
   { label: 'Roles', path: '/roles', icon: UserCog, permissions: ['view_roles', 'manage_roles'] },
   { label: 'Permissions', path: '/permissions', icon: KeyRound, permissions: ['view_permissions', 'manage_roles'] },
   { label: 'Modules', path: '/modules', icon: Puzzle, permissions: ['manage_modules', 'modules.view'] },
@@ -184,7 +183,7 @@ export default function Sidebar() {
   const showModulesSection = visibleModuleItems.length > 0
 
   const [accessOpen, setAccessOpen] = useSidebarSection(false, [
-    '/users', '/customers', '/students', '/teachers', '/staff', '/roles', '/permissions', '/modules',
+    '/users', '/roles', '/permissions', '/modules',
   ])
   const [timesheetOpen, setTimesheetOpen] = useSidebarSection(false, ['/timesheets'])
   const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets/admin'])

@@ -155,11 +155,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold">Users</h2>
-          <p className="text-sm text-slate-500">Manage accounts and assign roles.</p>
-        </div>
+      <div className="flex justify-end">
         <button onClick={openCreateModal} className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700">
           New user
         </button>
