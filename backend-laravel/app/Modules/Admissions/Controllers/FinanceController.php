@@ -10,6 +10,7 @@ use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Modules\Admissions\Resources\ApplicationResource;
 use App\Modules\Admissions\Services\NotificationService;
 use App\Role;
+use App\Services\UserAccountNotificationService;
 use App\Student;
 use App\User;
 use Illuminate\Support\Str;
@@ -57,10 +58,25 @@ class FinanceController extends Controller
             ], 400);
         }
 
-        $student = $this->createStudentFromApplication($application);
+        $result = $this->createStudentFromApplication($application);
+        $student = $result['student'];
+        $plainPassword = $result['plain_password'];
         $application->markTuitionVerified(auth()->id());
 
-        (new NotificationService())->sendApplicationStatusNotification($application, 'enrolled');
+        $notificationService = new NotificationService();
+        $user = $student->user;
+
+        if ($plainPassword && $user) {
+            (new UserAccountNotificationService())->notifyEnrollmentWithAccount(
+                $user,
+                $plainPassword,
+                $student->registration_number
+            );
+        } else {
+            $notificationService->sendApplicationStatusNotification($application, 'enrolled', [
+                'reg' => $student->registration_number,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -103,18 +119,21 @@ class FinanceController extends Controller
         $applicant = $application->applicant;
         $existing = Student::where('applicant_id', $applicant->id)->first();
         if ($existing) {
-            return $existing;
+            return ['student' => $existing->load('user'), 'plain_password' => null];
         }
 
+        $plainPassword = null;
         $user = $applicant->user;
         if (! $user) {
+            $plainPassword = UserAccountNotificationService::generateTemporaryPassword();
             $user = User::create([
                 'institution_id' => $application->institution_id,
                 'name' => $applicant->full_name,
                 'email' => $applicant->email,
                 'phone_number' => $applicant->phone,
-                'username' => Str::slug($applicant->first_name.'.'.$applicant->last_name).'.'.Str::random(4),
-                'password' => bcrypt(Str::random(16)),
+                'username' => UserAccountNotificationService::generateUsername($applicant->full_name, $applicant->email),
+                'password' => bcrypt($plainPassword),
+                'api_token' => Str::random(60),
                 'status' => 'active',
             ]);
             $applicant->update(['user_id' => $user->id]);
@@ -125,7 +144,7 @@ class FinanceController extends Controller
             $user->assignRole($studentRole);
         }
 
-        return Student::create([
+        $student = Student::create([
             'institution_id' => $application->institution_id,
             'user_id' => $user->id,
             'applicant_id' => $applicant->id,
@@ -136,6 +155,8 @@ class FinanceController extends Controller
             'current_level' => 100,
             'is_active' => true,
         ]);
+
+        return ['student' => $student->load('user'), 'plain_password' => $plainPassword];
     }
 
     protected function generateRegistrationNumber($institutionId)

@@ -97,6 +97,11 @@ class Application extends Model
         return $this->hasMany(ApplicationPayment::class, 'application_id');
     }
 
+    public function documents()
+    {
+        return $this->hasMany(ApplicationDocument::class, 'application_id');
+    }
+
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
@@ -109,7 +114,79 @@ class Application extends Model
 
     public function canPayApplicationFee()
     {
-        return in_array($this->status, ['submitted'], true) && ! $this->application_fee_paid;
+        return in_array($this->status, ['submitted'], true)
+            && ! $this->application_fee_paid
+            && ! $this->hasPendingApplicationFeeProof();
+    }
+
+    public function canSubmitApplicationFeeProof()
+    {
+        return in_array($this->status, ['submitted'], true)
+            && ! $this->application_fee_paid
+            && ! $this->hasPendingApplicationFeeProof();
+    }
+
+    public function hasPendingApplicationFeeProof()
+    {
+        return $this->payments()
+            ->applicationFee()
+            ->pendingProof()
+            ->exists();
+    }
+
+    public function latestApplicationFeePayment()
+    {
+        return $this->hasOne(ApplicationPayment::class, 'application_id')
+            ->applicationFee()
+            ->latest();
+    }
+
+    public function latestTuitionPayment()
+    {
+        return $this->hasOne(ApplicationPayment::class, 'application_id')
+            ->where('payment_type', 'tuition')
+            ->latest();
+    }
+
+    public function hasPendingTuitionProof()
+    {
+        return $this->payments()
+            ->where('payment_type', 'tuition')
+            ->pendingProof()
+            ->exists();
+    }
+
+    public function canSubmitTuitionProof()
+    {
+        return $this->canPayTuition()
+            && ! $this->hasPendingTuitionProof()
+            && (float) $this->tuition_fee > 0;
+    }
+
+    public function syncFeesFromProgramme(): void
+    {
+        if (! $this->relationLoaded('programme')) {
+            $this->load('programme');
+        }
+
+        if (! $this->programme) {
+            return;
+        }
+
+        $updates = [];
+
+        if ((float) $this->tuition_fee <= 0 && (float) ($this->programme->tuition_fee ?? 0) > 0) {
+            $updates['tuition_fee'] = $this->programme->tuition_fee;
+        }
+
+        if ((float) $this->application_fee <= 0 && (float) ($this->programme->application_fee ?? 0) > 0) {
+            $updates['application_fee'] = $this->programme->application_fee;
+        }
+
+        if ($updates !== []) {
+            $this->update($updates);
+            $this->refresh();
+        }
     }
 
     public function canRegistryReview()
@@ -139,7 +216,10 @@ class Application extends Model
 
     public function canPayTuition()
     {
-        return $this->status === 'accepted' && $this->admission_accepted && ! $this->tuition_fee_paid;
+        return $this->status === 'accepted'
+            && $this->admission_accepted
+            && ! $this->tuition_fee_paid
+            && (float) $this->tuition_fee > 0;
     }
 
     public function markRegistryReviewed($userId, $comment = null)

@@ -50,6 +50,7 @@ class CourseRegistrationController extends Controller
         foreach ($request->courses as $subjectId) {
             $existing = CourseRegistration::where('student_id', $student->id)
                 ->where('subject_id', $subjectId)
+                ->whereIn('status', ['registered', 'completed'])
                 ->when($request->programme_semester_id, function ($query) use ($request) {
                     $query->where('programme_semester_id', $request->programme_semester_id);
                 })
@@ -67,6 +68,13 @@ class CourseRegistrationController extends Controller
                 'status' => 'registered',
                 'approved_by_hod' => false,
             ]);
+        }
+
+        if ($registrations === []) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.courses_already_registered'),
+            ], 422);
         }
 
         (new NotificationService())->notifyHodForCourseRegistration($student);
@@ -111,7 +119,65 @@ class CourseRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $query->orderByDesc('created_at')->paginate(20),
+            'data' => $query->orderByDesc('created_at')->get(),
+        ]);
+    }
+
+    public function bulkApproveCourseRegistrations(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required_without:registration_ids|integer|exists:students,id',
+            'registration_ids' => 'required_without:student_id|array|min:1',
+            'registration_ids.*' => 'integer|exists:course_registrations,id',
+        ]);
+
+        $user = auth()->user();
+        $institutionId = $this->institutionId();
+
+        $query = CourseRegistration::where('institution_id', $institutionId)
+            ->where('approved_by_hod', false)
+            ->where('status', 'registered')
+            ->with(['student.programme']);
+
+        if ($request->filled('student_id')) {
+            $query->where('student_id', $request->student_id);
+        } else {
+            $query->whereIn('id', $request->registration_ids);
+        }
+
+        $registrations = $query->get();
+
+        if ($registrations->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.hod_no_pending_for_student'),
+            ], 404);
+        }
+
+        foreach ($registrations as $registration) {
+            $departmentId = optional($registration->student->programme)->department_id;
+
+            if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
+                abort(403, $this->transForUser('admissions.hod_unauthorized'));
+            }
+        }
+
+        $ids = $registrations->pluck('id');
+
+        CourseRegistration::whereIn('id', $ids)->update([
+            'approved_by_hod' => true,
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'status' => 'completed',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.courses_bulk_approved', ['count' => $ids->count()]),
+            'data' => [
+                'approved_count' => $ids->count(),
+                'registration_ids' => $ids->values(),
+            ],
         ]);
     }
 
@@ -172,6 +238,7 @@ class CourseRegistrationController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [],
+                'registrations' => [],
                 'reason' => 'no_student',
                 'message' => $this->transForUser('admissions.courses_no_student'),
             ]);
@@ -183,12 +250,22 @@ class CourseRegistrationController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [],
+                'registrations' => [],
                 'reason' => 'no_subjects',
                 'message' => $this->transForUser('admissions.courses_no_subjects'),
             ]);
         }
 
-        return response()->json(['success' => true, 'data' => $subjects->values()]);
+        $registrations = CourseRegistration::where('student_id', $student->id)
+            ->with(['subject:id,name,code', 'course:id,name,code'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $subjects->values(),
+            'registrations' => $registrations,
+        ]);
     }
 
     protected function subjectsForStudent(Student $student)

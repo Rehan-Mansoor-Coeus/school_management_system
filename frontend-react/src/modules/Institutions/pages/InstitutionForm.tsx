@@ -22,9 +22,48 @@ type FeeItem = { key: string; label: string; amount: number }
 type GradeRow = { grade: string; min: number; max: number; gpa: number; remarks?: string }
 type SemesterRow = { name: string; start: string; end: string; is_current: boolean }
 
+const defaultInstitutionFees = (): FeeItem[] => [
+  { key: 'registration_fee', label: 'Registration Fee', amount: 0 },
+  { key: 'hostel_fee', label: 'Hostel Fee', amount: 0 },
+  { key: 'library_fee', label: 'Library Fee', amount: 0 },
+  { key: 'examination_fee', label: 'Examination Fee', amount: 0 },
+]
+
+function normalizeInstitutionFees(fees: FeeItem[]): FeeItem[] {
+  const merged = fees.map((fee) => {
+    if (fee.key === 'application_fee') {
+      return {
+        ...fee,
+        key: 'registration_fee',
+        label: 'Registration Fee',
+      }
+    }
+    if (fee.key === 'tuition_fee') {
+      return { ...fee, label: 'Tuition Fee' }
+    }
+    return fee
+  })
+
+  const byKey = new Map<string, FeeItem>()
+  merged.forEach((fee) => {
+    const existing = byKey.get(fee.key)
+    if (!existing) {
+      byKey.set(fee.key, fee)
+      return
+    }
+    if ((fee.amount || 0) > (existing.amount || 0)) {
+      byKey.set(fee.key, { ...existing, amount: fee.amount, label: fee.label || existing.label })
+    }
+  })
+
+  return Array.from(byKey.values())
+}
+
 const institutionTypeKeys: InstitutionType[] = ['university', 'college', 'school', 'vocational', 'technical', 'training']
 
 const gateways = [
+  { key: 'stripe', label: 'Stripe (Visa / Card)' },
+  { key: 'campay', label: 'Campay (Mobile Money)' },
   { key: 'flutterwave', label: 'Flutterwave' },
   { key: 'paystack', label: 'Paystack' },
   { key: 'pesapal', label: 'Pesapal' },
@@ -32,9 +71,37 @@ const gateways = [
   { key: 'airtel_money', label: 'Airtel Money' },
   { key: 'mpesa', label: 'M-Pesa' },
   { key: 'orange_money', label: 'Orange Money' },
-  { key: 'visa', label: 'VISA' },
-  { key: 'mastercard', label: 'Mastercard' },
 ] as const
+
+type SimpleGatewayKey = Exclude<(typeof gateways)[number]['key'], 'stripe' | 'campay'>
+
+type PaymentGatewayState = {
+  enabled: boolean
+  apiKey: string
+  secretKey: string
+  publicKey: string
+  momoToken: string
+  momoAppId: string
+  momoAppUsername: string
+  momoAppPassword: string
+  momoAppWebhook: string
+}
+
+const emptyGatewayState = (): PaymentGatewayState => ({
+  enabled: false,
+  apiKey: '',
+  secretKey: '',
+  publicKey: '',
+  momoToken: '',
+  momoAppId: '',
+  momoAppUsername: '',
+  momoAppPassword: '',
+  momoAppWebhook: '',
+})
+
+const simpleGatewayKeys = gateways
+  .map((g) => g.key)
+  .filter((key): key is SimpleGatewayKey => key !== 'stripe' && key !== 'campay')
 
 export default function InstitutionForm({ mode, institutionId, onClose, onSaved }: Props) {
   const { pushToast } = useToast()
@@ -79,13 +146,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   })
 
   const [faculties, setFaculties] = useState<Faculty[]>([{ name: 'Faculty of...', departments: [{ name: 'Department of...', programmes: [{ name: 'Programme...' }] }] }])
-  const [fees, setFees] = useState<FeeItem[]>([
-    { key: 'application_fee', label: 'Application Fee', amount: 0 },
-    { key: 'tuition_fee', label: 'Tuition Fee', amount: 0 },
-    { key: 'hostel_fee', label: 'Hostel Fee', amount: 0 },
-    { key: 'library_fee', label: 'Library Fee', amount: 0 },
-    { key: 'examination_fee', label: 'Examination Fee', amount: 0 },
-  ])
+  const [fees, setFees] = useState<FeeItem[]>(defaultInstitutionFees())
   const [grades, setGrades] = useState<GradeRow[]>([
     { grade: 'A', min: 70, max: 100, gpa: 4.0, remarks: 'Excellent' },
     { grade: 'B', min: 60, max: 69, gpa: 3.0, remarks: 'Very Good' },
@@ -94,9 +155,9 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     { grade: 'F', min: 0, max: 44, gpa: 0.0, remarks: 'Fail' },
   ])
   const [calendar, setCalendar] = useState<SemesterRow[]>([{ name: 'Semester 1', start: '', end: '', is_current: true }])
-  const [payment, setPayment] = useState<Record<string, { enabled: boolean; apiKey: string; secretKey: string }>>(() => {
-    const base: Record<string, { enabled: boolean; apiKey: string; secretKey: string }> = {}
-    gateways.forEach((g) => (base[g.key] = { enabled: false, apiKey: '', secretKey: '' }))
+  const [payment, setPayment] = useState<Record<string, PaymentGatewayState>>(() => {
+    const base: Record<string, PaymentGatewayState> = {}
+    gateways.forEach((g) => (base[g.key] = emptyGatewayState()))
     return base
   })
 
@@ -174,7 +235,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
         const s = inst.settings || null
         if (s?.academic_structure?.faculties) setFaculties(s.academic_structure.faculties)
-        if (s?.fee_structure?.fees) setFees(s.fee_structure.fees)
+        if (s?.fee_structure?.fees) setFees(normalizeInstitutionFees(s.fee_structure.fees))
         if (s?.grading_system?.grades) setGrades(s.grading_system.grades)
         if (s?.academic_calendar?.semesters) setCalendar(s.academic_calendar.semesters)
         if (s?.payment_settings?.gateways) {
@@ -187,6 +248,12 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 enabled: Boolean(existing.enabled),
                 apiKey: existing.apiKey || existing.api_key || '',
                 secretKey: existing.secretKey || existing.secret_key || '',
+                publicKey: existing.publicKey || existing.public_key || '',
+                momoToken: existing.momo_token || existing.momoToken || '',
+                momoAppId: existing.momo_app_id || existing.momoAppId || '',
+                momoAppUsername: existing.momo_app_username || existing.momoAppUsername || '',
+                momoAppPassword: existing.momo_app_password || existing.momoAppPassword || '',
+                momoAppWebhook: existing.momo_app_webhook || existing.momoAppWebhook || '',
               }
             })
             return next
@@ -224,7 +291,46 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     const fee_structure = { fees, currency: basic.currency || null }
     const grading_system = { grades }
     const academic_calendar = { semesters: calendar }
-    const payment_settings = canShowPayment ? { gateways: payment } : undefined
+    const payment_settings = canShowPayment
+      ? {
+          gateways: Object.fromEntries(
+            gateways.map((g) => {
+              const value = payment[g.key]
+              if (g.key === 'stripe') {
+                return [
+                  g.key,
+                  {
+                    enabled: value.enabled,
+                    publicKey: value.publicKey,
+                    secretKey: value.secretKey,
+                  },
+                ]
+              }
+              if (g.key === 'campay') {
+                return [
+                  g.key,
+                  {
+                    enabled: value.enabled,
+                    momo_token: value.momoToken,
+                    momo_app_id: value.momoAppId,
+                    momo_app_username: value.momoAppUsername,
+                    momo_app_password: value.momoAppPassword,
+                    momo_app_webhook: value.momoAppWebhook,
+                  },
+                ]
+              }
+              return [
+                g.key,
+                {
+                  enabled: value.enabled,
+                  apiKey: value.apiKey,
+                  secretKey: value.secretKey,
+                },
+              ]
+            })
+          ),
+        }
+      : undefined
 
     form.append('academic_structure', JSON.stringify(academic_structure))
     form.append('fee_structure', JSON.stringify(fee_structure))
@@ -635,6 +741,9 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
             {step === 3 && (
               <div className="space-y-4">
+                <p className="text-sm text-slate-500">
+                  Set standard institution fees. Tuition per semester or year will be configured separately later.
+                </p>
                 {fees.map((fee, idx) => (
                   <div key={fee.key} className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
                     <input
@@ -841,26 +950,124 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
             {canShowPayment && step === 6 && (
               <HasPermission permission="institutions.settings" fallback={<div className="text-sm text-slate-500">{t('institutions.form.paymentNoAccess')}</div>}>
                 <div className="space-y-4">
-                  {gateways.map((g) => (
-                    <div key={g.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-slate-800">Stripe (Visa / Card)</div>
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={payment.stripe.enabled}
+                          onChange={(e) => setPayment((c) => ({ ...c, stripe: { ...c.stripe, enabled: e.target.checked } }))}
+                        />
+                        {t('institutions.form.enabled')}
+                      </label>
+                    </div>
+                    {payment.stripe.enabled && (
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.publicKey')}</label>
+                          <input
+                            value={payment.stripe.publicKey}
+                            onChange={(e) => setPayment((c) => ({ ...c, stripe: { ...c.stripe, publicKey: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.privateKey')}</label>
+                          <input
+                            type="password"
+                            value={payment.stripe.secretKey}
+                            onChange={(e) => setPayment((c) => ({ ...c, stripe: { ...c.stripe, secretKey: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-slate-800">Campay (Mobile Money)</div>
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={payment.campay.enabled}
+                          onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, enabled: e.target.checked } }))}
+                        />
+                        {t('institutions.form.enabled')}
+                      </label>
+                    </div>
+                    {payment.campay.enabled && (
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.momoToken')}</label>
+                          <input
+                            type="password"
+                            value={payment.campay.momoToken}
+                            onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, momoToken: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.momoAppId')}</label>
+                          <input
+                            value={payment.campay.momoAppId}
+                            onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, momoAppId: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.momoAppUsername')}</label>
+                          <input
+                            value={payment.campay.momoAppUsername}
+                            onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, momoAppUsername: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.momoAppPassword')}</label>
+                          <input
+                            type="password"
+                            value={payment.campay.momoAppPassword}
+                            onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, momoAppPassword: e.target.value } }))}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700">{t('institutions.form.momoAppWebhook')}</label>
+                          <input
+                            value={payment.campay.momoAppWebhook}
+                            onChange={(e) => setPayment((c) => ({ ...c, campay: { ...c.campay, momoAppWebhook: e.target.value } }))}
+                            placeholder="https://your-domain.com/api/admissions/payment/campay/webhook"
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {simpleGatewayKeys.map((key) => {
+                    const gateway = gateways.find((g) => g.key === key)!
+                    return (
+                    <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold text-slate-800">{g.label}</div>
+                        <div className="text-sm font-semibold text-slate-800">{gateway.label}</div>
                         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                           <input
                             type="checkbox"
-                            checked={payment[g.key].enabled}
-                            onChange={(e) => setPayment((c) => ({ ...c, [g.key]: { ...c[g.key], enabled: e.target.checked } }))}
+                            checked={payment[key].enabled}
+                            onChange={(e) => setPayment((c) => ({ ...c, [key]: { ...c[key], enabled: e.target.checked } }))}
                           />
                           {t('institutions.form.enabled')}
                         </label>
                       </div>
-                      {payment[g.key].enabled && (
+                      {payment[key].enabled && (
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
                           <div>
                             <label className="block text-sm font-medium text-slate-700">{t('institutions.form.apiKey')}</label>
                             <input
-                              value={payment[g.key].apiKey}
-                              onChange={(e) => setPayment((c) => ({ ...c, [g.key]: { ...c[g.key], apiKey: e.target.value } }))}
+                              value={payment[key].apiKey}
+                              onChange={(e) => setPayment((c) => ({ ...c, [key]: { ...c[key], apiKey: e.target.value } }))}
                               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
                             />
                           </div>
@@ -868,15 +1075,16 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                             <label className="block text-sm font-medium text-slate-700">{t('institutions.form.secretKey')}</label>
                             <input
                               type="password"
-                              value={payment[g.key].secretKey}
-                              onChange={(e) => setPayment((c) => ({ ...c, [g.key]: { ...c[g.key], secretKey: e.target.value } }))}
+                              value={payment[key].secretKey}
+                              onChange={(e) => setPayment((c) => ({ ...c, [key]: { ...c[key], secretKey: e.target.value } }))}
                               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
                             />
                           </div>
                         </div>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </HasPermission>
             )}

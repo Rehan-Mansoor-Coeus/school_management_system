@@ -8,6 +8,8 @@
     "preview": "node node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.6.0",
+    "@stripe/stripe-js": "^9.7.0",
     "axios": "^1.4.0",
     "i18next": "^23.16.8",
     "lucide-react": "^0.269.0",

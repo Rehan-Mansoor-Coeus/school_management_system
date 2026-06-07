@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Application } from '../types';
 import { fetchRegistryPending, reviewRegistryApplication } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
+import PaymentProofReviewSection from '../components/PaymentProofReviewSection';
 
 export default function RegistryPage() {
   const { t } = useAdmissionsI18n();
@@ -39,15 +41,28 @@ export default function RegistryPage() {
   if (loading) return <p className="text-slate-500">{t('loading')}</p>;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="space-y-6">
+      <PaymentProofReviewSection />
+      <div className="grid gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-3">
         <h2 className="font-semibold text-slate-900">{t('registryPendingTitle')}</h2>
         {!applications.length && <p className="text-slate-500 text-sm">{t('registryNoPending')}</p>}
         {applications.map((app) => (
-          <button key={app.id} type="button" onClick={() => setSelected(app)} className={`w-full rounded-xl border p-4 text-left transition ${selected?.id === app.id ? 'border-[#1e3a5f] bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-            <div className="font-medium">{app.application_number}</div>
-            <div className="text-sm text-slate-500">{app.applicant?.full_name || `${app.applicant?.first_name} ${app.applicant?.last_name}`} · {app.programme?.name}</div>
-          </button>
+          <div key={app.id} className={`rounded-xl border p-4 transition ${selected?.id === app.id ? 'border-[#1e3a5f] bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+            <button type="button" onClick={() => setSelected(app)} className="w-full text-left">
+              <div className="font-medium">{app.application_number}</div>
+              <div className="text-sm text-slate-500">{app.applicant?.full_name || `${app.applicant?.first_name} ${app.applicant?.last_name}`} · {app.programme?.name}</div>
+            </button>
+            <div className="mt-3">
+              <Link
+                to={`/admissions/applications/${app.id}`}
+                state={{ from: '/admissions/registry' }}
+                className="text-sm font-medium text-[#1e3a5f] hover:underline"
+              >
+                {t('viewDetails')}
+              </Link>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -65,6 +80,7 @@ export default function RegistryPage() {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

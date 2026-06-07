@@ -28,6 +28,9 @@ class Kernel extends ConsoleKernel
             app(\App\Services\Messaging\ScheduledAnnouncementProcessor::class)->processDue();
         })->everyMinute();
         $schedule->job(new \App\Jobs\ProcessMessageQueueJob())->everyMinute();
+        $schedule->call(function () {
+            app(\App\Services\Fees\FeeReminderProcessor::class)->processDue();
+        })->everyMinute();
     }
 
     /**

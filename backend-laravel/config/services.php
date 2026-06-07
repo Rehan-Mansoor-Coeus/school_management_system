@@ -50,4 +50,18 @@ return [
         'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'currency' => env('STRIPE_CURRENCY', 'usd'),
+    ],
+
+    'campay' => [
+        'username' => env('CAMPAY_USERNAME'),
+        'password' => env('CAMPAY_PASSWORD'),
+        'environment' => env('CAMPAY_ENV', 'DEV'),
+        'currency' => env('CAMPAY_CURRENCY', 'XAF'),
+    ],
+
 ];

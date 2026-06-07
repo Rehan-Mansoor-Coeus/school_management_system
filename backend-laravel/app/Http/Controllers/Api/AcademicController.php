@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Department;
 use App\Programme;
+use App\ProgrammeLevel;
 use App\ProgrammeSemester;
 use App\ProgrammeSemesterSubject;
 use App\Subject;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +34,7 @@ class AcademicController extends Controller
     {
         $institutionId = $this->ensureInstitutionId($request);
 
-        $query = Programme::with(['department', 'semesters.assignments.subject'])
+        $query = Programme::with(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject'])
             ->where('institution_id', $institutionId);
 
         if ($request->filled('search')) {
@@ -57,7 +59,7 @@ class AcademicController extends Controller
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
-        return response()->json($programme->load(['department', 'semesters.assignments.subject']));
+        return response()->json($programme->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
     }
 
     public function storeProgram(Request $request)
@@ -77,6 +79,8 @@ class AcademicController extends Controller
             'level' => ['required', Rule::in(['certificate', 'diploma', 'degree', 'bachelor', 'master', 'phd', 'crash_course', 'other'])],
             'semester_count' => 'required|integer|min:1|max:20',
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query->where('institution_id', $institutionId))],
+            'tuition_fee' => 'nullable|numeric|min:0',
+            'application_fee' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -93,6 +97,8 @@ class AcademicController extends Controller
             'duration_years' => $request->duration_years,
             'level' => $request->level,
             'semester_count' => $request->semester_count,
+            'tuition_fee' => $request->input('tuition_fee', 0),
+            'application_fee' => $request->input('application_fee', 0),
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : true,
         ]);
 
@@ -104,7 +110,9 @@ class AcademicController extends Controller
             ]);
         }
 
-        return response()->json($programme->load(['department', 'semesters.assignments.subject']), 201);
+        $this->syncLevelsForProgramme($programme);
+
+        return response()->json($programme->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']), 201);
     }
 
     public function updateProgram(Request $request, Programme $programme)
@@ -126,6 +134,8 @@ class AcademicController extends Controller
             'level' => ['required', Rule::in(['certificate', 'diploma', 'degree', 'bachelor', 'master', 'phd', 'crash_course', 'other'])],
             'semester_count' => 'required|integer|min:1|max:20',
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query->where('institution_id', $programme->institution_id))],
+            'tuition_fee' => 'nullable|numeric|min:0',
+            'application_fee' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
             'semesters' => 'nullable|array',
             'semesters.*.id' => 'required_with:semesters|integer|exists:programme_semesters,id',
@@ -145,6 +155,8 @@ class AcademicController extends Controller
             'duration_years' => $request->duration_years,
             'level' => $request->level,
             'semester_count' => $request->semester_count,
+            'tuition_fee' => $request->input('tuition_fee', $programme->tuition_fee),
+            'application_fee' => $request->input('application_fee', $programme->application_fee),
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $programme->is_active,
         ]);
 
@@ -176,7 +188,9 @@ class AcademicController extends Controller
                 ->delete();
         }
 
-        return response()->json($programme->fresh()->load(['department', 'semesters.assignments.subject']));
+        $this->syncLevelsForProgramme($programme->fresh());
+
+        return response()->json($programme->fresh()->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
     }
 
     public function destroyProgram(Request $request, Programme $programme)
@@ -295,6 +309,10 @@ class AcademicController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'is_active' => 'nullable|boolean',
+            'total_semester_fee' => 'nullable|numeric|min:0',
+            'expected_payment_date' => 'nullable|date',
+            'latest_payment_date' => 'nullable|date',
+            'programme_level_id' => 'nullable|integer|exists:programme_levels,id',
         ]);
 
         if ($validator->fails()) {
@@ -304,9 +322,13 @@ class AcademicController extends Controller
         $semester->update([
             'name' => $request->name,
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $semester->is_active,
+            'total_semester_fee' => $request->input('total_semester_fee', $semester->total_semester_fee),
+            'expected_payment_date' => $request->input('expected_payment_date', $semester->expected_payment_date),
+            'latest_payment_date' => $request->input('latest_payment_date', $semester->latest_payment_date),
+            'programme_level_id' => $request->input('programme_level_id', $semester->programme_level_id),
         ]);
 
-        return response()->json($semester);
+        return response()->json($semester->fresh(['level']));
     }
 
     public function assignSubject(Request $request, Programme $programme)
@@ -372,5 +394,97 @@ class AcademicController extends Controller
         $assignment->delete();
 
         return response()->json(['message' => 'Subject removed from semester.']);
+    }
+
+    public function storeLevel(Request $request, Programme $programme)
+    {
+        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+            return response()->json(['message' => 'Program not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'level_number' => 'required|integer|min:1',
+            'name' => 'required|string|max:255',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $level = ProgrammeLevel::create([
+            'programme_id' => $programme->id,
+            'level_number' => $request->level_number,
+            'name' => $request->name,
+            'sort_order' => $request->input('sort_order', $programme->levels()->count() + 1),
+            'is_active' => $request->filled('is_active') ? (bool) $request->is_active : true,
+        ]);
+
+        return response()->json($level->load('semesters'), 201);
+    }
+
+    public function updateLevel(Request $request, ProgrammeLevel $level)
+    {
+        $programme = $level->programme;
+        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+            return response()->json(['message' => 'Level not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'level_number' => 'required|integer|min:1',
+            'name' => 'required|string|max:255',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $level->update([
+            'level_number' => $request->level_number,
+            'name' => $request->name,
+            'sort_order' => $request->input('sort_order', $level->sort_order),
+            'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $level->is_active,
+        ]);
+
+        return response()->json($level->fresh('semesters'));
+    }
+
+    protected function syncLevelsForProgramme(Programme $programme): void
+    {
+        if (! Schema::hasTable('programme_levels')) {
+            return;
+        }
+
+        $years = max(1, (int) $programme->duration_years);
+        $levelIds = [];
+
+        for ($i = 0; $i < $years; $i++) {
+            $levelNumber = 100 + ($i * 100);
+            $level = ProgrammeLevel::firstOrCreate(
+                ['programme_id' => $programme->id, 'level_number' => $levelNumber],
+                [
+                    'name' => 'Level '.$levelNumber,
+                    'sort_order' => $i + 1,
+                    'is_active' => true,
+                ]
+            );
+            $levelIds[] = $level->id;
+        }
+
+        $semesters = $programme->semesters()->orderBy('semester_number')->get();
+        if ($semesters->isEmpty() || empty($levelIds)) {
+            return;
+        }
+
+        $perLevel = max(1, (int) ceil($semesters->count() / count($levelIds)));
+        foreach ($semesters as $index => $semester) {
+            $levelIndex = min((int) floor($index / $perLevel), count($levelIds) - 1);
+            if (! $semester->programme_level_id) {
+                $semester->update(['programme_level_id' => $levelIds[$levelIndex]]);
+            }
+        }
     }
 }

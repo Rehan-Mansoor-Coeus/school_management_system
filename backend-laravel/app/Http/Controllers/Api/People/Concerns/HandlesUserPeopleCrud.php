@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\People\Concerns;
 
 use App\Role;
 use App\User;
+use App\Services\UserAccountNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -81,6 +82,7 @@ trait HandlesUserPeopleCrud
 
         $data = $validator->validated();
         $status = $request->get('status', 'active');
+        $plainPassword = null;
 
         $user = new User();
         $user->institution_id = $this->institutionId($request);
@@ -92,11 +94,26 @@ trait HandlesUserPeopleCrud
         $user->status = $status;
         $user->is_active = $status === 'active';
         $user->locale = 'en';
-        // People created here are not login accounts; give them an unusable password.
-        $user->password = Hash::make(Str::random(40));
+
+        if ($this->categoryRole() === 'student' && $user->email) {
+            $plainPassword = UserAccountNotificationService::generateTemporaryPassword();
+            $user->username = UserAccountNotificationService::generateUsername($user->name, $user->email);
+            $user->password = Hash::make($plainPassword);
+            $user->api_token = Str::random(60);
+        } else {
+            // People without login email get an unusable password.
+            $user->password = Hash::make(Str::random(40));
+        }
+
         $user->save();
 
         $this->syncCategoryRoles($user, $request);
+
+        if ($plainPassword) {
+            (new UserAccountNotificationService())->notifyAccountCreated($user, $plainPassword, [
+                'category' => 'academic',
+            ]);
+        }
 
         return response()->json([
             'message' => 'Record created.',
@@ -158,9 +175,14 @@ trait HandlesUserPeopleCrud
 
     protected function rules($updating = false): array
     {
+        $emailRule = 'nullable|email|max:255';
+        if ($this->categoryRole() === 'student' && ! $updating) {
+            $emailRule = 'required|email|max:255|unique:users,email';
+        }
+
         return [
             'name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
+            'email' => $emailRule,
             'phone_number' => 'required|string|max:50',
             'additional_phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',

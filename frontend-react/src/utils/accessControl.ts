@@ -60,10 +60,36 @@ export const MODULE_MENU_PERMISSIONS: Record<string, string[]> = {
   hr: ['hr.view', 'hr.manage'],
   assets: ['assets.view', 'assets.manage'],
   library: ['library.view', 'library.manage'],
-  hostel: ['hostel.view', 'hostel.manage'],
-  canteen: ['canteen.view', 'canteen.manage'],
+  hostel: ['hostel.view', 'hostel.manage', 'hostel.allocate', 'hostel.payments', 'hostel.maintenance', 'hostel.clearance'],
+  canteen: ['canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports'],
+  character_certificates: [
+    'character_certificates.view',
+    'character_certificates.manage',
+    'character_certificates.finance_clear',
+    'character_certificates.library_clear',
+    'character_certificates.issue',
+  ],
   notifications: ['notifications.view', 'notifications.manage'],
   audit: ['audit.view', 'audit.manage'],
+}
+
+export const CHARACTER_CERT_STAFF_PERMISSIONS = [
+  'character_certificates.manage',
+  'character_certificates.issue',
+  'character_certificates.finance_clear',
+  'character_certificates.library_clear',
+] as const
+
+export function characterCertificatesHomePath(
+  canAccess: (options: { permissions?: string[] }) => boolean,
+): string {
+  if (canAccess({ permissions: [...CHARACTER_CERT_STAFF_PERMISSIONS] })) {
+    return '/character-certificates'
+  }
+  if (canAccess({ permissions: ['character_certificates.view'] })) {
+    return '/character-certificates/my'
+  }
+  return '/'
 }
 
 export const ACCESS_CONTROL_PERMISSIONS = [

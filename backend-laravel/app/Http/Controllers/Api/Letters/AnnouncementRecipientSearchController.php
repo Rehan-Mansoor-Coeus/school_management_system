@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\Letters;
 
 use App\Biller;
 use App\Customer;
+use App\Fee;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Letters\Concerns\ResolvesLettersContext;
+use App\Services\Fees\FeeStatusService;
+use App\Student;
 use App\Supplier;
 use App\User;
 use Illuminate\Http\Request;
@@ -47,6 +50,18 @@ class AnnouncementRecipientSearchController extends Controller
             case 'students':
             case 'student':
                 $results = $this->searchUsersByRoles($institutionId, $query, ['student'], $limit);
+                break;
+            case 'students_programme':
+                $results = $this->searchStudentsByProgramme($institutionId, $query, (int) $request->get('programme_id'), $limit);
+                break;
+            case 'students_level':
+                $results = $this->searchStudentsByLevel($institutionId, $query, (int) $request->get('level_number'), $limit);
+                break;
+            case 'students_semester':
+                $results = $this->searchStudentsBySemester($institutionId, $query, (int) $request->get('programme_semester_id'), $limit);
+                break;
+            case 'students_payment_status':
+                $results = $this->searchStudentsByPaymentStatus($institutionId, $query, (string) $request->get('payment_status'), $limit);
                 break;
             case 'teachers':
             case 'teacher':
@@ -155,5 +170,118 @@ class AnnouncementRecipientSearchController extends Controller
                     'recipient_type' => $type,
                 ];
             });
+    }
+
+    protected function searchStudentsByProgramme($institutionId, $query, $programmeId, $limit = 25)
+    {
+        if ($programmeId <= 0) {
+            return collect();
+        }
+
+        return $this->mapStudentUsers(
+            Student::query()
+                ->where('institution_id', $institutionId)
+                ->where('programme_id', $programmeId)
+                ->whereHas('user')
+                ->with('user')
+                ->when($query !== '', function ($q) use ($query) {
+                    $q->where(function ($inner) use ($query) {
+                        $inner->where('registration_number', 'like', "%{$query}%")
+                            ->orWhereHas('user', function ($userQuery) use ($query) {
+                                $userQuery->where('name', 'like', "%{$query}%")
+                                    ->orWhere('email', 'like', "%{$query}%");
+                            });
+                    });
+                })
+                ->limit($limit)
+                ->get()
+        );
+    }
+
+    protected function searchStudentsByLevel($institutionId, $query, $levelNumber, $limit = 25)
+    {
+        if ($levelNumber <= 0) {
+            return collect();
+        }
+
+        return $this->mapStudentUsers(
+            Student::query()
+                ->where('institution_id', $institutionId)
+                ->where('current_level', $levelNumber)
+                ->whereHas('user')
+                ->with('user')
+                ->when($query !== '', function ($q) use ($query) {
+                    $q->whereHas('user', function ($userQuery) use ($query) {
+                        $userQuery->where('name', 'like', "%{$query}%")
+                            ->orWhere('email', 'like', "%{$query}%");
+                    });
+                })
+                ->limit($limit)
+                ->get()
+        );
+    }
+
+    protected function searchStudentsBySemester($institutionId, $query, $programmeSemesterId, $limit = 25)
+    {
+        if ($programmeSemesterId <= 0 || ! \Schema::hasTable('fees')) {
+            return collect();
+        }
+
+        $studentIds = Fee::where('institution_id', $institutionId)
+            ->where('programme_semester_id', $programmeSemesterId)
+            ->pluck('student_id');
+
+        return $this->mapStudentUsers(
+            Student::query()
+                ->whereIn('id', $studentIds)
+                ->whereHas('user')
+                ->with('user')
+                ->when($query !== '', function ($q) use ($query) {
+                    $q->whereHas('user', function ($userQuery) use ($query) {
+                        $userQuery->where('name', 'like', "%{$query}%");
+                    });
+                })
+                ->limit($limit)
+                ->get()
+        );
+    }
+
+    protected function searchStudentsByPaymentStatus($institutionId, $query, $paymentStatus, $limit = 25)
+    {
+        if ($paymentStatus === '' || ! \Schema::hasTable('fees')) {
+            return collect();
+        }
+
+        $statusService = new FeeStatusService();
+        $fees = Fee::with('student.user')->where('institution_id', $institutionId)->get();
+        $studentIds = $fees->filter(function (Fee $fee) use ($statusService, $paymentStatus) {
+            return $statusService->calculate($fee) === $paymentStatus;
+        })->pluck('student_id')->unique()->filter();
+
+        return $this->mapStudentUsers(
+            Student::query()
+                ->whereIn('id', $studentIds)
+                ->whereHas('user')
+                ->with('user')
+                ->when($query !== '', function ($q) use ($query) {
+                    $q->whereHas('user', function ($userQuery) use ($query) {
+                        $userQuery->where('name', 'like', "%{$query}%");
+                    });
+                })
+                ->limit($limit)
+                ->get()
+        );
+    }
+
+    protected function mapStudentUsers($students)
+    {
+        return collect($students)->map(function (Student $student) {
+            $user = $student->user;
+            if (! $user) {
+                return null;
+            }
+
+            return $this->mapUser($user, 'student');
+        })->filter()->values();
     }
 }

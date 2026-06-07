@@ -24,6 +24,7 @@ import {
   Puzzle,
   ScrollText,
   Shield,
+  FileBadge,
   Tags,
   Timer,
   UserCog,
@@ -36,7 +37,7 @@ import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAdmissionsI18n } from '../hooks/useAdmissionsI18n'
 import { useAuth } from '../context/AuthContext'
 import LettersSidebarSection from './letters/LettersSidebarSection'
-import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS } from '../utils/accessControl'
+import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS, characterCertificatesHomePath } from '../utils/accessControl'
 
 type SidebarItem = {
   label: string
@@ -64,7 +65,6 @@ const accessItems: SidebarItem[] = [
 ]
 
 const moduleItems: ModuleItem[] = [
-  { key: 'admissions', label: 'Admissions', path: '/admissions', icon: UserPlus },
   { key: 'attendance', label: 'Attendance', path: '/attendance', icon: ClipboardCheck },
   { key: 'results', label: 'Results', path: '/results', icon: Award },
   { key: 'fees', label: 'Fees & Payments', path: '/fees', icon: Wallet },
@@ -82,6 +82,8 @@ const academicsChildren: ModuleItem[] = [
   { key: 'departments', label: 'Departments', path: '/departments', icon: LayoutGrid },
   { key: 'academics', label: 'Programmes', path: '/academics/programmes', icon: BookOpen },
   { key: 'academics', label: 'Subjects', path: '/academics/subjects', icon: Library },
+  { key: 'admissions', label: 'Admissions', path: '/admissions', icon: UserPlus },
+  { key: 'character_certificates', label: 'Character Certificates', path: '/character-certificates', icon: FileBadge },
 ]
 
 const employeeItems = [
@@ -302,7 +304,17 @@ export default function Sidebar() {
               <span className={`transition ${academicsOpen ? 'rotate-180' : ''}`}>▾</span>
             </button>
             {academicsOpen && visibleAcademicsChildren.map((child) => (
-              <SidebarLink key={child.path} item={child} nested />
+              <SidebarLink
+                key={child.path}
+                item={{
+                  ...child,
+                  label: child.key === 'admissions' ? tAdmissions('moduleTitle') : child.label,
+                  path: child.key === 'character_certificates'
+                    ? characterCertificatesHomePath(canAccess)
+                    : child.path,
+                }}
+                nested
+              />
             ))}
           </>
         )}
@@ -324,14 +336,7 @@ export default function Sidebar() {
             {modulesOpen && (
               <div className="space-y-1 pl-4">
                 {visibleModuleItems.map((item) => (
-                  <SidebarLink
-                    key={item.path}
-                    item={{
-                      ...item,
-                      label: item.key === 'admissions' ? tAdmissions('moduleTitle') : item.label,
-                    }}
-                    nested
-                  />
+                  <SidebarLink key={item.path} item={item} nested />
                 ))}
               </div>
             )}

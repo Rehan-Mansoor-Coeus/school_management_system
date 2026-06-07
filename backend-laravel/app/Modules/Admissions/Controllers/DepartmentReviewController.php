@@ -68,6 +68,7 @@ class DepartmentReviewController extends Controller
 
         if ($request->status === 'approved') {
             $application->markDepartmentApproved(auth()->id(), $request->admission_comment);
+            $notificationService->sendApplicationStatusNotification($application, 'approved');
             $notificationService->notifyRegistrar($application);
             $message = $this->transForUser('admissions.department_approved');
         } else {

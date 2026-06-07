@@ -41,4 +41,9 @@ class Student extends Model
     {
         return $this->hasMany(CourseRegistration::class);
     }
+
+    public function fees()
+    {
+        return $this->hasMany(Fee::class);
+    }
 }

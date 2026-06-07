@@ -15,10 +15,11 @@ class ApplicationPayment extends Model
     protected $fillable = [
         'institution_id', 'student_id', 'fee_id', 'application_id',
         'reference_number', 'transaction_id', 'payment_type', 'payment_method',
-        'amount', 'status', 'description', 'receipt_number', 'paid_at', 'gateway_response',
+        'amount', 'status', 'description', 'proof_path', 'proof_notes',
+        'receipt_number', 'paid_at', 'gateway_response', 'reviewed_by', 'reviewed_at', 'review_notes',
     ];
 
-    protected $dates = ['paid_at', 'deleted_at'];
+    protected $dates = ['paid_at', 'reviewed_at', 'deleted_at'];
 
     protected $casts = [
         'gateway_response' => 'array',
@@ -32,6 +33,21 @@ class ApplicationPayment extends Model
     public function application()
     {
         return $this->belongsTo(Application::class);
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(\App\User::class, 'reviewed_by');
+    }
+
+    public function scopePendingProof($query)
+    {
+        return $query->where('status', 'pending')->whereNotNull('proof_path');
+    }
+
+    public function scopeApplicationFee($query)
+    {
+        return $query->where('payment_type', 'application_fee');
     }
 
     public function scopeByReference($query, $reference)
@@ -54,6 +70,27 @@ class ApplicationPayment extends Model
         $this->update([
             'status' => 'failed',
             'gateway_response' => $response,
+        ]);
+    }
+
+    public function markAsRejected($userId, $reason = null)
+    {
+        $this->update([
+            'status' => 'failed',
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
+            'review_notes' => $reason,
+        ]);
+    }
+
+    public function markAsApproved($userId, $notes = null)
+    {
+        $this->update([
+            'status' => 'completed',
+            'paid_at' => now(),
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
+            'review_notes' => $notes,
         ]);
     }
 }

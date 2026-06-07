@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle, XCircle } from 'lucide-react';
 import AdmissionsService from '../services/AdmissionsService';
+import { useFormatMoney } from '../../../hooks/useFormatMoney';
 
 interface PaymentPageProps {
   applicationId: number;
 }
 
 export const PaymentPage: React.FC<PaymentPageProps> = ({ applicationId }) => {
+  const { formatMoney } = useFormatMoney();
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'completed' | 'failed' | null>(
@@ -75,7 +77,7 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({ applicationId }) => {
               <div className="bg-gray-50 rounded-lg p-4 mb-6 text-center">
                 <p className="text-gray-600 text-sm mb-1">Amount Due</p>
                 <p className="text-3xl font-bold text-gray-800">
-                  ₦{paymentData.amount?.toLocaleString()}
+                  {formatMoney(paymentData.amount)}
                 </p>
               </div>
             )}
