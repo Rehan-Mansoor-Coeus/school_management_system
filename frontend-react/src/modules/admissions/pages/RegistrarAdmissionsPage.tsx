@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Application } from '../types';
 import { admitStudent, fetchRegistrarReady } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
@@ -34,6 +35,13 @@ export default function RegistrarAdmissionsPage() {
           <div>
             <div className="font-medium">{app.application_number}</div>
             <div className="text-sm text-slate-500">{app.applicant?.first_name} {app.applicant?.last_name} · {app.programme?.name}</div>
+            <Link
+              to={`/admissions/applications/${app.id}`}
+              state={{ from: '/admissions/registrar' }}
+              className="mt-2 inline-block text-sm font-medium text-[#1e3a5f] hover:underline"
+            >
+              {t('viewDetails')}
+            </Link>
           </div>
           <button type="button" disabled={busy === app.id} onClick={() => handleAdmit(app.id)} className="rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm text-white disabled:opacity-50">
             {t('admitAndSendLetter')}

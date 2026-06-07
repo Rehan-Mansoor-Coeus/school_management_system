@@ -3,8 +3,8 @@ import Sidebar from './Sidebar'
 import api from '../api/client'
 import { useToast } from './ui/ToastProvider'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
-// import { useAuth } from '../hooks/useAuth'
 import { useAuth } from '../context/AuthContext'
+import { NotificationBell } from '../modules/admissions/components/NotificationBell'
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -40,16 +40,19 @@ export default function MainLayout() {
               <h1 className="text-lg font-semibold">School Management</h1>
               <p className="text-sm text-slate-500">Manage users, roles, and permissions.</p>
             </div>
-            <button
-              onClick={logout}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-            >
-              Logout
-            </button>
-            <select value={locale} onChange={(e) => setAppLocale(e.target.value as 'en' | 'fr')} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-              <option value="en">English</option>
-              <option value="fr">Français</option>
-            </select>
+            <div className="flex items-center gap-3">
+              <NotificationBell />
+              <select value={locale} onChange={(e) => setAppLocale(e.target.value as 'en' | 'fr')} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+              </select>
+              <button
+                onClick={logout}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                Logout
+              </button>
+            </div>
           </header>
           <main className="p-6">
             <Outlet />

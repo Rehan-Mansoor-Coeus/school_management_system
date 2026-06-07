@@ -77,6 +77,46 @@ export interface Application {
   tuition_verified_at?: string;
   department_review_comment?: string;
   created_at: string;
+  application_fee_proof_pending?: boolean;
+  tuition_fee_proof_pending?: boolean;
+  can_pay_application_fee?: boolean;
+  can_accept_admission?: boolean;
+  can_pay_tuition?: boolean;
+  can_submit_tuition_proof?: boolean;
+  latest_application_fee_payment?: ApplicationPaymentProof | null;
+  latest_tuition_payment?: ApplicationPaymentProof | null;
+  documents?: ApplicationDocument[];
+  progress?: ApplicationProgress;
+}
+
+export interface ApplicationDocument {
+  id: number;
+  document_name: string;
+  file_path?: string;
+  url?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+}
+
+export interface ApplicationProgress {
+  percent: number;
+  current_step: string;
+  status: string;
+  steps: Array<{ key: string; label_key: string; state: 'pending' | 'current' | 'completed' | 'rejected' }>;
+}
+
+export interface ApplicationPaymentProof {
+  id: number;
+  application_id: number;
+  reference_number: string;
+  payment_type: string;
+  amount: number;
+  status: string;
+  proof_url?: string | null;
+  proof_notes?: string | null;
+  review_notes?: string | null;
+  created_at?: string;
+  application?: Application;
 }
 
 export interface Payment {

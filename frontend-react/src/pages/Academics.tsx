@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Modal from '../components/ui/Modal'
 import { useToast } from '../components/ui/ToastProvider'
 import { useAuth } from '../context/AuthContext'
+import { useFormatMoney } from '../hooks/useFormatMoney'
 import {
   assignSemesterSubject,
   createProgram,
@@ -62,6 +63,8 @@ interface Programme {
   duration_years: number
   level: string
   semester_count: number
+  tuition_fee?: number
+  application_fee?: number
   is_active: boolean
   department_id: number
   department?: Department
@@ -84,6 +87,8 @@ const initialProgrammeForm = {
   duration_years: 1,
   level: 'degree',
   semester_count: 2,
+  tuition_fee: 0,
+  application_fee: 0,
   department_id: undefined as number | undefined,
   is_active: true,
 }
@@ -105,6 +110,7 @@ const initialAssignmentForm = {
 
 export default function AcademicsPage({ initialTab = 'programmes' }: { initialTab?: 'programmes' | 'subjects' }) {
   const { user } = useAuth()
+  const { formatMoney } = useFormatMoney()
   const { pushToast } = useToast()
 
   const [activeTab, setActiveTab] = useState<'programmes' | 'subjects'>(initialTab)
@@ -196,6 +202,8 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       duration_years: programme.duration_years,
       level: programme.level,
       semester_count: programme.semester_count,
+      tuition_fee: programme.tuition_fee ?? 0,
+      application_fee: programme.application_fee ?? 0,
       department_id: programme.department_id,
       is_active: programme.is_active,
     })
@@ -420,6 +428,8 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Department</th>
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Level</th>
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Duration</th>
+                <th className="px-6 py-3 text-sm font-semibold text-slate-700">Reg. fee</th>
+                <th className="px-6 py-3 text-sm font-semibold text-slate-700">Tuition</th>
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Status</th>
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Actions</th>
               </tr>
@@ -436,14 +446,14 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
           <tbody className="divide-y divide-slate-200">
             {loading ? (
               <tr>
-                <td colSpan={activeTab === 'programmes' ? 7 : 5} className="px-6 py-10 text-center text-slate-500">
+                <td colSpan={activeTab === 'programmes' ? 9 : 5} className="px-6 py-10 text-center text-slate-500">
                   Loading {activeTab === 'programmes' ? 'programmes' : 'subjects'}...
                 </td>
               </tr>
             ) : (activeTab === 'programmes' ? (
               activeProgrammes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan={9} className="px-6 py-10 text-center text-slate-500">
                     No programmes found.
                   </td>
                 </tr>
@@ -455,6 +465,8 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
                     <td className="px-6 py-4 text-sm text-slate-600">{programme.department?.name || '—'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{programmeLevels.find((item) => item.value === programme.level)?.label || programme.level}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{programme.duration_years} year{programme.duration_years === 1 ? '' : 's'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{formatMoney(programme.application_fee ?? 0)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{formatMoney(programme.tuition_fee ?? 0)}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{programme.is_active ? 'Active' : 'Inactive'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">
                       <div className="flex flex-wrap gap-2">
@@ -579,6 +591,32 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
                 required
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
               />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Registration fee</label>
+              <input
+                value={programmeForm.application_fee}
+                onChange={(event) => setProgrammeForm((prev) => ({ ...prev, application_fee: Number(event.target.value) }))}
+                type="number"
+                min={0}
+                step="0.01"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+              />
+              <p className="mt-1 text-xs text-slate-500">One-time fee required before application submission.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Tuition fee</label>
+              <input
+                value={programmeForm.tuition_fee}
+                onChange={(event) => setProgrammeForm((prev) => ({ ...prev, tuition_fee: Number(event.target.value) }))}
+                type="number"
+                min={0}
+                step="0.01"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+              />
+              <p className="mt-1 text-xs text-slate-500">Program tuition fee. Semester installments can be configured per level/semester.</p>
             </div>
           </div>
           <div>

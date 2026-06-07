@@ -30,15 +30,34 @@ class PaymentController extends Controller
         return $this->initiatePayment($request, 'tuition');
     }
 
+    public function methods(Request $request)
+    {
+        $institutionId = null;
+        if ($request->filled('application_id')) {
+            $application = Application::find($request->application_id);
+            $institutionId = $application ? $application->institution_id : null;
+        }
+        if (! $institutionId && auth()->user()) {
+            $institutionId = auth()->user()->institution_id;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->paymentService->getAvailableMethods($institutionId ? (int) $institutionId : null),
+        ]);
+    }
+
     protected function initiatePayment(Request $request, $type)
     {
         $request->validate(['application_id' => 'required|exists:applications,id']);
 
-        $application = Application::with('applicant')->findOrFail($request->application_id);
+        $application = Application::with(['applicant', 'programme'])->findOrFail($request->application_id);
 
         if ((int) $application->applicant->user_id !== (int) auth()->id()) {
             abort(403, $this->transForUser('admissions.unauthorized'));
         }
+
+        $application->syncFeesFromProgramme();
 
         if ($type === 'application_fee') {
             if (! $application->canPayApplicationFee()) {

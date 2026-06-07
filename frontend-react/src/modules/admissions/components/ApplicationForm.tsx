@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronRight, Upload } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useApplicationForm } from '../hooks/useApplicationForm';
+import DocumentUploadList, { type DocumentRow } from './DocumentUploadList';
 import { fetchAdmissionsReferenceData } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
@@ -20,7 +21,7 @@ interface AcademicYear {
 export const ApplicationForm: React.FC = () => {
   const { t } = useAdmissionsI18n();
   const { user } = useAuth();
-  const { step, loading, error, applicant, submitApplicantInfo, submitApplication, reset, loadExistingApplicant } =
+  const { step, loading, error, applicant, applicationNumber, uploadProgress, submitApplicantInfo, submitApplication, reset, loadExistingApplicant } =
     useApplicationForm();
 
   const [programmes, setProgrammes] = React.useState<Programme[]>([]);
@@ -45,7 +46,7 @@ export const ApplicationForm: React.FC = () => {
 
   const [selectedProgramme, setSelectedProgramme] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
-  const [documents, setDocuments] = useState<{ passport?: File; transcript?: File }>({});
+  const [documentRows, setDocumentRows] = useState<DocumentRow[]>([{ id: crypto.randomUUID(), name: '' }]);
 
   React.useEffect(() => {
     fetchProgrammes();
@@ -93,13 +94,16 @@ export const ApplicationForm: React.FC = () => {
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-    if (files?.[0]) {
-      setDocuments((prev) => ({
-        ...prev,
-        [name]: files[0],
-      }));
+  const handleStep2Submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await submitApplication(
+        parseInt(selectedAcademicYear),
+        parseInt(selectedProgramme),
+        documentRows.filter((row) => row.file)
+      );
+    } catch (err) {
+      console.error('Step 2 submission failed:', err);
     }
   };
 
@@ -112,22 +116,8 @@ export const ApplicationForm: React.FC = () => {
     }
   };
 
-  const handleStep2Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await submitApplication(
-        parseInt(selectedAcademicYear),
-        parseInt(selectedProgramme),
-        documents
-      );
-    } catch (err) {
-      console.error('Step 2 submission failed:', err);
-    }
-  };
-
   const handleStep3Submit = () => {
-    // Go to payment or confirmation page
-    window.location.href = '/admissions/payment';
+    window.location.href = '/admissions/my-applications';
   };
 
   return (
@@ -427,53 +417,12 @@ export const ApplicationForm: React.FC = () => {
             </select>
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('passportId')}
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
-              <input
-                type="file"
-                name="passport"
-                onChange={handleFileChange}
-                accept="image/*,.pdf"
-                className="hidden"
-                id="passport-upload"
-              />
-              <label htmlFor="passport-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                <Upload size={24} className="text-gray-400" />
-                <span className="text-sm text-gray-600">
-                  {documents.passport
-                    ? documents.passport.name
-                    : t('uploadHint')}
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('academicTranscript')}
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors">
-              <input
-                type="file"
-                name="transcript"
-                onChange={handleFileChange}
-                accept="image/*,.pdf"
-                className="hidden"
-                id="transcript-upload"
-              />
-              <label htmlFor="transcript-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                <Upload size={24} className="text-gray-400" />
-                <span className="text-sm text-gray-600">
-                  {documents.transcript
-                    ? documents.transcript.name
-                    : t('uploadHint')}
-                </span>
-              </label>
-            </div>
-          </div>
+          <DocumentUploadList
+            rows={documentRows}
+            onChange={setDocumentRows}
+            submitProgress={uploadProgress}
+            submitting={loading}
+          />
 
           <div className="flex gap-4">
             <button
@@ -507,7 +456,7 @@ export const ApplicationForm: React.FC = () => {
 
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
             <p className="text-sm font-semibold text-gray-700 mb-2">{t('applicationNumber')}</p>
-            <p className="text-lg font-mono text-blue-600 mb-4">APP-2024-000001</p>
+            <p className="text-lg font-mono text-blue-600 mb-4">{applicationNumber || '—'}</p>
 
             <p className="text-sm font-semibold text-gray-700 mb-2">{t('nextSteps')}</p>
             <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">

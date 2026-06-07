@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { Application } from '../types';
 import {
   acceptAdmission,
-  confirmOfflinePayment,
   fetchMyApplications,
-  payApplicationFee,
-  payTuition,
 } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
+import ApplicationProgressBar from '../components/ApplicationProgressBar';
+import PaymentMethodModal from '../components/PaymentMethodModal';
+import StudentApplicationActions from '../components/StudentApplicationActions';
+import { useFormatMoney } from '../../../hooks/useFormatMoney';
 
 function StatusBadge({ status, t }: { status: string; t: (k: string) => string }) {
   const colors: Record<string, string> = {
@@ -32,9 +32,12 @@ function StatusBadge({ status, t }: { status: string; t: (k: string) => string }
 
 export default function MyApplicationsPage() {
   const { t } = useAdmissionsI18n();
+  const { formatMoney } = useFormatMoney();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<number | null>(null);
+  const [paymentApp, setPaymentApp] = useState<Application | null>(null);
+  const [paymentType, setPaymentType] = useState<'application_fee' | 'tuition'>('application_fee');
 
   const load = async () => {
     setLoading(true);
@@ -48,19 +51,9 @@ export default function MyApplicationsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const handlePayFee = async (app: Application, type: 'application_fee' | 'tuition') => {
-    setActionId(app.id);
-    try {
-      const init = type === 'application_fee' ? await payApplicationFee(app.id) : await payTuition(app.id);
-      if (init.data?.payment_link) {
-        window.open(init.data.payment_link, '_blank');
-      } else {
-        await confirmOfflinePayment(app.id, type);
-        await load();
-      }
-    } finally {
-      setActionId(null);
-    }
+  const openPayment = (app: Application, type: 'application_fee' | 'tuition') => {
+    setPaymentApp(app);
+    setPaymentType(type);
   };
 
   const handleAccept = async (appId: number) => {
@@ -71,6 +64,22 @@ export default function MyApplicationsPage() {
     } finally {
       setActionId(null);
     }
+  };
+
+  const feeStatusLabel = (app: Application) => {
+    if (app.application_fee_paid) return t('paid');
+    if (app.application_fee_proof_pending) return t('feeProofPending');
+    const latest = app.latest_application_fee_payment;
+    if (latest?.status === 'failed') return t('feeProofRejected');
+    return formatMoney(app.application_fee);
+  };
+
+  const tuitionStatusLabel = (app: Application) => {
+    if (app.tuition_fee_paid) return t('paid');
+    if (app.tuition_fee_proof_pending) return t('tuitionProofPending');
+    const latest = app.latest_tuition_payment;
+    if (latest?.status === 'failed') return t('feeProofRejected');
+    return formatMoney(app.tuition_fee ?? 0);
   };
 
   if (loading) return <p className="text-slate-500">{t('loadingApplications')}</p>;
@@ -96,47 +105,46 @@ export default function MyApplicationsPage() {
             <StatusBadge status={app.status} t={t} />
           </div>
 
+          <ApplicationProgressBar progress={app.progress} compact />
+
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-            <div><dt className="text-slate-400">{t('applicationFee')}</dt><dd>{app.application_fee_paid ? t('paid') : `₦${app.application_fee}`}</dd></div>
-            <div><dt className="text-slate-400">{t('tuition')}</dt><dd>{app.tuition_fee_paid ? t('paid') : `₦${app.tuition_fee ?? 0}`}</dd></div>
+            <div><dt className="text-slate-400">{t('applicationFee')}</dt><dd>{feeStatusLabel(app)}</dd></div>
+            <div><dt className="text-slate-400">{t('tuition')}</dt><dd>{tuitionStatusLabel(app)}</dd></div>
             <div><dt className="text-slate-400">{t('letterSent')}</dt><dd>{app.admission_letter_sent ? t('yes') : t('no')}</dd></div>
             <div><dt className="text-slate-400">{t('accepted')}</dt><dd>{app.admission_accepted ? t('yes') : t('no')}</dd></div>
           </dl>
+
+          {app.latest_application_fee_payment?.review_notes && app.latest_application_fee_payment.status === 'failed' && (
+            <p className="mt-3 text-sm text-red-600">{t('reason')}: {app.latest_application_fee_payment.review_notes}</p>
+          )}
+
+          {app.latest_tuition_payment?.review_notes && app.latest_tuition_payment.status === 'failed' && (
+            <p className="mt-3 text-sm text-red-600">{t('reason')}: {app.latest_tuition_payment.review_notes}</p>
+          )}
 
           {app.rejection_reason && (
             <p className="mt-3 text-sm text-red-600">{t('reason')}: {app.rejection_reason}</p>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              to={`/admissions/my-applications/${app.id}`}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t('viewDetails')}
-            </Link>
-            {app.status === 'submitted' && !app.application_fee_paid && (
-              <button type="button" disabled={actionId === app.id} onClick={() => handlePayFee(app, 'application_fee')} className="rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a4a73] disabled:opacity-50">
-                {t('payApplicationFee')}
-              </button>
-            )}
-            {app.status === 'admitted' && !app.admission_accepted && (
-              <button type="button" disabled={actionId === app.id} onClick={() => handleAccept(app.id)} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
-                {t('acceptAdmission')}
-              </button>
-            )}
-            {app.status === 'accepted' && !app.tuition_fee_paid && (
-              <button type="button" disabled={actionId === app.id} onClick={() => handlePayFee(app, 'tuition')} className="rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a4a73] disabled:opacity-50">
-                {t('payTuition')}
-              </button>
-            )}
-            {app.status === 'enrolled' && (
-              <a href="/admissions/courses" className="rounded-lg border border-[#1e3a5f] px-4 py-2 text-sm font-medium text-[#1e3a5f] hover:bg-slate-50">
-                {t('registerCoursesLink')}
-              </a>
-            )}
+          <div className="mt-4">
+            <StudentApplicationActions
+              app={app}
+              actionId={actionId}
+              onPayApplicationFee={(application) => openPayment(application, 'application_fee')}
+              onPayTuition={(application) => openPayment(application, 'tuition')}
+              onAcceptAdmission={handleAccept}
+            />
           </div>
         </div>
       ))}
+
+      <PaymentMethodModal
+        application={paymentApp}
+        paymentType={paymentType}
+        open={!!paymentApp}
+        onClose={() => setPaymentApp(null)}
+        onSuccess={load}
+      />
     </div>
   );
 }

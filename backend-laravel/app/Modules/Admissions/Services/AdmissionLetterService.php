@@ -18,7 +18,7 @@ class AdmissionLetterService
         $application->load(['institution', 'applicant.user', 'programme', 'academicYear']);
 
         $user = optional($application->applicant)->user;
-        $locale = $this->admissionsLocale($user);
+        $locale = $this->userLocale($user);
         $session = $application->academicYear
             ? $this->transForUser('admissions.letter_session', ['year' => $application->academicYear->name], $user)
             : '';

@@ -65,6 +65,7 @@ class RegistryController extends Controller
         }
 
         $application->markRegistryReviewed(auth()->id(), $request->admission_comment);
+        (new NotificationService())->sendApplicationStatusNotification($application, 'registry_reviewed');
         (new NotificationService())->notifyDepartment($application);
 
         return response()->json([

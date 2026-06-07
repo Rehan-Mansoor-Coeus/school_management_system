@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import type { Application } from '../types';
 import { fetchApplication, resendAdmissionLetter } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
 import { useAuth } from '../../../context/AuthContext';
+import { publicFileUrl } from '../../../utils/publicFileUrl';
+import ApplicationProgressBar from '../components/ApplicationProgressBar';
+import PaymentMethodModal from '../components/PaymentMethodModal';
+import StudentApplicationActions from '../components/StudentApplicationActions';
+import { acceptAdmission } from '../../../api/admissions';
+import { canViewApplicationDetails } from '../utils/access';
+import { useFormatMoney } from '../../../hooks/useFormatMoney';
 
 function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
   if (value === undefined || value === null || value === '') return null;
@@ -20,18 +27,34 @@ const RESEND_LETTER_STATUSES = ['admitted', 'accepted', 'tuition_paid', 'enrolle
 
 export default function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { t } = useAdmissionsI18n();
+  const { formatMoney } = useFormatMoney();
   const { canAccess } = useAuth();
-  const isStaffViewer = canAccess({ permissions: ['admissions.view', 'admissions.manage'] });
+  const isStaffViewer = canViewApplicationDetails(canAccess);
   const canResendLetter = canAccess({ permissions: ['admissions.registrar.admit', 'admissions.manage'] });
-  const backPath = isStaffViewer ? '/admissions/applications' : '/admissions/my-applications';
-  const backLabel = isStaffViewer ? t('backToAllApplications') : t('backToApplications');
+  const fromPath = (location.state as { from?: string } | null)?.from;
+  const backPath = fromPath || (isStaffViewer ? '/admissions/applications' : '/admissions/my-applications');
+  const backLabel = fromPath
+    ? t('back')
+    : isStaffViewer
+      ? t('backToAllApplications')
+      : t('backToApplications');
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [resendError, setResendError] = useState('');
+  const [actionId, setActionId] = useState<number | null>(null);
+  const [paymentApp, setPaymentApp] = useState<Application | null>(null);
+  const [paymentType, setPaymentType] = useState<'application_fee' | 'tuition'>('application_fee');
+
+  const reloadApplication = async () => {
+    if (!id) return;
+    const data = await fetchApplication(Number(id));
+    setApplication(data);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -67,6 +90,16 @@ export default function ApplicationDetailPage() {
   const statusKey = statusLabelKey(application.status);
   const showResendLetter = canResendLetter && RESEND_LETTER_STATUSES.includes(application.status as typeof RESEND_LETTER_STATUSES[number]);
 
+  const handleAccept = async (appId: number) => {
+    setActionId(appId);
+    try {
+      await acceptAdmission(appId);
+      await reloadApplication();
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const handleResendLetter = async () => {
     if (!application) return;
     setResending(true);
@@ -96,14 +129,36 @@ export default function ApplicationDetailPage() {
         <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">{t(statusKey)}</span>
       </div>
 
+      <ApplicationProgressBar progress={application.progress} />
+
+      {!isStaffViewer && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="font-semibold text-slate-900 mb-4">{t('nextSteps')}</h3>
+          <StudentApplicationActions
+            app={application}
+            actionId={actionId}
+            onPayApplicationFee={(app) => {
+              setPaymentApp(app);
+              setPaymentType('application_fee');
+            }}
+            onPayTuition={(app) => {
+              setPaymentApp(app);
+              setPaymentType('tuition');
+            }}
+            onAcceptAdmission={handleAccept}
+            showViewDetails={false}
+          />
+        </section>
+      )}
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="font-semibold text-slate-900 mb-4">{t('applicationSummary')}</h3>
         <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 md:grid-cols-3">
           <DetailRow label={t('applicationNumber')} value={application.application_number} />
           <DetailRow label={t('programme')} value={application.programme?.name} />
           <DetailRow label={t('academicYear')} value={application.academic_year?.name} />
-          <DetailRow label={t('applicationFee')} value={application.application_fee_paid ? t('paid') : `₦${application.application_fee}`} />
-          <DetailRow label={t('tuition')} value={application.tuition_fee_paid ? t('paid') : `₦${application.tuition_fee ?? 0}`} />
+          <DetailRow label={t('applicationFee')} value={application.application_fee_paid ? t('paid') : formatMoney(application.application_fee)} />
+          <DetailRow label={t('tuition')} value={application.tuition_fee_paid ? t('paid') : formatMoney(application.tuition_fee ?? 0)} />
           <DetailRow label={t('letterSent')} value={application.admission_letter_sent ? t('yes') : t('no')} />
           <DetailRow label={t('accepted')} value={application.admission_accepted ? t('yes') : t('no')} />
           <DetailRow label={t('submittedAt')} value={application.created_at} />
@@ -151,31 +206,44 @@ export default function ApplicationDetailPage() {
         </section>
       )}
 
-      {applicant && (
+      {(application.documents?.length || applicant?.passport_url || applicant?.transcript_url) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-4">{t('uploadedDocuments')}</h3>
-          {!applicant.passport_url && !applicant.transcript_url ? (
-            <p className="text-sm text-slate-500">{t('noDocumentsUploaded')}</p>
-          ) : (
-            <ul className="space-y-3 text-sm">
-              {applicant.passport_url && (
-                <li className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-                  <span className="font-medium text-slate-800">{t('passportId')}</span>
-                  <a href={applicant.passport_url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
+          <ul className="space-y-3 text-sm">
+            {(application.documents || []).map((doc) => (
+              <li key={doc.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+                <span className="font-medium text-slate-800">{doc.document_name}</span>
+                {doc.url && (
+                  <a href={publicFileUrl(doc.url) || doc.url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
                     {t('viewDocument')}
                   </a>
-                </li>
-              )}
-              {applicant.transcript_url && (
-                <li className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-                  <span className="font-medium text-slate-800">{t('academicTranscript')}</span>
-                  <a href={applicant.transcript_url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
-                    {t('viewDocument')}
-                  </a>
-                </li>
-              )}
-            </ul>
-          )}
+                )}
+              </li>
+            ))}
+            {applicant?.passport_url && (
+              <li className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+                <span className="font-medium text-slate-800">{t('passportId')}</span>
+                <a href={publicFileUrl(applicant.passport_url) || applicant.passport_url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
+                  {t('viewDocument')}
+                </a>
+              </li>
+            )}
+            {applicant?.transcript_url && (
+              <li className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+                <span className="font-medium text-slate-800">{t('academicTranscript')}</span>
+                <a href={publicFileUrl(applicant.transcript_url) || applicant.transcript_url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
+                  {t('viewDocument')}
+                </a>
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
+
+      {!application.documents?.length && !applicant?.passport_url && !applicant?.transcript_url && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="font-semibold text-slate-900 mb-4">{t('uploadedDocuments')}</h3>
+          <p className="text-sm text-slate-500">{t('noDocumentsUploaded')}</p>
         </section>
       )}
 
@@ -190,6 +258,16 @@ export default function ApplicationDetailPage() {
           <DetailRow label={t('tuitionVerifiedAt')} value={application.tuition_verified_at} />
         </dl>
       </section>
+
+      {!isStaffViewer && (
+        <PaymentMethodModal
+          application={paymentApp}
+          paymentType={paymentType}
+          open={!!paymentApp}
+          onClose={() => setPaymentApp(null)}
+          onSuccess={reloadApplication}
+        />
+      )}
     </div>
   );
 }

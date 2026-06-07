@@ -43,4 +43,9 @@ class Programme extends Model
     {
         return $this->hasMany(ProgrammeSemester::class)->orderBy('semester_number');
     }
+
+    public function levels()
+    {
+        return $this->hasMany(ProgrammeLevel::class)->orderBy('sort_order');
+    }
 }

@@ -14,6 +14,8 @@ type Props = {
 }
 
 const gatewayLabels: Record<string, string> = {
+  stripe: 'Stripe (Visa / Card)',
+  campay: 'Campay (Mobile Money)',
   flutterwave: 'Flutterwave',
   paystack: 'Paystack',
   pesapal: 'Pesapal',
@@ -21,8 +23,16 @@ const gatewayLabels: Record<string, string> = {
   airtel_money: 'Airtel Money',
   mpesa: 'M-Pesa',
   orange_money: 'Orange Money',
-  visa: 'VISA',
-  mastercard: 'Mastercard',
+}
+
+function institutionFeeLabel(fee: { key?: string; label?: string }): string {
+  if (fee.label && fee.label !== 'Tuition Fee') {
+    return fee.label
+  }
+  if (fee.key === 'registration_fee' || fee.key === 'tuition_fee') {
+    return 'Registration Fee'
+  }
+  return fee.label || fee.key || '—'
 }
 
 export default function InstitutionDetail({ institutionId, onClose, onEdit }: Props) {
@@ -195,7 +205,7 @@ export default function InstitutionDetail({ institutionId, onClose, onEdit }: Pr
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {fees.map((fee: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="px-4 py-3 text-sm text-slate-800">{fee.label || fee.key}</td>
+                        <td className="px-4 py-3 text-sm text-slate-800">{institutionFeeLabel(fee)}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">
                           {fee.amount} {institution.settings?.fee_structure?.currency || institution.currency || ''}
                         </td>

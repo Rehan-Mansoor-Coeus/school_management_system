@@ -7,6 +7,7 @@ use App\Modules\Admissions\Concerns\ResolvesInstitution;
 use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Applicant;
 use App\Modules\Admissions\Models\Application;
+use App\Modules\Admissions\Models\ApplicationDocument;
 use App\Modules\Admissions\Requests\StoreApplicantRequest;
 use App\Modules\Admissions\Requests\StoreApplicationRequest;
 use App\Modules\Admissions\Resources\ApplicationResource;
@@ -131,10 +132,12 @@ class ApplicationController extends Controller
         ]);
 
         $this->storeApplicantDocuments($applicant, $request);
+        $this->storeApplicationDocuments($application, $applicant, $request);
 
-        $application->load(['applicant', 'academicYear', 'programme']);
+        $application->load(['applicant', 'academicYear', 'programme', 'documents']);
 
         (new \App\Modules\Admissions\Services\NotificationService())->notifyRegistry($application);
+        (new \App\Modules\Admissions\Services\NotificationService())->sendApplicationStatusNotification($application, 'submitted');
 
         return response()->json([
             'success' => true,
@@ -145,20 +148,18 @@ class ApplicationController extends Controller
 
     public function getMyApplications()
     {
-        $applicant = Applicant::where('user_id', auth()->id())->first();
+        $userId = auth()->id();
 
-        if (! $applicant) {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'pagination' => ['total' => 0, 'per_page' => 10, 'current_page' => 1, 'last_page' => 1],
-            ]);
-        }
-
-        $applications = $applicant->applications()
-            ->with(['applicant', 'academicYear', 'programme', 'registryReviewedBy', 'departmentReviewedBy', 'admittedBy'])
+        $applications = Application::whereHas('applicant', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })
+            ->with(['applicant', 'academicYear', 'programme', 'registryReviewedBy', 'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment', 'documents'])
             ->orderByDesc('created_at')
             ->paginate(10);
+
+        $applications->getCollection()->each(function (Application $application) {
+            $application->syncFeesFromProgramme();
+        });
 
         return response()->json([
             'success' => true,
@@ -213,15 +214,14 @@ class ApplicationController extends Controller
     {
         $application = Application::with([
             'applicant', 'academicYear', 'programme', 'registryReviewedBy',
-            'departmentReviewedBy', 'admittedBy',
+            'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment', 'documents',
         ])->findOrFail($applicationId);
 
-        if ((int) $application->applicant->user_id !== (int) auth()->id()
-            && ! auth()->user()->can('admissions.view')
-            && ! auth()->user()->can('admissions.manage')
-            && ! auth()->user()->hasRole(['registry', 'hod', 'head-of-department', 'registrar', 'finance-officer', 'admin', 'institution-admin', 'super-admin'])) {
+        if (! $this->userCanViewApplication($application)) {
             abort(403, $this->transForUser('admissions.unauthorized'));
         }
+
+        $application->syncFeesFromProgramme();
 
         return response()->json([
             'success' => true,
@@ -245,7 +245,11 @@ class ApplicationController extends Controller
         }
 
         $application->markAdmissionAccepted();
-        (new \App\Modules\Admissions\Services\NotificationService())->notifyFinanceOfficer($application);
+        $application->load('programme');
+        $application->syncFeesFromProgramme();
+        $notificationService = new \App\Modules\Admissions\Services\NotificationService();
+        $notificationService->sendApplicationStatusNotification($application, 'accepted');
+        $notificationService->notifyFinanceOfficer($application);
 
         return response()->json([
             'success' => true,
@@ -306,5 +310,82 @@ class ApplicationController extends Controller
         if ($updates) {
             $applicant->update($updates);
         }
+    }
+
+    protected function storeApplicationDocuments(Application $application, Applicant $applicant, Request $request)
+    {
+        $names = $request->input('document_names', []);
+        $files = $request->file('documents', []);
+
+        if (! is_array($files) || empty($files)) {
+            return;
+        }
+
+        $folder = 'admissions/applications/'.$application->id.'/documents';
+
+        foreach ($files as $index => $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $documentName = is_array($names) && isset($names[$index]) && trim((string) $names[$index]) !== ''
+                ? trim((string) $names[$index])
+                : 'Document '.($index + 1);
+
+            $path = $file->store($folder, 'public');
+
+            ApplicationDocument::create([
+                'institution_id' => $application->institution_id,
+                'application_id' => $application->id,
+                'applicant_id' => $applicant->id,
+                'document_name' => $documentName,
+                'file_path' => $path,
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+            ]);
+        }
+    }
+
+    protected function userCanViewApplication(Application $application): bool
+    {
+        $user = auth()->user();
+
+        if ((int) optional($application->applicant)->user_id === (int) $user->id) {
+            return true;
+        }
+
+        if (! $user->hasRole(['super-admin'])
+            && (int) $application->institution_id !== (int) $user->institution_id) {
+            return false;
+        }
+
+        if ($user->can('admissions.view') || $user->can('admissions.manage')) {
+            return true;
+        }
+
+        $staffPermissions = [
+            'admissions.registry.review',
+            'admissions.department.review',
+            'admissions.finance.verify',
+            'admissions.registrar.admit',
+            'admissions.hod.approve',
+        ];
+
+        foreach ($staffPermissions as $permission) {
+            if ($user->can($permission)) {
+                return true;
+            }
+        }
+
+        return $user->hasRole([
+            'registry',
+            'hod',
+            'head-of-department',
+            'registrar',
+            'finance-officer',
+            'admin',
+            'institution-admin',
+            'super-admin',
+        ]);
     }
 }

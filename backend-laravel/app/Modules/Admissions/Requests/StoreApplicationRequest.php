@@ -19,6 +19,10 @@ class StoreApplicationRequest extends FormRequest
             'programme_id' => 'required|exists:programmes,id',
             'passport_path' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'transcript_path' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'document_names' => 'nullable|array|max:20',
+            'document_names.*' => 'required_with:documents.*|string|max:255',
+            'documents' => 'nullable|array|max:20',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:5120',
         ];
     }
 

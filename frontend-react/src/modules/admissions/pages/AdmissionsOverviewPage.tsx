@@ -2,11 +2,13 @@ import { Link } from 'react-router-dom';
 import { GraduationCap, ClipboardList, Building2, Wallet, UserCheck, BookOpen } from 'lucide-react';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
+import StudentAdmissionsStats from '../components/StudentAdmissionsStats';
 
 export default function AdmissionsOverviewPage() {
   const { t } = useAdmissionsI18n();
-  const { canAccess } = useAuth();
+  const { canAccess, hasAnyRole } = useAuth();
   const canViewAllApplications = canAccess({ permissions: ['admissions.view', 'admissions.manage'] });
+  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] });
 
   const steps = [
     { n: 1, titleKey: 'step1Title', descKey: 'step1Desc', icon: GraduationCap },
@@ -27,6 +29,12 @@ export default function AdmissionsOverviewPage() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
+      {isStudent && (
+        <div className="lg:col-span-3">
+          <StudentAdmissionsStats />
+        </div>
+      )}
+
       <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('workflowTitle')}</h2>
         <ol className="space-y-3">

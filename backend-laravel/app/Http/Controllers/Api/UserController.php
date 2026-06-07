@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Role;
 use App\User;
+use App\Services\UserAccountNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -55,6 +56,13 @@ class UserController extends Controller
         if ($request->filled('roles')) {
             $roles = Role::whereIn('id', $request->roles)->get();
             $user->syncRoles($roles);
+        }
+
+        $user->load('roles');
+        if ($user->hasRole('student')) {
+            (new UserAccountNotificationService())->notifyAccountCreated($user, $request->password, [
+                'category' => 'academic',
+            ]);
         }
 
         return response()->json(['message' => 'User created successfully.', 'user' => $user->load('roles')], 201);

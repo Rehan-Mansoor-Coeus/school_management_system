@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Application } from '../types';
 import { decideDepartmentApplication, fetchDepartmentPending } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
@@ -33,10 +34,21 @@ export default function DepartmentPage() {
       <div className="lg:col-span-2 space-y-3">
         <h2 className="font-semibold">{t('departmentPendingTitle')}</h2>
         {applications.map((app) => (
-          <button key={app.id} type="button" onClick={() => setSelected(app)} className={`w-full rounded-xl border p-4 text-left ${selected?.id === app.id ? 'border-[#1e3a5f] bg-blue-50' : 'border-slate-200 bg-white'}`}>
-            <div className="font-medium">{app.application_number}</div>
-            <div className="text-sm text-slate-500">{app.programme?.name}</div>
-          </button>
+          <div key={app.id} className={`rounded-xl border p-4 ${selected?.id === app.id ? 'border-[#1e3a5f] bg-blue-50' : 'border-slate-200 bg-white'}`}>
+            <button type="button" onClick={() => setSelected(app)} className="w-full text-left">
+              <div className="font-medium">{app.application_number}</div>
+              <div className="text-sm text-slate-500">{app.programme?.name}</div>
+            </button>
+            <div className="mt-3">
+              <Link
+                to={`/admissions/applications/${app.id}`}
+                state={{ from: '/admissions/department' }}
+                className="text-sm font-medium text-[#1e3a5f] hover:underline"
+              >
+                {t('viewDetails')}
+              </Link>
+            </div>
+          </div>
         ))}
         {!applications.length && <p className="text-sm text-slate-500">{t('departmentNoPending')}</p>}
       </div>

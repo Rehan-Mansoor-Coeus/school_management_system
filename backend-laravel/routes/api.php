@@ -15,6 +15,12 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:api')->get('me', 'Api\AuthController@me');
 
+Route::middleware('auth:api')->group(function () {
+    Route::get('app-notifications', 'Api\AppNotificationController@index');
+    Route::post('app-notifications/{notificationId}/read', 'Api\AppNotificationController@markRead');
+    Route::post('app-notifications/read-all', 'Api\AppNotificationController@markAllRead');
+});
+
 Route::get('letters/public/verify/{letter}', 'Api\Letters\LetterPublicController@verify');
 
 Route::middleware('auth:api')->group(function () {
@@ -153,9 +159,18 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:academics', 'permission:academics.delete'])->delete('academics/subjects/{subject}', 'Api\AcademicController@deleteSubject');
 
     Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/semesters/{semester}', 'Api\AcademicController@updateSemester');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->post('academics/programs/{programme}/levels', 'Api\AcademicController@storeLevel');
+    Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/levels/{level}', 'Api\AcademicController@updateLevel');
     Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->post('academics/programs/{programme}/semester-subjects', 'Api\AcademicController@assignSubject');
     Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->put('academics/semester-subjects/{assignment}', 'Api\AcademicController@updateSemesterSubject');
     Route::middleware(['module_enabled:academics', 'permission:academics.edit'])->delete('academics/semester-subjects/{assignment}', 'Api\AcademicController@deleteSemesterSubject');
+
+    Route::middleware(['auth:api', 'permission:fees.view|fees.manage'])->get('fees', 'Api\FeeController@index');
+    Route::middleware(['auth:api'])->get('fees/my', 'Api\FeeController@myFees');
+    Route::middleware(['auth:api', 'permission:fees.manage'])->post('fees/{fee}/payments', 'Api\FeeController@recordPayment');
+    Route::middleware(['auth:api', 'permission:fees.manage'])->put('fees/semesters/{semester}', 'Api\FeeController@updateSemesterFee');
+    Route::middleware(['auth:api', 'permission:fees.view|fees.manage'])->get('fees/reports/summary', 'Api\FeeController@reports');
+    Route::middleware(['auth:api', 'permission:fees.view|fees.manage'])->get('fees/students/{student}/payment-history', 'Api\FeeController@paymentHistory');
 
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->get('institutions/{id}/settings', 'Api\InstitutionController@getSettings');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.settings'])->put('institutions/{id}/settings', 'Api\InstitutionController@updateSettings');
@@ -247,4 +262,7 @@ Route::middleware('auth:api')->group(function () {
     });
 
     require base_path('app/Modules/Admissions/Routes/api.php');
+    require base_path('app/Modules/Canteen/Routes/api.php');
+    require base_path('app/Modules/CharacterCertificates/Routes/api.php');
+    require base_path('app/Modules/Hostel/Routes/api.php');
 });

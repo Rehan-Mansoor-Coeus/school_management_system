@@ -9,6 +9,7 @@ import InstitutionList from './modules/Institutions/pages/InstitutionList'
 import DepartmentsPage from './pages/Departments'
 import AcademicsPage from './pages/Academics'
 import PlaceholderModulePage from './pages/PlaceholderModule'
+import FeesDashboardPage from './modules/fees/pages/FeesDashboardPage'
 import TimesheetCategoriesPage from './pages/TimesheetCategories'
 import TimesheetActivitiesPage from './pages/TimesheetActivities'
 import FillTimesheetPage from './pages/FillTimesheet'
@@ -66,6 +67,32 @@ import RegistrarAdmissionsPage from './modules/admissions/pages/RegistrarAdmissi
 import FinancePage from './modules/admissions/pages/FinancePage'
 import CourseRegistrationPage from './modules/admissions/pages/CourseRegistrationPage'
 import HodCourseApprovalPage from './modules/admissions/pages/HodCourseApprovalPage'
+import CanteenLayout from './modules/canteen/components/CanteenLayout'
+import CanteenOverviewPage from './modules/canteen/pages/CanteenOverviewPage'
+import MealPlansPage from './modules/canteen/pages/MealPlansPage'
+import FeedingPlansPage from './modules/canteen/pages/FeedingPlansPage'
+import WalletsPage from './modules/canteen/pages/WalletsPage'
+import MyWalletPage from './modules/canteen/pages/MyWalletPage'
+import VerifyMealPage from './modules/canteen/pages/VerifyMealPage'
+import MealAttendancePage from './modules/canteen/pages/MealAttendancePage'
+import ReportsPage from './modules/canteen/pages/ReportsPage'
+import CharacterCertificatesLayout, {
+  CharacterCertificatesIndexPage,
+  CharacterCertificatesStaffRoute,
+} from './modules/characterCertificates/components/CharacterCertificatesLayout'
+import CreateCertificatePage from './modules/characterCertificates/pages/CreateCertificatePage'
+import CertificateDetailPage from './modules/characterCertificates/pages/CertificateDetailPage'
+import MyCertificatesPage from './modules/characterCertificates/pages/MyCertificatesPage'
+import HostelLayout from './modules/hostel/components/HostelLayout'
+import HostelOverviewPage from './modules/hostel/pages/HostelOverviewPage'
+import HostelsPage from './modules/hostel/pages/HostelsPage'
+import RoomsPage from './modules/hostel/pages/RoomsPage'
+import RegistrationsPage from './modules/hostel/pages/RegistrationsPage'
+import AllocationsPage from './modules/hostel/pages/AllocationsPage'
+import PaymentsPage from './modules/hostel/pages/PaymentsPage'
+import ClearancePage from './modules/hostel/pages/ClearancePage'
+import MaintenancePage from './modules/hostel/pages/MaintenancePage'
+import MyHostelPage from './modules/hostel/pages/MyHostelPage'
 import UsersLayout, { UsersIndexPage } from './components/users/UsersLayout'
 
 export default function App(){
@@ -124,12 +151,37 @@ export default function App(){
           <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />
           <Route path="results" element={<PlaceholderModulePage title="Results" />} />
-          <Route path="fees" element={<PlaceholderModulePage title="Fees & Payments" />} />
+          <Route path="fees" element={<FeesDashboardPage />} />
           <Route path="hr" element={<PlaceholderModulePage title="HR & Payroll" />} />
           <Route path="assets" element={<PlaceholderModulePage title="Assets" />} />
           <Route path="library" element={<PlaceholderModulePage title="Library" />} />
-          <Route path="hostel" element={<PlaceholderModulePage title="Hostel" />} />
-          <Route path="canteen" element={<PlaceholderModulePage title="Canteen" />} />
+          <Route path="hostel" element={<HostelLayout />}>
+            <Route index element={<HostelOverviewPage />} />
+            <Route path="hostels" element={<HostelsPage />} />
+            <Route path="rooms" element={<RoomsPage />} />
+            <Route path="registrations" element={<RegistrationsPage />} />
+            <Route path="allocations" element={<AllocationsPage />} />
+            <Route path="payments" element={<PaymentsPage />} />
+            <Route path="clearance" element={<ClearancePage />} />
+            <Route path="maintenance" element={<MaintenancePage />} />
+            <Route path="my" element={<MyHostelPage />} />
+          </Route>
+          <Route path="canteen" element={<CanteenLayout />}>
+            <Route index element={<CanteenOverviewPage />} />
+            <Route path="meals" element={<MealPlansPage />} />
+            <Route path="feeding-plans" element={<FeedingPlansPage />} />
+            <Route path="wallets" element={<WalletsPage />} />
+            <Route path="my-wallet" element={<MyWalletPage />} />
+            <Route path="verify" element={<VerifyMealPage />} />
+            <Route path="attendance" element={<MealAttendancePage />} />
+            <Route path="reports" element={<ReportsPage />} />
+          </Route>
+          <Route path="character-certificates" element={<CharacterCertificatesLayout />}>
+            <Route index element={<CharacterCertificatesIndexPage />} />
+            <Route path="create" element={<CharacterCertificatesStaffRoute><CreateCertificatePage /></CharacterCertificatesStaffRoute>} />
+            <Route path="my" element={<MyCertificatesPage />} />
+            <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
+          </Route>
           <Route path="notifications" element={<PlaceholderModulePage title="Notifications" />} />
           <Route path="audit" element={<PlaceholderModulePage title="Audit Logs" />} />
 

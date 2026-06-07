@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '@/api';
+import api from '../../../api/client';
 import { Notification } from '../types';
 
 export const useNotifications = () => {
@@ -10,9 +10,9 @@ export const useNotifications = () => {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/notifications');
+      const response = await api.get('/app-notifications');
       setNotifications(response.data.data || []);
-      setUnreadCount(response.data.data?.filter((n: Notification) => !n.is_read).length || 0);
+      setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     } finally {
@@ -22,7 +22,7 @@ export const useNotifications = () => {
 
   const markAsRead = useCallback(async (notificationId: number) => {
     try {
-      await api.post(`/notifications/${notificationId}/read`);
+      await api.post(`/app-notifications/${notificationId}/read`);
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === notificationId ? { ...n, is_read: true } : n
@@ -36,7 +36,7 @@ export const useNotifications = () => {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await api.post('/notifications/read-all');
+      await api.post('/app-notifications/read-all');
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, is_read: true }))
       );
@@ -49,7 +49,6 @@ export const useNotifications = () => {
   useEffect(() => {
     fetchNotifications();
 
-    // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);

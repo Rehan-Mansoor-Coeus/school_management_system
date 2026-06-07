@@ -3,6 +3,7 @@ import AdmissionsService from '../services/AdmissionsService';
 import { Applicant } from '../types';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { formatValidationError } from '../../../api/admissions';
+import type { DocumentRow } from '../components/DocumentUploadList';
 
 export const useApplicationForm = () => {
   const { t } = useAdmissionsI18n();
@@ -11,6 +12,8 @@ export const useApplicationForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [applicant, setApplicant] = useState<Partial<Applicant> | null>(null);
   const [applicationId, setApplicationId] = useState<number | null>(null);
+  const [applicationNumber, setApplicationNumber] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const loadExistingApplicant = useCallback(async () => {
     try {
@@ -44,7 +47,7 @@ export const useApplicationForm = () => {
   }, [t]);
 
   const submitApplication = useCallback(
-    async (academicYearId: number, programmeId: number, documents?: { passport?: File; transcript?: File }) => {
+    async (academicYearId: number, programmeId: number, documentRows: DocumentRow[] = []) => {
       if (!applicant?.id) {
         setError(t('errorApplicantRequired'));
         return;
@@ -52,21 +55,23 @@ export const useApplicationForm = () => {
 
       setLoading(true);
       setError(null);
+      setUploadProgress(0);
       try {
         const formData = new FormData();
         formData.append('applicant_id', applicant.id.toString());
         formData.append('academic_year_id', academicYearId.toString());
         formData.append('programme_id', programmeId.toString());
 
-        if (documents?.passport) {
-          formData.append('passport_path', documents.passport);
-        }
-        if (documents?.transcript) {
-          formData.append('transcript_path', documents.transcript);
-        }
+        documentRows.forEach((row, index) => {
+          if (row.file) {
+            formData.append(`document_names[${index}]`, row.name.trim() || `Document ${index + 1}`);
+            formData.append(`documents[${index}]`, row.file);
+          }
+        });
 
-        const response = await AdmissionsService.submitApplication(formData);
+        const response = await AdmissionsService.submitApplication(formData, setUploadProgress);
         setApplicationId(response.data.id);
+        setApplicationNumber(response.data.application_number);
         setStep(3);
         return response.data;
       } catch (err: unknown) {
@@ -84,7 +89,9 @@ export const useApplicationForm = () => {
     setStep(1);
     setApplicant(null);
     setApplicationId(null);
+    setApplicationNumber(null);
     setError(null);
+    setUploadProgress(0);
   }, []);
 
   return {
@@ -94,6 +101,8 @@ export const useApplicationForm = () => {
     error,
     applicant,
     applicationId,
+    applicationNumber,
+    uploadProgress,
     loadExistingApplicant,
     submitApplicantInfo,
     submitApplication,

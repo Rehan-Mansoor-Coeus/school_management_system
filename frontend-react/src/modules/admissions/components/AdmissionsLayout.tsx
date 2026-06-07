@@ -21,7 +21,7 @@ const linkDefs = [
   },
   { path: '/admissions/apply', labelKey: 'apply', permissions: ['admissions.apply'] },
   { path: '/admissions/my-applications', labelKey: 'myApplications', permissions: ['admissions.apply'] },
-  { path: '/admissions/applications', labelKey: 'allApplications', permissions: ['admissions.view', 'admissions.manage'] },
+  { path: '/admissions/applications', labelKey: 'allApplications', permissions: ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.finance.verify', 'admissions.registrar.admit', 'admissions.hod.approve'] },
   { path: '/admissions/courses', labelKey: 'courseRegistration', permissions: ['admissions.courses.register'] },
   { path: '/admissions/registry', labelKey: 'registryReview', permissions: ['admissions.registry.review'] },
   { path: '/admissions/department', labelKey: 'departmentReview', permissions: ['admissions.department.review'] },
