@@ -3,7 +3,7 @@
 namespace App\Modules\Admissions\Services;
 
 use App\Services\InstitutionPaymentConfigResolver;
-use Illuminate\Support\Facades\Http;
+use App\Support\HttpClient;
 use Illuminate\Support\Facades\Log;
 
 class StripePaymentService
@@ -55,13 +55,15 @@ class StripePaymentService
         }
 
         try {
-            $response = Http::asForm()
-                ->withToken($this->secretKey)
-                ->post('https://api.stripe.com/v1/payment_intents', array_merge([
+            $response = HttpClient::postForm(
+                'https://api.stripe.com/v1/payment_intents',
+                array_merge([
                     'amount' => $minorUnits,
                     'currency' => strtolower($currency),
                     'automatic_payment_methods[enabled]' => 'true',
-                ], $this->flattenMetadata($metadata)));
+                ], $this->flattenMetadata($metadata)),
+                ['Authorization' => 'Bearer '.$this->secretKey]
+            );
 
             if (! $response->successful()) {
                 Log::warning('Stripe PaymentIntent failed', ['body' => $response->body()]);
@@ -84,8 +86,10 @@ class StripePaymentService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
-                ->get('https://api.stripe.com/v1/payment_intents/'.$intentId);
+            $response = HttpClient::get(
+                'https://api.stripe.com/v1/payment_intents/'.$intentId,
+                ['Authorization' => 'Bearer '.$this->secretKey]
+            );
 
             return $response->successful() ? $response->json() : null;
         } catch (\Exception $e) {
