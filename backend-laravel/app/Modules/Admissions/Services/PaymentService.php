@@ -5,8 +5,8 @@ namespace App\Modules\Admissions\Services;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Services\InstitutionPaymentConfigResolver;
+use App\Support\HttpClient;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -455,27 +455,29 @@ class PaymentService
         $currency = strtoupper((string) (optional($institution)->currency ?? 'USD'));
 
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer '.$flutterwaveKey,
-            ])->post($this->flutterwaveUrl.'/payments', [
-                'tx_ref' => $referenceNumber,
-                'amount' => $amount,
-                'currency' => $currency,
-                'redirect_url' => config('app.url').'/admissions/checkout',
-                'customer' => [
-                    'email' => $application->applicant->email,
-                    'phone_number' => $application->applicant->phone,
-                    'name' => $application->applicant->full_name,
+            $response = HttpClient::postJson(
+                $this->flutterwaveUrl.'/payments',
+                [
+                    'tx_ref' => $referenceNumber,
+                    'amount' => $amount,
+                    'currency' => $currency,
+                    'redirect_url' => config('app.url').'/admissions/checkout',
+                    'customer' => [
+                        'email' => $application->applicant->email,
+                        'phone_number' => $application->applicant->phone,
+                        'name' => $application->applicant->full_name,
+                    ],
+                    'customizations' => [
+                        'title' => ucfirst(str_replace('_', ' ', $paymentType)),
+                        'description' => 'Admission payment',
+                    ],
+                    'meta' => [
+                        'application_id' => $application->id,
+                        'payment_type' => $paymentType,
+                    ],
                 ],
-                'customizations' => [
-                    'title' => ucfirst(str_replace('_', ' ', $paymentType)),
-                    'description' => 'Admission payment',
-                ],
-                'meta' => [
-                    'application_id' => $application->id,
-                    'payment_type' => $paymentType,
-                ],
-            ])->json();
+                ['Authorization' => 'Bearer '.$flutterwaveKey]
+            )->json();
 
             if (($response['status'] ?? '') === 'success') {
                 return $response['data']['link'] ?? null;
@@ -498,10 +500,10 @@ class PaymentService
         }
 
         try {
-            return Http::withHeaders([
-                'Authorization' => 'Bearer '.$flutterwaveKey,
-            ])->get($this->flutterwaveUrl.'/transactions/'.$transactionId.'/verify')
-                ->json();
+            return HttpClient::get(
+                $this->flutterwaveUrl.'/transactions/'.$transactionId.'/verify',
+                ['Authorization' => 'Bearer '.$flutterwaveKey]
+            )->json();
         } catch (\Exception $e) {
             \Log::error('Flutterwave payment verification failed: '.$e->getMessage());
 

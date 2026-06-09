@@ -3,8 +3,8 @@
 namespace App\Modules\Admissions\Services;
 
 use App\Services\InstitutionPaymentConfigResolver;
+use App\Support\HttpClient;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class CampayPaymentService
@@ -82,7 +82,7 @@ class CampayPaymentService
 
         return Cache::remember($cacheKey, 50, function () {
             try {
-                $response = Http::post(rtrim($this->baseUrl(), '/').'/token/', [
+                $response = HttpClient::postJson(rtrim($this->baseUrl(), '/').'/token/', [
                     'username' => $this->username,
                     'password' => $this->password,
                 ]);
@@ -124,7 +124,7 @@ class CampayPaymentService
                 $body['app_id'] = $this->momoAppId;
             }
 
-            $response = Http::withToken($token)
+            $response = HttpClient::withToken($token)
                 ->post(rtrim($this->baseUrl(), '/').'/collect/', $body);
 
             if (! $response->successful()) {
@@ -149,7 +149,7 @@ class CampayPaymentService
         }
 
         try {
-            $response = Http::withToken($token)
+            $response = HttpClient::withToken($token)
                 ->get(rtrim($this->baseUrl(), '/').'/transaction/'.$reference.'/');
 
             return $response->successful() ? $response->json() : null;

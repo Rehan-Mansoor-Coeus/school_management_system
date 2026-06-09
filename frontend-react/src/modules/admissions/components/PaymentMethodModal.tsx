@@ -148,8 +148,8 @@ export default function PaymentMethodModal({ application, paymentType, open, onC
           setStripePromise(loadStripe(data.publishable_key));
         }
       })
-      .catch(() => {
-        if (!cancelled) setError(t('stripeNotConfigured'));
+      .catch((err: unknown) => {
+        if (!cancelled) setError(formatValidationError(err, t('stripeNotConfigured')));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
