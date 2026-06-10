@@ -37,10 +37,6 @@ class CreateUsersTable extends Migration
             if (! Schema::hasColumn('users', 'deleted_at')) {
                 $table->softDeletes();
             }
-
-            $table->index('institution_id');
-            $table->index('email');
-            $table->index('is_active');
         });
     }
 
