@@ -497,8 +497,7 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Test Admin',
                 'password' => Hash::make('admin123'),
                 'api_token' => Str::random(60),
-                'institution_id' => $defaultInstitution->id,
-                'is_active' => true,
+                'status' => 'active',
                 'locale' => 'en',
             ]
         );
@@ -522,7 +521,7 @@ class RolePermissionSeeder extends Seeder
                     'name' => 'Test Teacher',
                     'password' => Hash::make('teacher123'),
                     'api_token' => Str::random(60),
-                    'is_active' => true,
+                    'status' => 'active',
                     'locale' => 'en',
                 ]
             );
@@ -538,7 +537,7 @@ class RolePermissionSeeder extends Seeder
                     'name' => 'Test Student',
                     'password' => Hash::make('student123'),
                     'api_token' => Str::random(60),
-                    'is_active' => true,
+                    'status' => 'active',
                     'locale' => 'en',
                 ]
             );

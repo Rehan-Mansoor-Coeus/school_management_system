@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class EnsureLibraryBooksTableStructure extends Migration
+class CreateLibraryBooksTable extends Migration
 {
     public function up()
     {
