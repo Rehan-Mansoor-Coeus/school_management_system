@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle, XCircle } from 'lucide-react';
 import AdmissionsService from '../services/AdmissionsService';
 import { Application } from '../types';
+import DashboardStatCard from '../../../components/ui/DashboardStatCard';
 
 export const AdmissionBoardDashboard: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -82,26 +84,11 @@ export const AdmissionBoardDashboard: React.FC = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-600 text-sm">Total Applications</p>
-          <p className="text-3xl font-bold text-gray-800">{stats.total_applications}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <p className="text-gray-600 text-sm">Pending</p>
-          <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-gray-600 text-sm">Under Review</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.under_review}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-gray-600 text-sm">Approved</p>
-          <p className="text-3xl font-bold text-green-600">{stats.approved}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <p className="text-gray-600 text-sm">Rejected</p>
-          <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
-        </div>
+        <DashboardStatCard label="Total Applications" value={stats.total_applications} to="/admissions/applications" />
+        <DashboardStatCard label="Pending" value={stats.pending} to="/admissions/applications" className="border-l-4 border-yellow-500" />
+        <DashboardStatCard label="Under Review" value={stats.under_review} to="/admissions/applications" className="border-l-4 border-blue-500" />
+        <DashboardStatCard label="Approved" value={stats.approved} to="/admissions/applications" className="border-l-4 border-green-500" />
+        <DashboardStatCard label="Rejected" value={stats.rejected} to="/admissions/applications" className="border-l-4 border-red-500" />
       </div>
 
       {/* Applications Table */}
@@ -144,7 +131,9 @@ export const AdmissionBoardDashboard: React.FC = () => {
                 {applications.map((app) => (
                   <tr key={app.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 text-sm font-medium text-gray-900">
-                      {app.application_number}
+                      <Link to={`/admissions/applications/${app.id}`} className="text-blue-600 hover:underline">
+                        {app.application_number}
+                      </Link>
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-600">
                       {app.applicant.full_name}

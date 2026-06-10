@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchTimesheetDashboard } from '../api/timesheets'
 import { useToast } from '../components/ui/ToastProvider'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
+import DashboardStatCard from '../components/ui/DashboardStatCard'
 
 export default function TimesheetDashboardPage() {
   const [data, setData] = useState<any>(null)
@@ -25,12 +26,12 @@ export default function TimesheetDashboardPage() {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Card title={t('pendingSubmissions')} value={data.pending_submissions} />
-            <Card title={t('pendingApprovals')} value={data.pending_approvals} />
-            <Card title={t('expectedHours')} value={data.expected_hours} />
-            <Card title={t('completedContactHours')} value={data.completed_hours} />
-            <Card title={t('overtime')} value={data.overtime_hours} />
-            <Card title={t('underTime')} value={data.under_time_hours} />
+            <DashboardStatCard label={t('pendingSubmissions')} value={data.pending_submissions} to="/timesheets/fill" />
+            <DashboardStatCard label={t('pendingApprovals')} value={data.pending_approvals} to="/timesheets/admin/manage-all" />
+            <DashboardStatCard label={t('expectedHours')} value={data.expected_hours} to="/timesheets/working-week" />
+            <DashboardStatCard label={t('completedContactHours')} value={data.completed_hours} to="/timesheets/admin/reports" />
+            <DashboardStatCard label={t('overtime')} value={data.overtime_hours} to="/timesheets/admin/overtime-report" />
+            <DashboardStatCard label={t('underTime')} value={data.under_time_hours} to="/timesheets/admin/reports" />
           </div>
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">{t('todaySchedules')}</h3>
@@ -42,15 +43,6 @@ export default function TimesheetDashboardPage() {
           </section>
         </>
       )}
-    </div>
-  )
-}
-
-function Card({ title, value }: { title: string; value: string | number }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs text-slate-500">{title}</p>
-      <p className="text-xl font-semibold">{value}</p>
     </div>
   )
 }

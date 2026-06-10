@@ -3,7 +3,18 @@ import AdmissionsService from '../services/AdmissionsService';
 import { Applicant } from '../types';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { formatValidationError } from '../../../api/admissions';
-import type { DocumentRow } from '../components/DocumentUploadList';
+import type { RequiredDocumentUpload } from '../components/ProgrammeDocumentUploadList';
+
+function dataUrlToFile(dataUrl: string, filename = 'signature.png'): File {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new File([bytes], filename, { type: mime });
+}
 
 export const useApplicationForm = () => {
   const { t } = useAdmissionsI18n();
@@ -47,9 +58,28 @@ export const useApplicationForm = () => {
   }, [t]);
 
   const submitApplication = useCallback(
-    async (academicYearId: number, programmeId: number, documentRows: DocumentRow[] = []) => {
+    async (
+      academicYearId: number,
+      programmeId: number,
+      documentUploads: RequiredDocumentUpload[] = [],
+      signatureDataUrl?: string | null,
+      acceptedAgreementIds: number[] = []
+    ) => {
       if (!applicant?.id) {
         setError(t('errorApplicantRequired'));
+        return;
+      }
+
+      if (!signatureDataUrl) {
+        setError(t('signatureRequired'));
+        return;
+      }
+
+      const missingMandatory = documentUploads.some(
+        (row) => row.is_required && !row.file
+      );
+      if (missingMandatory) {
+        setError(t('mandatoryDocumentsMissing'));
         return;
       }
 
@@ -61,12 +91,21 @@ export const useApplicationForm = () => {
         formData.append('applicant_id', applicant.id.toString());
         formData.append('academic_year_id', academicYearId.toString());
         formData.append('programme_id', programmeId.toString());
+        formData.append('applicant_signature', dataUrlToFile(signatureDataUrl));
 
-        documentRows.forEach((row, index) => {
-          if (row.file) {
-            formData.append(`document_names[${index}]`, row.name.trim() || `Document ${index + 1}`);
-            formData.append(`documents[${index}]`, row.file);
+        documentUploads.forEach((row, index) => {
+          if (!row.file) {
+            return;
           }
+          formData.append(`required_document_ids[${index}]`, String(row.requiredDocumentId));
+          formData.append(`required_documents[${index}]`, row.file);
+          if (row.comment.trim()) {
+            formData.append(`document_comments[${index}]`, row.comment.trim());
+          }
+        });
+
+        acceptedAgreementIds.forEach((agreementId, index) => {
+          formData.append(`accepted_agreement_ids[${index}]`, String(agreementId));
         });
 
         const response = await AdmissionsService.submitApplication(formData, setUploadProgress);

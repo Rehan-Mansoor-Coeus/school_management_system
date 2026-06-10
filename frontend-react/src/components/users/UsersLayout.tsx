@@ -3,17 +3,17 @@ import { useAuth } from '../../context/AuthContext'
 import UsersPage from '../../pages/Users'
 
 const linkDefs = [
-  { path: '/users', label: 'All Users', end: true, permissions: ['view_users', 'manage_users'] },
-  { path: '/users/customers', label: 'Customers', permissions: ['view_customers', 'manage_users'] },
-  { path: '/users/students', label: 'Students', permissions: ['view_students', 'manage_users'] },
-  { path: '/users/teachers', label: 'Teachers', permissions: ['view_teachers', 'manage_users'] },
-  { path: '/users/staff', label: 'Staff', permissions: ['view_staff', 'manage_users'] },
+  { path: '/users', label: 'All Users', end: true, permissions: ['users.view', 'view_users', 'manage_users'] },
+  { path: '/users/customers', label: 'Customers', permissions: ['view_customers', 'manage_users', 'users.view'] },
+  { path: '/users/students', label: 'Students', permissions: ['view_students', 'manage_users', 'users.view'] },
+  { path: '/users/teachers', label: 'Teachers', permissions: ['view_teachers', 'manage_users', 'users.view'] },
+  { path: '/users/staff', label: 'Staff', permissions: ['view_staff', 'manage_users', 'users.view'] },
 ]
 
 function UsersIndexPage() {
   const { canAccess } = useAuth()
 
-  if (canAccess({ permissions: ['view_users', 'manage_users'] })) {
+  if (canAccess({ permissions: ['users.view', 'view_users', 'manage_users'] })) {
     return <UsersPage />
   }
 

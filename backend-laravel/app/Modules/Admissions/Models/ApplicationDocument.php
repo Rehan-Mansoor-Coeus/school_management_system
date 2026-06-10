@@ -11,8 +11,12 @@ class ApplicationDocument extends Model
 
     protected $fillable = [
         'institution_id', 'application_id', 'applicant_id',
-        'document_name', 'file_path', 'mime_type', 'file_size',
+        'programme_required_document_id',
+        'document_name', 'comment', 'file_path', 'mime_type', 'file_size',
+        'review_status', 'review_comment', 'reviewed_by', 'reviewed_at',
     ];
+
+    protected $dates = ['reviewed_at'];
 
     public function institution()
     {
@@ -27,5 +31,20 @@ class ApplicationDocument extends Model
     public function applicant()
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    public function programmeRequiredDocument()
+    {
+        return $this->belongsTo(\App\ProgrammeRequiredDocument::class, 'programme_required_document_id');
+    }
+
+    public function reviewedBy()
+    {
+        return $this->belongsTo(\App\User::class, 'reviewed_by');
+    }
+
+    public function isPendingReview(): bool
+    {
+        return $this->review_status === 'pending' || $this->review_status === null;
     }
 }

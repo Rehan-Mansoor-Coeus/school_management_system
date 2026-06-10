@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Department;
 use App\Programme;
 use App\ProgrammeLevel;
+use App\ProgrammeRequiredDocument;
+use App\AdmissionAgreement;
 use App\ProgrammeSemester;
 use App\ProgrammeSemesterSubject;
 use App\Subject;
@@ -34,7 +36,7 @@ class AcademicController extends Controller
     {
         $institutionId = $this->ensureInstitutionId($request);
 
-        $query = Programme::with(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject'])
+        $query = Programme::with(['department', 'requiredDocuments', 'admissionAgreement', 'levels.semesters.assignments.subject', 'semesters.assignments.subject'])
             ->where('institution_id', $institutionId);
 
         if ($request->filled('search')) {
@@ -59,7 +61,7 @@ class AcademicController extends Controller
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
-        return response()->json($programme->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
+        return response()->json($programme->load(['department', 'requiredDocuments', 'admissionAgreement', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
     }
 
     public function storeProgram(Request $request)
@@ -82,6 +84,15 @@ class AcademicController extends Controller
             'tuition_fee' => 'nullable|numeric|min:0',
             'application_fee' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
+            'required_documents' => 'nullable|array',
+            'required_documents.*.name' => 'required_with:required_documents|string|max:255',
+            'required_documents.*.description' => 'nullable|string|max:1000',
+            'required_documents.*.is_required' => 'nullable|boolean',
+            'required_documents.*.sort_order' => 'nullable|integer|min:0',
+            'agreement' => 'nullable|array',
+            'agreement.title' => 'nullable|string|max:255',
+            'agreement.content' => 'nullable|string|max:50000',
+            'agreement.is_required' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -112,7 +123,10 @@ class AcademicController extends Controller
 
         $this->syncLevelsForProgramme($programme);
 
-        return response()->json($programme->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']), 201);
+        $this->syncRequiredDocuments($programme, $request->input('required_documents', []));
+        $this->syncProgrammeAgreement($programme, $request->input('agreement'));
+
+        return response()->json($programme->load(['department', 'requiredDocuments', 'admissionAgreement', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']), 201);
     }
 
     public function updateProgram(Request $request, Programme $programme)
@@ -141,6 +155,16 @@ class AcademicController extends Controller
             'semesters.*.id' => 'required_with:semesters|integer|exists:programme_semesters,id',
             'semesters.*.name' => 'required_with:semesters|string|max:255',
             'semesters.*.is_active' => 'nullable|boolean',
+            'required_documents' => 'nullable|array',
+            'required_documents.*.id' => 'nullable|integer|exists:programme_required_documents,id',
+            'required_documents.*.name' => 'required_with:required_documents|string|max:255',
+            'required_documents.*.description' => 'nullable|string|max:1000',
+            'required_documents.*.is_required' => 'nullable|boolean',
+            'required_documents.*.sort_order' => 'nullable|integer|min:0',
+            'agreement' => 'nullable|array',
+            'agreement.title' => 'nullable|string|max:255',
+            'agreement.content' => 'nullable|string|max:50000',
+            'agreement.is_required' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -190,7 +214,10 @@ class AcademicController extends Controller
 
         $this->syncLevelsForProgramme($programme->fresh());
 
-        return response()->json($programme->fresh()->load(['department', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
+        $this->syncRequiredDocuments($programme, $request->input('required_documents', []));
+        $this->syncProgrammeAgreement($programme, $request->input('agreement'));
+
+        return response()->json($programme->fresh()->load(['department', 'requiredDocuments', 'admissionAgreement', 'levels.semesters.assignments.subject', 'semesters.assignments.subject']));
     }
 
     public function destroyProgram(Request $request, Programme $programme)
@@ -341,6 +368,7 @@ class AcademicController extends Controller
             'programme_semester_id' => ['required', 'integer', Rule::exists('programme_semesters', 'id')->where(fn ($query) => $query->where('programme_id', $programme->id))],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->where(fn ($query) => $query->where('institution_id', $programme->institution_id))],
             'contact_hours' => 'nullable|integer|min:0',
+            'is_required' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -353,6 +381,7 @@ class AcademicController extends Controller
             ['programme_semester_id' => $request->programme_semester_id, 'subject_id' => $request->subject_id],
             [
                 'contact_hours' => $request->filled('contact_hours') ? $request->contact_hours : $subject->default_contact_hours,
+                'is_required' => $request->has('is_required') ? (bool) $request->is_required : true,
                 'is_active' => $request->filled('is_active') ? (bool) $request->is_active : true,
             ]
         );
@@ -369,6 +398,7 @@ class AcademicController extends Controller
 
         $validator = Validator::make($request->all(), [
             'contact_hours' => 'required|integer|min:0',
+            'is_required' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -378,6 +408,7 @@ class AcademicController extends Controller
 
         $assignment->update([
             'contact_hours' => $request->contact_hours,
+            'is_required' => $request->has('is_required') ? (bool) $request->is_required : $assignment->is_required,
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $assignment->is_active,
         ]);
 
@@ -486,5 +517,80 @@ class AcademicController extends Controller
                 $semester->update(['programme_level_id' => $levelIds[$levelIndex]]);
             }
         }
+    }
+
+    protected function syncRequiredDocuments(Programme $programme, array $documents): void
+    {
+        if (! Schema::hasTable('programme_required_documents')) {
+            return;
+        }
+
+        $keptIds = [];
+
+        foreach (array_values($documents) as $index => $document) {
+            $name = trim((string) ($document['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $payload = [
+                'name' => $name,
+                'description' => ! empty($document['description']) ? trim((string) $document['description']) : null,
+                'is_required' => array_key_exists('is_required', $document)
+                    ? (bool) $document['is_required']
+                    : true,
+                'sort_order' => isset($document['sort_order']) ? (int) $document['sort_order'] : $index,
+            ];
+
+            if (! empty($document['id'])) {
+                $existing = ProgrammeRequiredDocument::where('programme_id', $programme->id)
+                    ->where('id', $document['id'])
+                    ->first();
+                if ($existing) {
+                    $existing->update($payload);
+                    $keptIds[] = $existing->id;
+                    continue;
+                }
+            }
+
+            $created = ProgrammeRequiredDocument::create(array_merge($payload, [
+                'programme_id' => $programme->id,
+            ]));
+            $keptIds[] = $created->id;
+        }
+
+        ProgrammeRequiredDocument::where('programme_id', $programme->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
+    }
+
+    protected function syncProgrammeAgreement(Programme $programme, $agreement): void
+    {
+        if (! Schema::hasTable('admission_agreements')) {
+            return;
+        }
+
+        $existing = AdmissionAgreement::where('programme_id', $programme->id)->first();
+        $payload = is_array($agreement) ? $agreement : null;
+        $content = trim((string) ($payload['content'] ?? ''));
+
+        if ($content === '') {
+            if ($existing) {
+                $existing->delete();
+            }
+
+            return;
+        }
+
+        AdmissionAgreement::updateOrCreate(
+            ['programme_id' => $programme->id],
+            [
+                'institution_id' => $programme->institution_id,
+                'title' => trim((string) ($payload['title'] ?? 'Programme Application Agreement')) ?: 'Programme Application Agreement',
+                'content' => $content,
+                'is_required' => array_key_exists('is_required', $payload) ? (bool) $payload['is_required'] : true,
+                'is_active' => true,
+            ]
+        );
     }
 }

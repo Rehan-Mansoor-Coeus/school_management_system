@@ -126,6 +126,9 @@ class RolePermissionSeeder extends Seeder
             'admissions.courses.register',
             'admissions.hod.approve',
             'academics.view',
+            'academics.create',
+            'academics.edit',
+            'academics.delete',
             'academics.manage',
             'attendance.view',
             'attendance.manage',
@@ -308,7 +311,7 @@ class RolePermissionSeeder extends Seeder
             'view_permissions', 'assign_permissions',
             'institutions.view', 'institutions.create', 'institutions.edit', 'institutions.delete', 'institutions.settings',
             'modules.view', 'modules.manage',
-            'academics.view', 'academics.manage',
+            'academics.view', 'academics.create', 'academics.edit', 'academics.delete', 'academics.manage',
             'view_customers', 'create_customers', 'edit_customers', 'delete_customers',
             'view_students', 'create_students', 'edit_students', 'delete_students',
         ];

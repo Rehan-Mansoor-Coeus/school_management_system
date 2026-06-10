@@ -60,6 +60,7 @@ import AdmissionsOverviewPage from './modules/admissions/pages/AdmissionsOvervie
 import { ApplicationPage } from './modules/admissions/pages/ApplicationPage'
 import MyApplicationsPage from './modules/admissions/pages/MyApplicationsPage'
 import ApplicationDetailPage from './modules/admissions/pages/ApplicationDetailPage'
+import EditApplicationPage from './modules/admissions/pages/EditApplicationPage'
 import AllApplicationsPage from './modules/admissions/pages/AllApplicationsPage'
 import RegistryPage from './modules/admissions/pages/RegistryPage'
 import DepartmentPage from './modules/admissions/pages/DepartmentPage'
@@ -137,6 +138,7 @@ export default function App(){
             <Route path="apply" element={<ApplicationPage />} />
             <Route path="my-applications" element={<MyApplicationsPage />} />
             <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
             <Route path="applications" element={<AllApplicationsPage />} />
             <Route path="applications/:id" element={<ApplicationDetailPage />} />
             <Route path="registry" element={<RegistryPage />} />

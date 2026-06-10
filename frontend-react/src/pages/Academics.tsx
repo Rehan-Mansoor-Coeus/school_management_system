@@ -18,6 +18,13 @@ import {
   updateSemesterSubject,
   updateSubject,
 } from '../api/admin'
+import ProgrammeRequiredDocumentsEditor, {
+  type ProgrammeRequiredDocumentInput,
+} from '../components/academics/ProgrammeRequiredDocumentsEditor'
+import ProgrammeAgreementEditor, {
+  type ProgrammeAgreementInput,
+} from '../components/academics/ProgrammeAgreementEditor'
+import InstitutionAgreementSection from '../components/academics/InstitutionAgreementSection'
 
 const programmeLevels = [
   { value: 'certificate', label: 'Certificate' },
@@ -42,6 +49,7 @@ interface ProgrammeSemesterSubject {
   programme_semester_id: number
   subject_id: number
   contact_hours: number
+  is_required: boolean
   is_active: boolean
   subject: Subject
 }
@@ -53,6 +61,14 @@ interface ProgrammeSemester {
   name: string
   is_active: boolean
   assignments: ProgrammeSemesterSubject[]
+}
+
+interface ProgrammeRequiredDocument {
+  id: number
+  name: string
+  description?: string | null
+  is_required: boolean
+  sort_order: number
 }
 
 interface Programme {
@@ -69,6 +85,13 @@ interface Programme {
   department_id: number
   department?: Department
   semesters: ProgrammeSemester[]
+  required_documents?: ProgrammeRequiredDocument[]
+  admission_agreement?: {
+    id?: number
+    title: string
+    content: string
+    is_required: boolean
+  } | null
 }
 
 interface Subject {
@@ -91,6 +114,12 @@ const initialProgrammeForm = {
   application_fee: 0,
   department_id: undefined as number | undefined,
   is_active: true,
+  required_documents: [] as ProgrammeRequiredDocumentInput[],
+  agreement: {
+    title: 'Programme Application Agreement',
+    content: '',
+    is_required: true,
+  } as ProgrammeAgreementInput,
 }
 
 const initialSubjectForm = {
@@ -105,6 +134,7 @@ const initialAssignmentForm = {
   programme_semester_id: undefined as number | undefined,
   subject_id: undefined as number | undefined,
   contact_hours: 0,
+  is_required: true,
   is_active: true,
 }
 
@@ -206,6 +236,20 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       application_fee: programme.application_fee ?? 0,
       department_id: programme.department_id,
       is_active: programme.is_active,
+      required_documents: (programme.required_documents || []).map((doc, index) => ({
+        id: doc.id,
+        name: doc.name,
+        description: doc.description || '',
+        is_required: doc.is_required,
+        sort_order: doc.sort_order ?? index,
+      })),
+      agreement: programme.admission_agreement?.content
+        ? {
+            title: programme.admission_agreement.title || 'Programme Application Agreement',
+            content: programme.admission_agreement.content,
+            is_required: programme.admission_agreement.is_required ?? true,
+          }
+        : { title: 'Programme Application Agreement', content: '', is_required: true },
     })
     setProgrammeModalOpen(true)
   }
@@ -244,6 +288,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       programme_semester_id: semester.id,
       subject_id: undefined,
       contact_hours: semester.assignments.length ? semester.assignments[0].contact_hours : 0,
+      is_required: true,
       is_active: true,
     })
     setSelectedAssignment(null)
@@ -257,6 +302,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       programme_semester_id: assignment.programme_semester_id,
       subject_id: assignment.subject_id,
       contact_hours: assignment.contact_hours,
+      is_required: assignment.is_required ?? true,
       is_active: assignment.is_active,
     })
     setAssignmentModalOpen(true)
@@ -309,6 +355,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       if (selectedAssignment) {
         await updateSemesterSubject(selectedAssignment.id, {
           contact_hours: assignmentForm.contact_hours,
+          is_required: assignmentForm.is_required,
           is_active: assignmentForm.is_active,
         })
         pushToast('Assignment updated successfully.')
@@ -373,6 +420,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
 
   return (
     <div className="space-y-6">
+      {activeTab === 'programmes' && <InstitutionAgreementSection />}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold">Academics</h2>
@@ -628,6 +676,17 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
           </div>
+
+          <ProgrammeRequiredDocumentsEditor
+            documents={programmeForm.required_documents}
+            onChange={(required_documents) => setProgrammeForm((prev) => ({ ...prev, required_documents }))}
+          />
+
+          <ProgrammeAgreementEditor
+            agreement={programmeForm.agreement}
+            onChange={(agreement) => setProgrammeForm((prev) => ({ ...prev, agreement }))}
+          />
+
           <div className="flex items-center gap-3">
             <input
               id="programme_is_active"
@@ -787,6 +846,9 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
                               <div className="text-sm font-semibold text-slate-900">{assignment.subject.name}</div>
                               <div className="text-sm text-slate-600">Code: {assignment.subject.code}</div>
                               <div className="text-sm text-slate-600">Contact hours: {assignment.contact_hours}</div>
+                              <div className="text-sm text-slate-600">
+                                {assignment.is_required ? 'Mandatory subject' : 'Optional subject'}
+                              </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <button onClick={() => openEditAssignmentModal(activeProgramme, assignment)} className="rounded-xl bg-slate-100 px-3 py-1 text-sm text-slate-700 hover:bg-slate-200">
@@ -871,6 +933,18 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
               required
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              id="assignment_is_required"
+              type="checkbox"
+              checked={assignmentForm.is_required}
+              onChange={(event) => setAssignmentForm((prev) => ({ ...prev, is_required: event.target.checked }))}
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+            />
+            <label htmlFor="assignment_is_required" className="text-sm text-slate-700">
+              Mandatory subject for this programme
+            </label>
           </div>
           <div className="flex items-center gap-3">
             <input

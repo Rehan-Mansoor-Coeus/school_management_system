@@ -3,7 +3,9 @@
 namespace App\Modules\Admissions\Services;
 
 use App\Concerns\TranslatesForUser;
+use App\LetterSetting;
 use App\Modules\Admissions\Models\Application;
+use App\Services\Letters\LetterAssetHelper;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -23,12 +25,22 @@ class AdmissionLetterService
             ? $this->transForUser('admissions.letter_session', ['year' => $application->academicYear->name], $user)
             : '';
 
+        $institution = $application->institution;
+        $settings = LetterSetting::where('institution_id', $application->institution_id)->first();
+
         $data = [
-            'institution' => $application->institution,
+            'institution' => $institution,
             'applicant' => $application->applicant,
             'application' => $application,
             'programme' => $application->programme,
             'current_date' => Carbon::now()->format('d F Y'),
+            'letterhead_path' => LetterAssetHelper::pdfDataUri(
+                optional($settings)->letterhead_path ?: optional($institution)->letterhead
+            ),
+            'logo_path' => LetterAssetHelper::pdfDataUri(
+                optional($settings)->logo_path ?: optional($institution)->logo
+            ),
+            'registrar_signature_path' => LetterAssetHelper::pdfDataUri(optional($institution)->registrar_signature),
             'labels' => [
                 'title' => $this->transForUser('admissions.letter_title', [], $user),
                 'date' => $this->transForUser('admissions.letter_date', [], $user),
@@ -49,6 +61,7 @@ class AdmissionLetterService
         $html = view('admissions.letter', $data)->render();
 
         $options = new Options();
+        $options->set('isRemoteEnabled', true);
         $options->set('defaultFont', 'Helvetica');
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);

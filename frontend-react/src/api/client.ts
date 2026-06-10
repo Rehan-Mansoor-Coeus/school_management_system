@@ -33,8 +33,6 @@ api.interceptors.response.use(
       }
     }
 
-    // Do not redirect or clear session on 429 — let the caller handle it
-
     return Promise.reject(error)
   },
 )

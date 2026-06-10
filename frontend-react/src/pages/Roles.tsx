@@ -9,6 +9,8 @@ import {
   fetchRoles,
   updateRole,
 } from '../api/admin'
+import { useAuth } from '../context/AuthContext'
+import { filterAssignableRoles, PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl'
 
 interface Permission {
   id: number
@@ -22,6 +24,8 @@ interface Role {
 }
 
 export default function RolesPage() {
+  const { userRoles } = useAuth()
+  const isPlatformSuperAdmin = userRoles.some((role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role as typeof PLATFORM_SUPER_ADMIN_ROLES[number]))
   const [loading, setLoading] = useState(false)
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -107,10 +111,17 @@ export default function RolesPage() {
     }
   }
 
+  const visibleRoles = useMemo(
+    () => filterAssignableRoles(roles, userRoles),
+    [roles, userRoles],
+  )
+
   const permissionOptions = useMemo(
     () => permissions.map((permission) => ({ id: permission.id, label: permission.name })),
     [permissions]
   )
+
+  const isProtectedRole = (role: Role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role.name as typeof PLATFORM_SUPER_ADMIN_ROLES[number])
 
   return (
     <div className="space-y-6">
@@ -140,28 +151,32 @@ export default function RolesPage() {
                   Loading roles...
                 </td>
               </tr>
-            ) : roles.length === 0 ? (
+            ) : visibleRoles.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-6 py-10 text-center text-slate-500">
                   No roles found.
                 </td>
               </tr>
             ) : (
-              roles.map((role) => (
+              visibleRoles.map((role) => (
                 <tr key={role.id}>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{role.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{role.permissions.map((permission) => permission.name).join(', ') || 'None'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => openEditModal(role)} className="rounded-xl bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200">
-                        Edit
-                      </button>
+                      {!isProtectedRole(role) && (
+                        <button onClick={() => openEditModal(role)} className="rounded-xl bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200">
+                          Edit
+                        </button>
+                      )}
                       <button onClick={() => openPermissionModal(role)} className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-200">
                         Permissions
                       </button>
-                      <button onClick={() => handleDelete(role)} className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200">
-                        Delete
-                      </button>
+                      {!isProtectedRole(role) && (
+                        <button onClick={() => handleDelete(role)} className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200">
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

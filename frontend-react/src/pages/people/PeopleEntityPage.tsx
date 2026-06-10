@@ -4,6 +4,8 @@ import { createPerson, deletePerson, fetchPeople, type PeopleEntity, type People
 import { fetchRoles } from '../../api/admin'
 import { FieldLabel, PrimaryButton, SecondaryButton, TextInput } from '../../components/letters/LettersUi'
 import { useToast } from '../../components/ui/ToastProvider'
+import { useAuth } from '../../context/AuthContext'
+import { filterAssignableRoles } from '../../utils/accessControl'
 
 const labels: Record<PeopleEntity, { singular: string; plural: string; listPath: string; addPath: string; supportsRoles?: boolean; defaultRoles?: number[] }> = {
   customers: { singular: 'Customer', plural: 'Customers', listPath: '/users/customers', addPath: '/users/customers/add' },
@@ -24,6 +26,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
   const isAddRoute = location.pathname.endsWith('/add')
   const typedEntity = (fixedEntity || (entity in labels ? entity : 'customers')) as PeopleEntity
   const meta = labels[typedEntity]
+  const { userRoles } = useAuth()
   const navigate = useNavigate()
   const { pushToast } = useToast()
   const [search, setSearch] = useState('')
@@ -37,6 +40,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
 
   const isForm = isAddRoute || !!editing
   const roleMap = useMemo(() => Object.fromEntries(roles.map(role => [role.id, role.name])), [roles])
+  const assignableRoles = useMemo(() => filterAssignableRoles(roles, userRoles), [roles, userRoles])
 
   async function load() {
     setLoading(true)
@@ -123,7 +127,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
                   onChange={e => setForm({ ...form, roles: Array.from(e.target.selectedOptions, option => Number(option.value)) })}
                   className="min-h-[120px] w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
                 >
-                  {roles.map(role => (
+                  {assignableRoles.map(role => (
                     <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
                 </select>
