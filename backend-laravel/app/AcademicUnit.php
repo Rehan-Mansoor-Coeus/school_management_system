@@ -5,23 +5,19 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Subject extends Model
+class AcademicUnit extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
         'institution_id',
         'name',
-        'code',
-        'credit_hours',
-        'default_contact_hours',
+        'unit_type',
         'description',
         'is_active',
     ];
 
     protected $casts = [
-        'credit_hours' => 'float',
-        'default_contact_hours' => 'integer',
         'is_active' => 'boolean',
     ];
 
@@ -30,13 +26,13 @@ class Subject extends Model
         return $this->belongsTo(Institution::class);
     }
 
-    public function assignments()
+    public function departments()
     {
-        return $this->hasMany(ProgrammeSemesterSubject::class);
+        return $this->hasMany(Department::class);
     }
 
-    public function programLinks()
+    public function programmes()
     {
-        return $this->hasMany(ProgramSubject::class);
+        return $this->hasMany(Programme::class);
     }
 }

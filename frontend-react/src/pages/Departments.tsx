@@ -5,10 +5,13 @@ import { useAuth } from '../context/AuthContext'
 import {
   createDepartment,
   deleteDepartment,
+  fetchAcademicUnits,
   fetchDepartments,
   fetchInstitutions,
   updateDepartment,
 } from '../api/admin'
+import FormSelect from '../components/ui/FormSelect'
+import { useAcademicInstitutionParams } from '../context/AcademicInstitutionContext'
 
 interface Institution {
   id: number
@@ -19,6 +22,7 @@ interface Institution {
 interface Department {
   id: number
   institution_id: number
+  academic_unit_id?: number | null
   name: string
   code: string
   description?: string
@@ -31,6 +35,7 @@ interface Department {
 
 interface DepartmentFormState {
   institution_id?: number
+  academic_unit_id?: number | null
   name: string
   code: string
   description: string
@@ -45,6 +50,7 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(false)
   const [departments, setDepartments] = useState<Department[]>([])
   const [institutions, setInstitutions] = useState<Institution[]>([])
+  const [academicUnits, setAcademicUnits] = useState<{ id: number; name: string }[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [activeDepartment, setActiveDepartment] = useState<Department | null>(null)
   const [form, setForm] = useState<DepartmentFormState>({
@@ -59,23 +65,36 @@ export default function DepartmentsPage() {
   })
   const [search, setSearch] = useState('')
   const { pushToast } = useToast()
+  const { institutionId: contextInstitutionId, requiresSelection, params: institutionParams } = useAcademicInstitutionParams()
 
   const hasAssignedInstitution = Boolean(user?.institution_id)
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [contextInstitutionId])
 
   const loadData = async () => {
+    if (requiresSelection && !contextInstitutionId) {
+      setDepartments([])
+      setAcademicUnits([])
+      return
+    }
     setLoading(true)
     try {
+      const deptParams = institutionParams ? { ...institutionParams, search } : { search }
       const [departmentsRes, institutionsRes] = await Promise.all([
-        fetchDepartments(search),
+        fetchDepartments(deptParams),
         hasAssignedInstitution ? Promise.resolve({ data: [] }) : fetchInstitutions({ per_page: 1000 }),
       ])
       setDepartments(departmentsRes.data)
       if (!hasAssignedInstitution) {
         setInstitutions(institutionsRes.data?.data || institutionsRes.data || [])
+      }
+      try {
+        const unitsRes = await fetchAcademicUnits(institutionParams)
+        setAcademicUnits(unitsRes.data || [])
+      } catch {
+        setAcademicUnits([])
       }
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load departments', 'error')
@@ -87,7 +106,8 @@ export default function DepartmentsPage() {
   const openCreateModal = () => {
     setActiveDepartment(null)
     setForm({
-      institution_id: user?.institution_id || undefined,
+      institution_id: user?.institution_id || contextInstitutionId || undefined,
+      academic_unit_id: undefined,
       name: '',
       code: '',
       description: '',
@@ -103,6 +123,7 @@ export default function DepartmentsPage() {
     setActiveDepartment(department)
     setForm({
       institution_id: department.institution_id,
+      academic_unit_id: department.academic_unit_id ?? undefined,
       name: department.name,
       code: department.code,
       description: department.description || '',
@@ -117,17 +138,20 @@ export default function DepartmentsPage() {
   const handleFormSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!hasAssignedInstitution && !form.institution_id) {
+    const institution_id = form.institution_id || contextInstitutionId || user?.institution_id
+    if (!institution_id) {
       pushToast('Please select an institution.', 'error')
       return
     }
 
+    const payload = { ...form, institution_id }
+
     try {
       if (activeDepartment) {
-        await updateDepartment(activeDepartment.id, form)
+        await updateDepartment(activeDepartment.id, payload)
         pushToast('Department updated successfully.')
       } else {
-        await createDepartment(form)
+        await createDepartment(payload)
         pushToast('Department created successfully.')
       }
       setModalOpen(false)
@@ -258,6 +282,17 @@ export default function DepartmentsPage() {
               </select>
             </div>
           ) : null}
+          <FormSelect
+            label="Academic unit"
+            value={form.academic_unit_id ?? ''}
+            onChange={(value) => setForm((prev) => ({ ...prev, academic_unit_id: value ? Number(value) : undefined }))}
+            options={[
+              { value: '', label: 'Select academic unit (optional)' },
+              ...academicUnits
+                .filter((unit) => !form.institution_id || !('institution_id' in unit) || (unit as { institution_id?: number }).institution_id === form.institution_id)
+                .map((unit) => ({ value: unit.id, label: unit.name })),
+            ]}
+          />
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input

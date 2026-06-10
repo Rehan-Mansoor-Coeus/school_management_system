@@ -30,7 +30,7 @@ class DepartmentController extends Controller
 
     public function index(Request $request)
     {
-        $query = Department::with('institution');
+        $query = Department::with(['institution', 'academicUnit']);
 
         if ($request->user() && $request->user()->institution_id) {
             $query->where('institution_id', $request->user()->institution_id);
@@ -71,6 +71,7 @@ class DepartmentController extends Controller
             ],
             'description' => 'nullable|string|max:1000',
             'hod_id' => 'nullable|integer|exists:users,id',
+            'academic_unit_id' => ['nullable', 'integer', Rule::exists('academic_units', 'id')->where(fn ($q) => $q->where('institution_id', $institutionId))],
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'office_location' => 'nullable|string|max:255',
@@ -83,6 +84,7 @@ class DepartmentController extends Controller
 
         $department = Department::create([
             'institution_id' => $institutionId,
+            'academic_unit_id' => $request->academic_unit_id,
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,
@@ -117,6 +119,7 @@ class DepartmentController extends Controller
             ],
             'description' => 'nullable|string|max:1000',
             'hod_id' => 'nullable|integer|exists:users,id',
+            'academic_unit_id' => ['nullable', 'integer', Rule::exists('academic_units', 'id')->where(fn ($q) => $q->where('institution_id', $institutionId))],
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'office_location' => 'nullable|string|max:255',
@@ -129,6 +132,7 @@ class DepartmentController extends Controller
 
         $department->update([
             'institution_id' => $institutionId,
+            'academic_unit_id' => $request->input('academic_unit_id', $department->academic_unit_id),
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,

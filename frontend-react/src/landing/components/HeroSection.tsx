@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Building2, GraduationCap, Play, Sparkles } from 'lucide-react'
 import { ASSMS } from '../assmsConfig'
-import DashboardMockup, { QuickStatsCard } from './DashboardMockup'
 
 export default function HeroSection() {
   return (
@@ -14,7 +13,7 @@ export default function HeroSection() {
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 pb-28 pt-10 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:gap-6 lg:pb-32 lg:pt-14">
+      <div className="relative mx-auto max-w-7xl px-4 pb-24 pt-10 sm:px-6 lg:pb-28 lg:pt-14">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -62,18 +61,6 @@ export default function HeroSection() {
             </span>
             Watch Demo — See How It Works
           </a>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.15 }}
-          className="relative z-10 hidden min-h-[420px] lg:block"
-        >
-          <div className="relative ml-auto w-full max-w-[640px] pt-4">
-            <DashboardMockup />
-            <QuickStatsCard />
-          </div>
         </motion.div>
       </div>
     </section>

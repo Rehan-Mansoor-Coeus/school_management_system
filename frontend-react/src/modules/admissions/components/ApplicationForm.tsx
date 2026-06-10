@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useApplicationForm } from '../hooks/useApplicationForm';
 import DocumentUploadList, { type DocumentRow } from './DocumentUploadList';
 import { fetchAdmissionsReferenceData } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
+import FormSelect from '../../../components/ui/FormSelect';
+import {
+  countryOptions,
+  DEFAULT_COUNTRY,
+  defaultCityForCountry,
+  getCityOptions,
+  getSubdivisionConfig,
+} from '../../../config/locationData';
 
 interface Programme {
   id: number;
@@ -38,9 +46,9 @@ export const ApplicationForm: React.FC = () => {
     nationality: '',
     id_number: '',
     address: '',
-    city: '',
+    city: defaultCityForCountry(DEFAULT_COUNTRY),
     state: '',
-    country: '',
+    country: DEFAULT_COUNTRY,
     is_international: false,
   });
 
@@ -67,6 +75,22 @@ export const ApplicationForm: React.FC = () => {
       phone: prev.phone || user.phone_number || '',
     }));
   }, [user, applicant]);
+
+  const subdivision = useMemo(() => getSubdivisionConfig(formData.country), [formData.country]);
+  const cityOptions = useMemo(() => getCityOptions(formData.country), [formData.country]);
+  const subdivisionOptions = useMemo(
+    () => subdivision.items.map((item) => ({ value: item, label: item })),
+    [subdivision.items]
+  );
+
+  const handleCountryChange = (country: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      country,
+      state: '',
+      city: defaultCityForCountry(country) || prev.city,
+    }));
+  };
 
   const fetchProgrammes = async () => {
     try {
@@ -312,42 +336,62 @@ export const ApplicationForm: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('city')} *
-              </label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('state')}</label>
-              <input
-                type="text"
-                name="state"
-                value={formData.state}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('country')} *
               </label>
-              <input
-                type="text"
-                name="country"
+              <FormSelect
                 value={formData.country}
-                onChange={handleInputChange}
+                onChange={handleCountryChange}
+                options={countryOptions.map((c) => ({ value: c.name, label: c.name }))}
+                placeholder="Select country"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {subdivision.label}
+              </label>
+              {subdivisionOptions.length > 0 ? (
+                <FormSelect
+                  value={formData.state}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, state: value }))}
+                  options={subdivisionOptions}
+                  placeholder={`Select ${subdivision.label.toLowerCase()}`}
+                />
+              ) : (
+                <input
+                  type="text"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('city')} *
+              </label>
+              {cityOptions.length > 0 ? (
+                <FormSelect
+                  value={formData.city}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, city: value }))}
+                  options={cityOptions.map((city) => ({ value: city, label: city }))}
+                  placeholder="Select city"
+                  required
+                />
+              ) : (
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              )}
             </div>
           </div>
 

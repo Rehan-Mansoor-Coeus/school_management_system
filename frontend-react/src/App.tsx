@@ -21,6 +21,9 @@ import ModulesPage from './pages/Modules'
 import InstitutionList from './modules/Institutions/pages/InstitutionList'
 import DepartmentsPage from './pages/Departments'
 import AcademicsPage from './pages/Academics'
+import AcademicUnitsPage from './pages/academics/AcademicUnitsPage'
+import AcademicSemestersPage from './pages/academics/AcademicSemestersPage'
+import AcademicOrganizationPage from './pages/academics/AcademicOrganizationPage'
 import PlaceholderModulePage from './pages/PlaceholderModule'
 import FeesDashboardPage from './modules/fees/pages/FeesDashboardPage'
 import TimesheetCategoriesPage from './pages/TimesheetCategories'
@@ -172,10 +175,13 @@ export default function App(){
 
           <Route element={<AcademicsHubLayout />}>
             <Route path="institutions" element={<InstitutionList />} />
+            <Route path="academics/units" element={<AcademicUnitsPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="academics" element={<AcademicsPage />} />
             <Route path="academics/programmes" element={<AcademicsPage initialTab="programmes" />} />
+            <Route path="academics/semesters" element={<AcademicSemestersPage />} />
             <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />
+            <Route path="academics/organization" element={<AcademicOrganizationPage />} />
             <Route path="admissions" element={<AdmissionsLayout />}>
               <Route index element={<AdmissionsOverviewPage />} />
               <Route path="apply" element={<ApplicationPage />} />

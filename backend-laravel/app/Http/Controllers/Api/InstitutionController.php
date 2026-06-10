@@ -11,6 +11,17 @@ use Illuminate\Support\Facades\Validator;
 
 class InstitutionController extends Controller
 {
+    private function blanksToNull(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if ($value === '' || $value === 'null') {
+                $data[$key] = null;
+            }
+        }
+
+        return $data;
+    }
+
     private function normalizeJsonArrayFields(array $data, array $keys)
     {
         foreach ($keys as $key) {
@@ -80,13 +91,13 @@ class InstitutionController extends Controller
 
     public function store(Request $request)
     {
-        $normalized = $this->normalizeJsonArrayFields($request->all(), [
+        $normalized = $this->blanksToNull($this->normalizeJsonArrayFields($request->all(), [
             'academic_structure',
             'fee_structure',
             'grading_system',
             'academic_calendar',
             'payment_settings',
-        ]);
+        ]));
 
         $validator = Validator::make($normalized, [
             'name' => 'required|string|max:255',
@@ -120,22 +131,10 @@ class InstitutionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $institution = Institution::create($request->only([
-            'name',
-            'code',
-            'type',
-            'email',
-            'phone',
-            'address',
-            'city',
-            'country',
-            'website',
-            'currency',
-            'timezone',
-            'language',
-            'is_active',
-            'subscription_plan',
-        ]));
+        $institution = Institution::create(collect($validator->validated())->only([
+            'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
+            'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
+        ])->toArray());
 
         $this->handleBrandUploads($request, $institution);
 
@@ -156,13 +155,13 @@ class InstitutionController extends Controller
     {
         $institution = Institution::with('settings')->findOrFail($id);
 
-        $normalized = $this->normalizeJsonArrayFields($request->all(), [
+        $normalized = $this->blanksToNull($this->normalizeJsonArrayFields($request->all(), [
             'academic_structure',
             'fee_structure',
             'grading_system',
             'academic_calendar',
             'payment_settings',
-        ]);
+        ]));
 
         $validator = Validator::make($normalized, [
             'name' => 'required|string|max:255',
@@ -196,22 +195,10 @@ class InstitutionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $institution->update($request->only([
-            'name',
-            'code',
-            'type',
-            'email',
-            'phone',
-            'address',
-            'city',
-            'country',
-            'website',
-            'currency',
-            'timezone',
-            'language',
-            'is_active',
-            'subscription_plan',
-        ]));
+        $institution->update(collect($validator->validated())->only([
+            'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
+            'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
+        ])->toArray());
 
         $this->handleBrandUploads($request, $institution);
 
