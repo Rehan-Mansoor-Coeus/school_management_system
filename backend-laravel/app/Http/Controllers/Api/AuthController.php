@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Institution;
+use App\Role;
 use App\User;
+use App\Services\Messaging\AuthOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +16,22 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    protected $authOtp;
+
+    public function __construct(AuthOtpService $authOtp)
+    {
+        $this->authOtp = $authOtp;
+    }
+
+    public function publicInstitutions()
+    {
+        $institutions = Institution::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'country']);
+
+        return response()->json($institutions);
+    }
+
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -43,6 +62,176 @@ class AuthController extends Controller
         ], 201);
     }
 
+    public function requestSignupOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'institution_id' => 'required|integer|exists:institutions,id',
+            'phone_number' => 'required|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $result = $this->authOtp->requestSignupOtp(
+            (int) $request->institution_id,
+            $request->phone_number
+        );
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    public function verifySignupOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'institution_id' => 'required|integer|exists:institutions,id',
+            'phone_number' => 'required|string|max:50',
+            'otp' => 'required|string|max:10',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $result = $this->authOtp->verifySignupOtp(
+            (int) $request->institution_id,
+            $request->phone_number,
+            $request->otp
+        );
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    public function studentSignup(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'signup_token' => 'required|string',
+            'institution_id' => 'required|integer|exists:institutions,id',
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
+            'email' => 'nullable|string|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'phone_number' => 'required|string|max:50',
+            'address' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $verified = $this->authOtp->consumeSignupToken($request->signup_token);
+        if (! $verified) {
+            return response()->json(['message' => 'Phone verification expired. Request a new OTP.'], 422);
+        }
+
+        if ((int) $verified['institution_id'] !== (int) $request->institution_id) {
+            return response()->json(['message' => 'Institution mismatch.'], 422);
+        }
+
+        $user = User::create([
+            'institution_id' => (int) $request->institution_id,
+            'name' => $request->name,
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'phone_number' => $verified['phone'],
+            'address' => $request->address,
+            'status' => 'active',
+            'api_token' => Str::random(60),
+        ]);
+
+        $studentRole = Role::where('name', 'student')->where('guard_name', 'api')->first();
+        if ($studentRole) {
+            $user->assignRole($studentRole);
+        }
+
+        return response()->json([
+            'message' => 'Account created successfully. You can sign in now.',
+            'user' => $user->load('roles'),
+            'token' => $user->api_token,
+        ], 201);
+    }
+
+    public function requestPasswordResetOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'login' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $result = $this->authOtp->requestPasswordResetOtp($request->login);
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    public function verifyPasswordResetOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'login' => 'required|string',
+            'otp' => 'required|string|max:10',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $result = $this->authOtp->verifyPasswordResetOtp($request->login, $request->otp);
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'reset_token' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $userId = $this->authOtp->consumePasswordResetToken($request->reset_token);
+        if (! $userId) {
+            return response()->json(['message' => 'Reset session expired. Start again.'], 422);
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        return response()->json(['message' => 'Password updated. You can sign in now.']);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = $request->user();
+        if (! Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password is incorrect.'], 422);
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        return response()->json(['message' => 'Password changed successfully.']);
+    }
+
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -55,18 +244,32 @@ class AuthController extends Controller
         }
 
         $login = trim($request->login);
-        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        $password = $request->password;
+        $authenticated = false;
 
-        $credentials = [
-            $field => $login,
-            'password' => $request->password,
-        ];
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            $authenticated = Auth::attempt(['email' => $login, 'password' => $password]);
+        } elseif ($this->looksLikePhone($login)) {
+            $user = $this->authOtp->findUserByLogin($login);
+            if ($user && Hash::check($password, $user->password)) {
+                Auth::login($user);
+                $authenticated = true;
+            }
+        } else {
+            $authenticated = Auth::attempt(['username' => $login, 'password' => $password]);
+            if (! $authenticated) {
+                $user = User::where('email', $login)->first();
+                if ($user && Hash::check($password, $user->password)) {
+                    Auth::login($user);
+                    $authenticated = true;
+                }
+            }
+        }
 
-        if (! Auth::attempt($credentials)) {
+        if (! $authenticated) {
             if (config('app.debug')) {
                 Log::warning('Login failed', [
                     'login' => $login,
-                    'field' => $field,
                     'ip' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);
@@ -76,14 +279,15 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
-        $user->api_token = Str::random(60);
-        $user->save();
+        if (! $user->api_token) {
+            $user->api_token = Str::random(60);
+            $user->save();
+        }
 
-        return response()->json([
+        return response()->json(array_merge([
             'message' => 'Login successful.',
-            'user' => $user,
             'token' => $user->api_token,
-        ]);
+        ], $this->buildAuthPayload($user)));
     }
 
     public function logout(Request $request)
@@ -100,7 +304,19 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user()->load(['roles.permissions', 'institution']);
+        return response()->json($this->buildAuthPayload($request->user()));
+    }
+
+    protected function looksLikePhone(string $login): bool
+    {
+        $digits = preg_replace('/\D/', '', $login);
+
+        return strlen($digits) >= 8 && (strpos($login, '+') === 0 || ctype_digit(str_replace(['+', ' ', '-', '(', ')'], '', $login)));
+    }
+
+    protected function buildAuthPayload(User $user): array
+    {
+        $user->load(['roles', 'institution']);
 
         $permissions = $user->getAllPermissions()->pluck('name')->values();
 
@@ -114,11 +330,11 @@ class AuthController extends Controller
                 ->values();
         }
 
-        return response()->json([
+        return [
             'user' => $user,
             'permissions' => $permissions,
             'enabled_modules' => $modules,
             'institution' => $user->institution,
-        ]);
+        ];
     }
 }

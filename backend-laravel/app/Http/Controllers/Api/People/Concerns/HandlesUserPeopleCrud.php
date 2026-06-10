@@ -95,9 +95,12 @@ trait HandlesUserPeopleCrud
         $user->is_active = $status === 'active';
         $user->locale = 'en';
 
-        if ($this->categoryRole() === 'student' && $user->email) {
-            $plainPassword = UserAccountNotificationService::generateTemporaryPassword();
-            $user->username = UserAccountNotificationService::generateUsername($user->name, $user->email);
+        if ($this->categoryRole() === 'student' && ($user->email || $request->filled('username'))) {
+            $plainPassword = $request->filled('password')
+                ? $request->password
+                : UserAccountNotificationService::generateTemporaryPassword();
+            $user->username = $request->username
+                ?: UserAccountNotificationService::generateUsername($user->name, $user->email ?: $user->phone_number);
             $user->password = Hash::make($plainPassword);
             $user->api_token = Str::random(60);
         } else {
@@ -146,6 +149,17 @@ trait HandlesUserPeopleCrud
         $user->address = $data['address'] ?? null;
         $user->status = $status;
         $user->is_active = $status === 'active';
+
+        if ($request->filled('username')) {
+            $user->username = $request->username;
+        }
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+            if (! $user->api_token) {
+                $user->api_token = Str::random(60);
+            }
+        }
+
         $user->save();
 
         $this->syncCategoryRoles($user, $request);
@@ -177,12 +191,19 @@ trait HandlesUserPeopleCrud
     {
         $emailRule = 'nullable|email|max:255';
         if ($this->categoryRole() === 'student' && ! $updating) {
-            $emailRule = 'required|email|max:255|unique:users,email';
+            $emailRule = 'nullable|email|max:255|unique:users,email';
+        }
+
+        $usernameRule = 'nullable|string|max:255|unique:users,username';
+        if ($updating) {
+            $usernameRule = 'nullable|string|max:255';
         }
 
         return [
             'name' => 'required|string|max:255',
+            'username' => $usernameRule,
             'email' => $emailRule,
+            'password' => 'nullable|string|min:8',
             'phone_number' => 'required|string|max:50',
             'additional_phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',

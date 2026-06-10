@@ -34,7 +34,7 @@ export function CharacterCertificatesIndexPage() {
     return <Navigate to="/character-certificates/my" replace />
   }
 
-  return <Navigate to="/" replace />
+  return <Navigate to="/dashboard" replace />
 }
 
 export function CharacterCertificatesStaffRoute({ children }: { children: JSX.Element }) {
@@ -44,7 +44,7 @@ export function CharacterCertificatesStaffRoute({ children }: { children: JSX.El
     if (canAccess({ permissions: ['character_certificates.view'] })) {
       return <Navigate to="/character-certificates/my" replace />
     }
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return children

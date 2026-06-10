@@ -365,7 +365,20 @@ class RolePermissionSeeder extends Seeder
             'timesheets.view_own',
         ]));
 
-        $studentRole->syncPermissions(['admissions.apply', 'admissions.courses.register', 'canteen.view', 'character_certificates.view', 'hostel.view']);
+        $studentRole->syncPermissions([
+            'admissions.apply',
+            'admissions.courses.register',
+            'canteen.view',
+            'character_certificates.view',
+            'hostel.view',
+            'view_library_menu',
+            'view_books',
+            'borrow_books',
+            'view_own_borrow_requests',
+            'view_frequently_signed_books',
+            'rate_books',
+            'comment_on_books',
+        ]);
 
         $admissionsStaffPermissions = ['admissions.view', 'admissions.manage'];
         $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review']));
