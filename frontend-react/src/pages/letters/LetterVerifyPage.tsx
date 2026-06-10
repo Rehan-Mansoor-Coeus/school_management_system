@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import { A4Preview } from '../../components/letters/LettersUi'
 
-const apiBase = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
+const apiBase = (import.meta as any).env?.VITE_API_BASE || '/api'
 
 export default function LetterVerifyPage() {
   const { id } = useParams()

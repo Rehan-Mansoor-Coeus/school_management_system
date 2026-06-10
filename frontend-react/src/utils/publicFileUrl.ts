@@ -3,12 +3,14 @@ import api from '../api/client'
 export function backendBaseUrl() {
   const configuredBase = (api.defaults.baseURL || '').toString().trim()
   const envBase = ((import.meta as any).env?.VITE_API_BASE || '').toString().trim()
-  const fallback = 'http://localhost:8000'
+  const fallback = typeof window !== 'undefined' ? window.location.origin : ''
 
   const source = configuredBase || envBase
   if (!source) return fallback
 
-  if (source.startsWith('/')) return fallback
+  if (source.startsWith('/')) {
+    return typeof window !== 'undefined' ? window.location.origin : fallback
+  }
 
   try {
     const parsed = new URL(source)
