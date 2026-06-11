@@ -4,8 +4,8 @@ import { useToast } from '../../../components/ui/ToastProvider'
 import HasPermission from '../../../components/HasPermission'
 import { useAuth } from '../../../context/AuthContext'
 import type { Institution, InstitutionType } from '../types'
-import { institutionFileUrl } from '../utils'
 import { uploadInstitutionFile } from '../services/InstitutionsService'
+import BrandAssetUpload from '../components/BrandAssetUpload'
 import { useTranslation } from 'react-i18next'
 import FormSelect from '../../../components/ui/FormSelect'
 import SearchableSelect from '../../../components/ui/SearchableSelect'
@@ -410,13 +410,14 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
       const res = await uploadInstitutionFile(effectiveInstitutionId, key, file)
       const url = res.data?.url as string | undefined
       const path = res.data?.path as string | undefined
+      const cacheBustedUrl = url ? `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined
       setBranding((c) => ({
         ...c,
         [key]: null,
         current: {
           ...c.current,
           [key]: path || c.current[key],
-          [`${key}_url`]: url || c.current[`${key}_url` as keyof Institution],
+          [`${key}_url`]: cacheBustedUrl || c.current[`${key}_url` as keyof Institution],
         },
       }))
       pushToast(`${key} uploaded.`, 'success')
@@ -647,46 +648,36 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
             {step === 1 && (
               <div className="grid gap-4 md:grid-cols-2">
-                {(
-                  [
-                    { key: 'logo', label: 'Logo', accept: 'image/*', current: branding.current.logo },
-                    { key: 'letterhead', label: 'Header / Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
-                    { key: 'footer', label: 'Footer (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.footer },
-                  ] as const
-                ).map((item) => (
-                  <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-2 text-sm font-semibold text-slate-800">{item.label}</div>
-                    {institutionFileUrl(branding.current, item.key) && (
-                      <div className="mb-3">
-                        {item.current?.toString().toLowerCase().endsWith('.pdf') ? (
-                          <a
-                            href={institutionFileUrl(branding.current, item.key)!}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-blue-700 underline"
-                          >
-                            {t('institutions.form.fields.viewCurrent')}
-                          </a>
-                        ) : (
-                          <img src={institutionFileUrl(branding.current, item.key)!} alt={item.label} className="h-24 w-full rounded-xl object-cover ring-1 ring-slate-200" />
-                        )}
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept={item.accept}
-                      disabled={uploadingBrand === item.key}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null
-                        void handleBrandFileChange(item.key, file)
-                      }}
-                      className="block w-full text-sm"
-                    />
-                    {uploadingBrand === item.key && (
-                      <p className="mt-2 text-xs text-slate-500">Uploading…</p>
-                    )}
-                  </div>
-                ))}
+                <BrandAssetUpload
+                  label="Logo"
+                  field="logo"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.logo}
+                  uploading={uploadingBrand === 'logo'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
+                  label="Header / Letterhead (image/PDF)"
+                  field="letterhead"
+                  accept="image/*,application/pdf"
+                  institution={branding.current}
+                  pendingFile={branding.letterhead}
+                  uploading={uploadingBrand === 'letterhead'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
+                  label="Footer (image/PDF)"
+                  field="footer"
+                  accept="image/*,application/pdf"
+                  institution={branding.current}
+                  pendingFile={branding.footer}
+                  uploading={uploadingBrand === 'footer'}
+                  onChange={handleBrandFileChange}
+                />
+                <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+                  Header and footer images appear at the top and bottom of admission letters, rejection letters, and invoices — the same layout used in the Letters module.
+                </div>
               </div>
             )}
 

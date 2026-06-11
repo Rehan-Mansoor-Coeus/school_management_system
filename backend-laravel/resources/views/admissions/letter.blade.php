@@ -3,102 +3,124 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 24px 32px 90px 32px; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #222; line-height: 1.6; margin: 0; }
-        .letterhead { text-align: center; margin-bottom: 20px; }
-        .letterhead img { max-width: 100%; max-height: 100px; }
-        .logo-row { text-align: center; margin-bottom: 8px; }
-        .logo-row img { max-height: 60px; }
-        .title { font-size: 18px; font-weight: bold; color: #1e3a5f; margin-top: 8px; text-align: center; }
-        .meta { margin: 20px 0; }
+        @page { margin: 0; size: A4 portrait; }
+        * { box-sizing: border-box; }
+        body { font-family: DejaVu Sans, Helvetica, Arial, sans-serif; font-size: 12px; color: #222; margin: 0; padding: 0; }
+        .page { position: relative; width: 210mm; min-height: 297mm; display: flex; flex-direction: column; }
+        .page-body { flex: 1 0 auto; padding: 0 32px; }
+        .watermark {
+            position: fixed;
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.07;
+            z-index: 0;
+            text-align: center;
+        }
+        .watermark img { max-width: 220px; max-height: 220px; }
+        .content-layer { position: relative; z-index: 1; }
+        .header-wrap img { width: 100%; height: auto; max-height: 100px; display: block; }
+        .header-fallback { text-align: center; margin-bottom: 16px; }
+        .header-fallback .logo-row img { max-height: 60px; margin-bottom: 8px; }
+        .title { font-size: 18px; font-weight: bold; color: #1e3a5f; margin: 12px 0 16px; text-align: center; }
+        .meta { margin: 16px 0; line-height: 1.6; }
         .signature-block { margin-top: 36px; }
         .signature-block img { max-height: 70px; display: block; margin-bottom: 4px; }
-        .footer-wrap {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            border-top: 2px solid #1e3a5f;
-            padding-top: 10px;
-            font-size: 10px;
-            color: #444;
-        }
-        .footer-image { text-align: center; margin-bottom: 6px; }
-        .footer-image img { max-width: 100%; max-height: 80px; }
-        .footer-contact { text-align: center; line-height: 1.4; margin-bottom: 8px; }
-        .footer-codes { width: 100%; margin-top: 6px; }
-        .footer-codes td { vertical-align: bottom; text-align: center; }
-        .footer-codes img { display: inline-block; }
-        .qr-img { width: 90px; height: 90px; }
-        .barcode-img { height: 48px; max-width: 260px; }
+        .closing-row { margin-top: 24px; width: 100%; }
+        .closing-row table { width: 100%; border-collapse: collapse; }
+        .closing-row td { vertical-align: bottom; }
+        .signer-cell { width: 55%; }
+        .codes-cell { width: 45%; text-align: right; }
+        .codes-cell img.barcode { height: 48px; display: block; margin-left: auto; }
+        .codes-cell img.qr { height: 90px; display: block; margin: 4px 0 0 auto; }
         .code-label { font-size: 9px; color: #666; margin-top: 4px; }
+        .footer-image img { width: 100%; height: auto; max-height: 70px; display: block; }
+        .footer-text {
+            background: #1e3a5f;
+            color: #fff;
+            padding: 8px 30px;
+            font-size: 10px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .page-footer-row { margin-top: auto; }
     </style>
 </head>
 <body>
-    <div class="letterhead">
-        @if(!empty($letterhead_path))
-            <img src="{{ $letterhead_path }}" alt="Letterhead">
-        @else
-            @if(!empty($logo_path))
-                <div class="logo-row"><img src="{{ $logo_path }}" alt="Logo"></div>
-            @endif
-            <div style="font-size: 16px; font-weight: bold;">{{ $institution->name ?? 'Institution' }}</div>
-            @if(!empty($institution->address))
-                <div>{{ $institution->address }}</div>
-            @endif
-        @endif
-    </div>
+    @if(!empty($logo_path))
+        <div class="watermark"><img src="{{ $logo_path }}" alt="Watermark"></div>
+    @endif
 
-    <div class="title">{{ $labels['title'] }}</div>
-
-    <div class="meta">
-        <p><strong>{{ $labels['date'] }}:</strong> {{ $current_date }}</p>
-        <p><strong>{{ $labels['application_no'] }}:</strong> {{ $application->application_number }}</p>
-    </div>
-
-    <p>{{ $labels['dear'] }}</p>
-    <p>{{ $labels['body'] }}</p>
-    <p>{{ $labels['conditions'] }}</p>
-    <p>{{ $labels['closing'] }}</p>
-
-    <div class="signature-block">
-        <p>{{ $labels['yours'] }}</p>
-        @if(!empty($registrar_signature_path))
-            <img src="{{ $registrar_signature_path }}" alt="Registrar signature">
-        @endif
-        <p><strong>{{ $labels['registrar'] }}</strong><br>{{ $institution->name }}</p>
-    </div>
-
-    <div class="footer-wrap">
-        @if(!empty($footer_path))
-            <div class="footer-image">
-                <img src="{{ $footer_path }}" alt="Footer">
+    <div class="page content-layer">
+        <div class="page-body">
+            <div class="header-wrap">
+                @if(!empty($letterhead_path))
+                    <img src="{{ $letterhead_path }}" alt="Letterhead">
+                @else
+                    <div class="header-fallback">
+                        @if(!empty($logo_path))
+                            <div class="logo-row"><img src="{{ $logo_path }}" alt="Logo"></div>
+                        @endif
+                        <div style="font-size: 16px; font-weight: bold;">{{ $institution->name ?? 'Institution' }}</div>
+                        @if(!empty($institution->address))
+                            <div>{{ $institution->address }}</div>
+                        @endif
+                    </div>
+                @endif
             </div>
-        @else
-            <div class="footer-contact">
-                <strong>{{ $institution->name ?? '' }}</strong><br>
-                @if(!empty($institution->address)){{ $institution->address }}@if(!empty($institution->city)), {{ $institution->city }}@endif<br>@endif
-                @if(!empty($institution->phone)){{ $labels['phone'] ?? 'Tel' }}: {{ $institution->phone }}@endif
-                @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
-                @if(!empty($institution->website)) &nbsp;|&nbsp; {{ $institution->website }}@endif
+
+            <div class="title">{{ $labels['title'] }}</div>
+
+            <div class="meta">
+                <p><strong>{{ $labels['date'] }}:</strong> {{ $current_date }}</p>
+                <p><strong>{{ $labels['application_no'] }}:</strong> {{ $application->application_number }}</p>
             </div>
-        @endif
-        <table class="footer-codes" cellpadding="0" cellspacing="0">
-            <tr>
-                <td style="width: 35%;">
-                    @if(!empty($qr_code_url))
-                        <img src="{{ $qr_code_url }}" alt="QR Code" class="qr-img"><br>
-                        <span class="code-label">{{ $labels['scan_verify'] ?? 'Scan to verify' }}</span>
-                    @endif
-                </td>
-                <td style="width: 65%;">
-                    @if(!empty($barcode_url))
-                        <img src="{{ $barcode_url }}" alt="Barcode" class="barcode-img"><br>
-                        <span class="code-label">{{ $application->application_number }}</span>
-                    @endif
-                </td>
-            </tr>
-        </table>
+
+            <p>{{ $labels['dear'] }}</p>
+            <p>{{ $labels['body'] }}</p>
+            <p>{{ $labels['conditions'] }}</p>
+            <p>{{ $labels['closing'] }}</p>
+
+            <div class="closing-row">
+                <table>
+                    <tr>
+                        <td class="signer-cell">
+                            <div class="signature-block">
+                                <p>{{ $labels['yours'] }}</p>
+                                @if(!empty($registrar_signature_path))
+                                    <img src="{{ $registrar_signature_path }}" alt="Registrar signature">
+                                @endif
+                                <p><strong>{{ $labels['registrar'] }}</strong><br>{{ $institution->name }}</p>
+                            </div>
+                        </td>
+                        <td class="codes-cell">
+                            @if(!empty($barcode_url))
+                                <img class="barcode" src="{{ $barcode_url }}" alt="Barcode"><br>
+                                <span class="code-label">{{ $application->application_number }}</span>
+                            @endif
+                            @if(!empty($qr_code_url))
+                                <img class="qr" src="{{ $qr_code_url }}" alt="QR Code"><br>
+                                <span class="code-label">{{ $labels['scan_verify'] ?? 'Scan to verify' }}</span>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="page-footer-row">
+            @if(!empty($footer_path))
+                <div class="footer-image"><img src="{{ $footer_path }}" alt="Footer"></div>
+            @else
+                <div class="footer-text">
+                    <strong>{{ $institution->name ?? '' }}</strong><br>
+                    @if(!empty($institution->address)){{ $institution->address }}@if(!empty($institution->city)), {{ $institution->city }}@endif<br>@endif
+                    @if(!empty($institution->phone)){{ $labels['phone'] ?? 'Tel' }}: {{ $institution->phone }}@endif
+                    @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
+                    @if(!empty($institution->website)) &nbsp;|&nbsp; {{ $institution->website }}@endif
+                </div>
+            @endif
+        </div>
     </div>
 </body>
 </html>

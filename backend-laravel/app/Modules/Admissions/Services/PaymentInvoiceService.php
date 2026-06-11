@@ -39,6 +39,9 @@ class PaymentInvoiceService
             'letterhead_path' => LetterAssetHelper::pdfDataUri(
                 optional($settings)->letterhead_path ?: optional($institution)->letterhead
             ),
+            'footer_path' => LetterAssetHelper::pdfDataUri(
+                optional($institution)->footer ?: optional($institution)->official_stamp
+            ),
             'logo_path' => LetterAssetHelper::pdfDataUri(
                 optional($settings)->logo_path ?: optional($institution)->logo
             ),

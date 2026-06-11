@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Institution;
 use App\InstitutionSetting;
+use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -328,11 +329,12 @@ class InstitutionController extends Controller
 
         $institution = $institution->fresh();
         $urlKey = $type . '_url';
+        $path = $institution->{$type};
 
         return response()->json([
             'message' => 'File uploaded successfully.',
             'path' => $path,
-            'url' => $institution->{$urlKey},
+            'url' => LetterAssetHelper::url($path, $request) ?: $institution->{$urlKey},
         ]);
     }
 
