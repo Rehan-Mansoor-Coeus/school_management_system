@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Institution extends Model
 {
@@ -122,6 +123,10 @@ class Institution extends Model
 
         if (preg_match('#^https?://#i', $path)) {
             return $path;
+        }
+
+        if (! Storage::disk('public')->exists($path)) {
+            return null;
         }
 
         return \App\Support\StorageUrl::public($path);

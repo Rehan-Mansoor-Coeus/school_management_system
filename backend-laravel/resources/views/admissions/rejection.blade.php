@@ -10,14 +10,15 @@
         .page-body { flex: 1 0 auto; padding: 0 32px; }
         .watermark {
             position: fixed;
-            top: 42%;
+            top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            opacity: 0.07;
+            opacity: 0.08;
             z-index: 0;
             text-align: center;
+            pointer-events: none;
         }
-        .watermark img { max-width: 220px; max-height: 220px; }
+        .watermark img { max-width: 280px; max-height: 280px; }
         .content-layer { position: relative; z-index: 1; }
         .header-wrap img { width: 100%; height: auto; max-height: 100px; display: block; }
         .header-fallback { text-align: center; margin-bottom: 16px; }
@@ -51,9 +52,6 @@
                     <img src="{{ $letterhead_path }}" alt="Letterhead">
                 @else
                     <div class="header-fallback">
-                        @if(!empty($logo_path))
-                            <div class="logo-row"><img src="{{ $logo_path }}" alt="Logo"></div>
-                        @endif
                         <div style="font-size: 16px; font-weight: bold;">{{ $institution->name ?? 'Institution' }}</div>
                     </div>
                 @endif

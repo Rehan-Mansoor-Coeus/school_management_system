@@ -321,9 +321,18 @@ class InstitutionController extends Controller
         }
 
         $file = $request->file('file');
-        $path = $file->storeAs("institutions/{$institution->id}", $type . '.' . $file->getClientOriginalExtension(), 'public');
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $newPath = "institutions/{$institution->id}/{$type}.{$extension}";
+        $oldPath = $institution->{$type};
 
-        $this->deleteOldPublicFile($institution->{$type});
+        // Delete previous file only when the stored path changes — never after storeAs,
+        // or re-uploading to the same path (e.g. logo.png) deletes the file just written.
+        if ($oldPath && $oldPath !== $newPath) {
+            $this->deleteOldPublicFile($oldPath);
+        }
+
+        $path = $file->storeAs("institutions/{$institution->id}", "{$type}.{$extension}", 'public');
+
         $institution->{$type} = $path;
         $institution->save();
 
@@ -346,9 +355,16 @@ class InstitutionController extends Controller
             }
 
             $file = $request->file($field);
-            $path = $file->storeAs("institutions/{$institution->id}", $field . '.' . $file->getClientOriginalExtension(), 'public');
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $newPath = "institutions/{$institution->id}/{$field}.{$extension}";
+            $oldPath = $institution->{$field};
 
-            $this->deleteOldPublicFile($institution->{$field});
+            if ($oldPath && $oldPath !== $newPath) {
+                $this->deleteOldPublicFile($oldPath);
+            }
+
+            $path = $file->storeAs("institutions/{$institution->id}", "{$field}.{$extension}", 'public');
+
             $institution->{$field} = $path;
             $legacyField = $field . '_path';
             if (array_key_exists($legacyField, $institution->getAttributes())) {

@@ -649,7 +649,28 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
             {step === 1 && (
               <div className="grid gap-4 md:grid-cols-2">
                 <BrandAssetUpload
+                  label="Header"
+                  description="Appears at the top of admission letters, rejection letters, and invoices."
+                  field="letterhead"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.letterhead}
+                  uploading={uploadingBrand === 'letterhead'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
+                  label="Footer"
+                  description="Appears at the bottom of admission letters, rejection letters, and invoices."
+                  field="footer"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.footer}
+                  uploading={uploadingBrand === 'footer'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
                   label="Logo"
+                  description="Displayed as a centered watermark on admission letters (and other branded PDFs). Also shown in the app sidebar and institution list."
                   field="logo"
                   accept="image/*"
                   institution={branding.current}
@@ -657,26 +678,8 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                   uploading={uploadingBrand === 'logo'}
                   onChange={handleBrandFileChange}
                 />
-                <BrandAssetUpload
-                  label="Header / Letterhead (image/PDF)"
-                  field="letterhead"
-                  accept="image/*,application/pdf"
-                  institution={branding.current}
-                  pendingFile={branding.letterhead}
-                  uploading={uploadingBrand === 'letterhead'}
-                  onChange={handleBrandFileChange}
-                />
-                <BrandAssetUpload
-                  label="Footer (image/PDF)"
-                  field="footer"
-                  accept="image/*,application/pdf"
-                  institution={branding.current}
-                  pendingFile={branding.footer}
-                  uploading={uploadingBrand === 'footer'}
-                  onChange={handleBrandFileChange}
-                />
                 <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
-                  Header and footer images appear at the top and bottom of admission letters, rejection letters, and invoices — the same layout used in the Letters module.
+                  Use PNG or JPG images. After a database sync, re-upload branding files — file uploads are stored separately from the database.
                 </div>
               </div>
             )}

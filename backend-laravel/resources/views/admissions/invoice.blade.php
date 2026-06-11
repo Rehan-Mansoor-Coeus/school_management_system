@@ -8,6 +8,18 @@
         body { font-family: DejaVu Sans, Helvetica, Arial, sans-serif; font-size: 12px; color: #222; line-height: 1.5; margin: 0; padding: 0; }
         .page { position: relative; width: 210mm; min-height: 297mm; display: flex; flex-direction: column; }
         .page-body { flex: 1 0 auto; padding: 0 32px; }
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.08;
+            z-index: 0;
+            text-align: center;
+            pointer-events: none;
+        }
+        .watermark img { max-width: 280px; max-height: 280px; }
+        .content-layer { position: relative; z-index: 1; }
         .header-wrap img { width: 100%; height: auto; max-height: 90px; display: block; }
         .header-fallback { text-align: center; margin-bottom: 16px; }
         .title { font-size: 18px; font-weight: bold; color: #1e3a5f; text-align: center; margin-bottom: 16px; }
@@ -31,13 +43,15 @@
     </style>
 </head>
 <body>
-    <div class="page">
+    @if(!empty($logo_path))
+        <div class="watermark"><img src="{{ $logo_path }}" alt="Watermark"></div>
+    @endif
+
+    <div class="page content-layer">
         <div class="page-body">
             <div class="header-wrap">
                 @if(!empty($letterhead_path))
                     <img src="{{ $letterhead_path }}" alt="Letterhead">
-                @elseif(!empty($logo_path))
-                    <div class="header-fallback"><img src="{{ $logo_path }}" alt="Logo" style="max-height: 60px;"></div>
                 @else
                     <div class="header-fallback"><div style="font-size: 16px; font-weight: bold;">{{ $institution->name ?? 'Institution' }}</div></div>
                 @endif

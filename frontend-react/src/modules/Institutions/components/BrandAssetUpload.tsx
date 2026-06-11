@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Institution } from '../types'
 import { institutionFileUrl } from '../utils'
 
@@ -6,6 +6,7 @@ type BrandField = 'logo' | 'letterhead' | 'footer'
 
 type Props = {
   label: string
+  description?: string
   field: BrandField
   accept: string
   institution: Partial<Institution>
@@ -14,12 +15,9 @@ type Props = {
   onChange: (field: BrandField, file: File | null) => void
 }
 
-function isPdfPath(path?: string | null) {
-  return Boolean(path && path.toLowerCase().endsWith('.pdf'))
-}
-
 export default function BrandAssetUpload({
   label,
+  description,
   field,
   accept,
   institution,
@@ -28,7 +26,7 @@ export default function BrandAssetUpload({
   onChange,
 }: Props) {
   const savedUrl = institutionFileUrl(institution, field)
-  const savedPath = institution[field]
+  const [imageError, setImageError] = useState(false)
 
   const previewUrl = useMemo(() => {
     if (pendingFile) return URL.createObjectURL(pendingFile)
@@ -36,35 +34,41 @@ export default function BrandAssetUpload({
   }, [pendingFile, savedUrl])
 
   useEffect(() => {
+    setImageError(false)
+  }, [previewUrl])
+
+  useEffect(() => {
     if (!pendingFile || !previewUrl?.startsWith('blob:')) return
     return () => URL.revokeObjectURL(previewUrl)
   }, [pendingFile, previewUrl])
 
-  const showPdfLink = pendingFile
-    ? pendingFile.type === 'application/pdf'
-    : isPdfPath(typeof savedPath === 'string' ? savedPath : null)
+  const hasStoredPath = Boolean(institution[field])
+  const missingOnDisk = hasStoredPath && !savedUrl && !pendingFile
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-2 text-sm font-semibold text-slate-800">{label}</div>
+      <div className="mb-1 text-sm font-semibold text-slate-800">{label}</div>
+      {description && <p className="mb-3 text-xs leading-relaxed text-slate-500">{description}</p>}
 
-      {(previewUrl || pendingFile || savedUrl) && (
-        <div className="mb-3 inline-block rounded-xl border border-slate-200 bg-white p-2">
-          {showPdfLink ? (
-            previewUrl ? (
-              <a href={previewUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-700 underline">
-                View PDF
-              </a>
-            ) : (
-              <span className="text-sm text-slate-500">PDF attached</span>
-            )
-          ) : previewUrl ? (
-            <img src={previewUrl} alt={label} className="h-24 max-w-full rounded-lg object-contain" />
-          ) : (
-            <span className="text-sm text-slate-500">Attached</span>
-          )}
-        </div>
-      )}
+      <div className="mb-3 flex min-h-[6.5rem] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-3">
+        {missingOnDisk ? (
+          <div className="text-center text-xs text-amber-700">
+            <div className="mb-1 font-medium">File missing on server</div>
+            <div>Re-upload to restore this asset.</div>
+          </div>
+        ) : previewUrl && !imageError ? (
+          <img
+            src={previewUrl}
+            alt={label}
+            className="max-h-24 max-w-full rounded-lg object-contain"
+            onError={() => setImageError(true)}
+          />
+        ) : previewUrl && imageError ? (
+          <div className="text-center text-xs text-amber-700">Preview unavailable — try re-uploading.</div>
+        ) : (
+          <div className="text-center text-xs text-slate-400">No file uploaded yet</div>
+        )}
+      </div>
 
       <input
         type="file"
@@ -74,7 +78,7 @@ export default function BrandAssetUpload({
         className="block w-full text-sm"
       />
       {uploading && <p className="mt-2 text-xs text-slate-500">Uploading…</p>}
-      {pendingFile && !uploading && !savedUrl && (
+      {pendingFile && !uploading && !institution.id && (
         <p className="mt-2 text-xs text-amber-700">Save the institution first to upload this file.</p>
       )}
     </div>
