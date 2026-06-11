@@ -112,10 +112,10 @@ class ApplicationController extends Controller
             abort(403, $this->transForUser('admissions.unauthorized'));
         }
 
-        if ($applicant->hasActiveApplication()) {
+        if ($applicant->hasBlockingApplicationForProgramme($request->programme_id)) {
             return response()->json([
                 'success' => false,
-                'message' => $this->transForUser('admissions.active_application_exists'),
+                'message' => $this->transForUser('admissions.duplicate_programme_application'),
             ], 400);
         }
 
@@ -222,6 +222,7 @@ class ApplicationController extends Controller
             'applicant', 'academicYear', 'programme', 'registryReviewedBy',
             'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment',
             'documents.programmeRequiredDocument', 'agreementAcceptances',
+            'payments' => fn ($q) => $q->orderByDesc('created_at'),
         ])->findOrFail($applicationId);
 
         if (! $this->userCanViewApplication($application)) {
@@ -229,6 +230,7 @@ class ApplicationController extends Controller
         }
 
         $application->syncFeesFromProgramme();
+        $application->syncPaymentRecordsFromFlags();
 
         return response()->json([
             'success' => true,
@@ -630,7 +632,7 @@ class ApplicationController extends Controller
             return true;
         }
 
-        if (! $user->hasRole(['super-admin'])
+        if (! $user->hasRole(['super-admin', 'system-super-admin'])
             && (int) $application->institution_id !== (int) $user->institution_id) {
             return false;
         }
@@ -662,6 +664,7 @@ class ApplicationController extends Controller
             'admin',
             'institution-admin',
             'super-admin',
+            'system-super-admin',
         ]);
     }
 }

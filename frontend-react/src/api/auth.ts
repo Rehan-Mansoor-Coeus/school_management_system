@@ -1,5 +1,31 @@
 import api from './client'
 
+export function fetchPublicAuthInstitutions() {
+  return api.get('/auth/institutions')
+}
+
+export function requestSignupOtp(institution_id: number, phone_number: string) {
+  return api.post('/auth/signup/request-otp', { institution_id, phone_number })
+}
+
+export function verifySignupOtp(institution_id: number, phone_number: string, otp: string) {
+  return api.post('/auth/signup/verify-otp', { institution_id, phone_number, otp })
+}
+
+export function completeStudentSignup(payload: {
+  signup_token: string
+  institution_id: number
+  name: string
+  username: string
+  email?: string
+  password: string
+  password_confirmation: string
+  phone_number: string
+  address?: string
+}) {
+  return api.post('/auth/signup/complete', payload)
+}
+
 export function requestPasswordResetOtp(login: string) {
   return api.post('/auth/forgot-password/request-otp', { login })
 }

@@ -60,4 +60,12 @@ class Applicant extends Model
             ])
             ->exists();
     }
+
+    public function hasBlockingApplicationForProgramme($programmeId)
+    {
+        return $this->applications()
+            ->where('programme_id', $programmeId)
+            ->whereNotIn('status', ['rejected', 'cancelled'])
+            ->exists();
+    }
 }

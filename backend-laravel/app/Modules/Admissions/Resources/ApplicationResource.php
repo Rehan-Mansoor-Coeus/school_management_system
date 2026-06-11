@@ -83,6 +83,9 @@ class ApplicationResource extends JsonResource
             'documents' => ApplicationDocumentResource::collection(
                 $this->whenLoaded('documents')
             ),
+            'payments' => ApplicationPaymentResource::collection(
+                $this->whenLoaded('payments')
+            ),
             'accepted_agreement_ids' => $this->when(
                 $this->relationLoaded('agreementAcceptances'),
                 function () {

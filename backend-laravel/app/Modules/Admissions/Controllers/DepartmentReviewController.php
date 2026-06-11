@@ -17,7 +17,7 @@ class DepartmentReviewController extends Controller
     public function __construct()
     {
         $this->middleware('auth:api');
-        $this->middleware('role:hod|head-of-department|institution-admin|admin|super-admin');
+        $this->middleware('role:hod|head-of-department|institution-admin|admin|super-admin|system-super-admin');
     }
 
     public function pending()
@@ -73,7 +73,7 @@ class DepartmentReviewController extends Controller
             $message = $this->transForUser('admissions.department_approved');
         } else {
             $application->markDepartmentRejected(auth()->id(), $request->rejection_reason);
-            $notificationService->sendApplicationStatusNotification($application, 'rejected');
+            $notificationService->sendRejectionLetter($application, 'department');
             $message = $this->transForUser('admissions.department_rejected');
         }
 

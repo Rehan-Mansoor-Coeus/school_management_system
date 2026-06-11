@@ -360,6 +360,12 @@ class RolePermissionSeeder extends Seeder
         $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, [
             'admissions.view',
             'admissions.manage',
+            'admissions.registry.review',
+            'admissions.department.review',
+            'admissions.registrar.admit',
+            'admissions.finance.verify',
+            'admissions.hod.approve',
+            'admissions.courses.register',
             'canteen.view',
             'canteen.manage',
             'canteen.verify',

@@ -109,7 +109,7 @@ class AuthController extends Controller
             'institution_id' => 'required|integer|exists:institutions,id',
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username',
-            'email' => 'nullable|string|email|max:255|unique:users,email',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'phone_number' => 'required|string|max:50',
             'address' => 'nullable|string',

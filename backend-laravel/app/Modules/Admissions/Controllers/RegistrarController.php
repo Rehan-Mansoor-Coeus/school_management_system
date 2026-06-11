@@ -17,7 +17,7 @@ class RegistrarController extends Controller
     public function __construct()
     {
         $this->middleware('auth:api');
-        $this->middleware('role:registrar|institution-admin|admin|super-admin');
+        $this->middleware('role:registrar|institution-admin|admin|super-admin|system-super-admin');
     }
 
     public function readyForAdmission()

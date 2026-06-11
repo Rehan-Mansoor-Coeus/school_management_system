@@ -7,6 +7,9 @@ Route::prefix('auth')->group(function () {
     Route::get('institutions', 'Api\AuthController@publicInstitutions');
     Route::post('register', 'Api\AuthController@register');
     Route::post('login', 'Api\AuthController@login');
+    Route::post('signup/request-otp', 'Api\AuthController@requestSignupOtp');
+    Route::post('signup/verify-otp', 'Api\AuthController@verifySignupOtp');
+    Route::post('signup/complete', 'Api\AuthController@studentSignup');
     Route::post('forgot-password/request-otp', 'Api\AuthController@requestPasswordResetOtp');
     Route::post('forgot-password/verify-otp', 'Api\AuthController@verifyPasswordResetOtp');
     Route::post('forgot-password/reset', 'Api\AuthController@resetPassword');

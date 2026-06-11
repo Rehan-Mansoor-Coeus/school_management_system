@@ -9,6 +9,7 @@ use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Services\NotificationService;
 use App\ProgrammeSemester;
 use App\ProgrammeSemesterSubject;
+use App\ProgramSubject;
 use App\Student;
 use App\Subject;
 use Illuminate\Http\Request;
@@ -292,7 +293,7 @@ class CourseRegistrationController extends Controller
                 'data' => [],
                 'registrations' => [],
                 'reason' => 'no_student',
-                'message' => $this->transForUser('admissions.courses_no_student'),
+                'message' => $this->transForUser('admissions.courses_fee_pending'),
             ]);
         }
 
@@ -304,7 +305,7 @@ class CourseRegistrationController extends Controller
                 'data' => [],
                 'registrations' => [],
                 'reason' => 'no_subjects',
-                'message' => $this->transForUser('admissions.courses_no_subjects'),
+                'message' => $this->transForUser('admissions.courses_fee_pending'),
             ]);
         }
 
@@ -325,6 +326,27 @@ class CourseRegistrationController extends Controller
         $items = collect();
 
         if ($student->programme_id) {
+            $programSubjectLinks = ProgramSubject::where('programme_id', $student->programme_id)
+                ->where('is_active', true)
+                ->with(['subject', 'semester'])
+                ->get();
+
+            foreach ($programSubjectLinks as $link) {
+                $subject = $link->subject;
+                if (! $subject || ! $subject->is_active) {
+                    continue;
+                }
+
+                $items->push([
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->code,
+                    'credit_units' => $link->contact_hours_override ?: $subject->default_contact_hours,
+                    'programme_semester_id' => $link->programme_semester_id,
+                    'is_required' => (bool) ($link->is_required ?? true),
+                ]);
+            }
+
             $semesterIds = ProgrammeSemester::where('programme_id', $student->programme_id)
                 ->where('is_active', true)
                 ->pluck('id');
@@ -338,6 +360,10 @@ class CourseRegistrationController extends Controller
                 foreach ($assignments as $assignment) {
                     $subject = $assignment->subject;
                     if (! $subject || ! $subject->is_active) {
+                        continue;
+                    }
+
+                    if ($items->contains(fn ($row) => (int) $row['id'] === (int) $subject->id)) {
                         continue;
                     }
 

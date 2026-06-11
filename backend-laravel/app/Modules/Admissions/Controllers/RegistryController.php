@@ -17,7 +17,7 @@ class RegistryController extends Controller
     public function __construct()
     {
         $this->middleware('auth:api');
-        $this->middleware('role:registry|institution-admin|admin|super-admin');
+        $this->middleware('role:registry|institution-admin|admin|super-admin|system-super-admin');
     }
 
     public function pending()
@@ -55,7 +55,7 @@ class RegistryController extends Controller
 
         if ($request->decision === 'rejected') {
             $application->markRegistryRejected(auth()->id(), $request->rejection_reason);
-            (new NotificationService())->sendApplicationStatusNotification($application, 'rejected');
+            (new NotificationService())->sendRejectionLetter($application, 'registry');
 
             return response()->json([
                 'success' => true,

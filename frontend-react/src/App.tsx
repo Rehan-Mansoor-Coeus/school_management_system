@@ -1,6 +1,7 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/Login'
+import StudentSignupPage from './pages/StudentSignupPage'
 import ForgotPasswordPage from './pages/ForgotPassword'
 import LandingPage from './landing/LandingPage'
 import LandingShell from './landing/LandingShell'
@@ -77,6 +78,7 @@ import OverdueBooks from './pages/library/OverdueBooks'
 import FinesManagement from './pages/library/FinesManagement'
 import FrequentlySignedBooks from './pages/library/FrequentlySignedBooks'
 import BorrowingHistory from './pages/library/BorrowingHistory'
+import StudentPendingBorrowPage from './pages/library/StudentPendingBorrowPage'
 import AddUserPage from './pages/people/AddUserPage'
 import PeopleEntityPage from './pages/people/PeopleEntityPage'
 import CustomersPage from './pages/people/CustomersPage'
@@ -139,8 +141,8 @@ export default function App(){
         </Route>
 
         <Route path="/admin" element={<LoginPage />} />
+        <Route path="/signup" element={<StudentSignupPage />} />
         <Route path="/login" element={<Navigate to="/admin" replace />} />
-        <Route path="/signup" element={<Navigate to="/admin" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/letters/verify/:id" element={<LetterVerifyPage />} />
 
@@ -229,6 +231,7 @@ export default function App(){
             <Route path="fines" element={<FinesManagement />} />
             <Route path="frequently-signed" element={<FrequentlySignedBooks />} />
             <Route path="history" element={<BorrowingHistory />} />
+            <Route path="pending" element={<StudentPendingBorrowPage />} />
           </Route>
 
           <Route path="hostel" element={<HostelLayout />}>

@@ -108,6 +108,7 @@ export interface Application {
   can_update?: boolean;
   latest_application_fee_payment?: ApplicationPaymentProof | null;
   latest_tuition_payment?: ApplicationPaymentProof | null;
+  payments?: ApplicationPaymentRecord[];
   documents?: ApplicationDocument[];
   accepted_agreement_ids?: number[];
   applicant_signature_url?: string | null;
@@ -149,6 +150,20 @@ export interface ApplicationPaymentProof {
   review_notes?: string | null;
   created_at?: string;
   application?: Application;
+}
+
+export interface ApplicationPaymentRecord {
+  id: number;
+  application_id: number;
+  reference_number: string;
+  payment_type: string;
+  payment_method?: string;
+  amount: number;
+  status: string;
+  description?: string | null;
+  proof_url?: string | null;
+  paid_at?: string | null;
+  created_at?: string;
 }
 
 export interface Payment {

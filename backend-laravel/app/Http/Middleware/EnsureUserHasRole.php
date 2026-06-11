@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PlatformAccess;
 use Closure;
 
 class EnsureUserHasRole
@@ -12,8 +13,10 @@ class EnsureUserHasRole
         'finance-officer' => ['admissions.finance.verify', 'fees.view', 'fees.manage', 'admissions.view', 'admissions.manage'],
         'hod' => ['admissions.department.review', 'admissions.hod.approve', 'admissions.view', 'admissions.manage'],
         'head-of-department' => ['admissions.department.review', 'admissions.hod.approve', 'admissions.view', 'admissions.manage'],
-        'institution-admin' => ['institutions.view', 'institutions.edit', 'institutions.settings', 'users.view', 'roles.view', 'permissions.view'],
-        'admin' => ['users.view', 'roles.view', 'permissions.view', 'modules.view', 'modules.manage'],
+        'institution-admin' => ['institutions.view', 'institutions.edit', 'institutions.settings', 'users.view', 'roles.view', 'permissions.view', 'admissions.manage'],
+        'admin' => ['users.view', 'roles.view', 'permissions.view', 'modules.view', 'modules.manage', 'admissions.manage', 'admissions.view'],
+        'super-admin' => ['admissions.manage'],
+        'system-super-admin' => ['admissions.manage'],
     ];
 
     public function handle($request, Closure $next, $role)
@@ -22,6 +25,11 @@ class EnsureUserHasRole
 
         if (! $user) {
             return response()->json(['message' => 'Unauthorized.'], 401);
+        }
+
+        if ($user->hasAnyRole(PlatformAccess::PLATFORM_SUPER_ADMIN_ROLES)
+            || $user->can('admissions.manage')) {
+            return $next($request);
         }
 
         $roles = array_map('trim', explode('|', $role));

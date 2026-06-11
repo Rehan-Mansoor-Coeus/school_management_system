@@ -19,6 +19,14 @@ class LibraryDashboardController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
+        $isStudent = $this->hasAnyPermission($request, ['borrow_books'])
+            && ! $this->hasAnyPermission($request, ['register_books', 'approve_borrow_requests', 'view_library_reports']);
+
+        if ($isStudent) {
+            return response()->json($this->studentDashboard($request));
+        }
+
         $this->authorizeLibrary($request, ['view_library_reports', 'view_library_menu', 'approve_borrow_requests']);
 
         $institutionId = $this->institutionId($request);
@@ -39,7 +47,6 @@ class LibraryDashboardController extends Controller
         $unpaidFines = (float) LibraryFine::where('institution_id', $institutionId)
             ->where('status', LibraryFine::STATUS_UNPAID)->sum('fine_amount');
 
-        // Books borrowed grouped by category (ONLY_FULL_GROUP_BY safe).
         $categoryExpr = 'COALESCE(library_categories.name, "Uncategorised")';
         $byCategory = LibraryBorrowTransaction::query()
             ->where('library_borrow_transactions.institution_id', $institutionId)
@@ -50,7 +57,6 @@ class LibraryDashboardController extends Controller
             ->orderByDesc('count')
             ->get();
 
-        // Frequently signed books.
         $frequent = LibraryBorrowTransaction::query()
             ->where('library_borrow_transactions.institution_id', $institutionId)
             ->join('library_books', 'library_books.id', '=', 'library_borrow_transactions.book_id')
@@ -71,5 +77,41 @@ class LibraryDashboardController extends Controller
             'borrowed_by_category' => $byCategory,
             'frequently_signed' => $frequent,
         ]);
+    }
+
+    protected function studentDashboard(Request $request): array
+    {
+        $userId = (int) $request->user()->id;
+        $institutionId = $this->institutionId($request);
+        $today = Carbon::now()->toDateString();
+
+        $totalBorrowed = LibraryBorrowTransaction::where('institution_id', $institutionId)
+            ->where('user_id', $userId)
+            ->count();
+
+        $booksInKeeping = LibraryBorrowRequest::where('institution_id', $institutionId)
+            ->where('user_id', $userId)
+            ->where('status', LibraryBorrowRequest::STATUS_ISSUED)
+            ->count();
+
+        $dueForReturn = LibraryBorrowRequest::where('institution_id', $institutionId)
+            ->where('user_id', $userId)
+            ->where('status', LibraryBorrowRequest::STATUS_ISSUED)
+            ->whereNotNull('expected_return_date')
+            ->whereDate('expected_return_date', '<=', $today)
+            ->count();
+
+        $unpaidFines = (float) LibraryFine::where('institution_id', $institutionId)
+            ->where('user_id', $userId)
+            ->where('status', LibraryFine::STATUS_UNPAID)
+            ->sum('fine_amount');
+
+        return [
+            'student_view' => true,
+            'total_borrowed' => $totalBorrowed,
+            'books_in_keeping' => $booksInKeeping,
+            'due_for_return' => $dueForReturn,
+            'unpaid_fines' => $unpaidFines,
+        ];
     }
 }

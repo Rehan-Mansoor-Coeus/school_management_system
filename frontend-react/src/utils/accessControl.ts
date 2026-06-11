@@ -4,8 +4,24 @@ export const ADMIN_ROLES = ['admin', 'institution-admin', 'super-admin'] as cons
 
 export const PLATFORM_SUPER_ADMIN_ROLES = ['super-admin', 'system-super-admin'] as const
 
+export const ADMISSIONS_FULL_ACCESS_PERMISSIONS = [
+  'admissions.manage',
+  'admissions.view',
+  'admissions.registry.review',
+  'admissions.department.review',
+  'admissions.registrar.admit',
+  'admissions.finance.verify',
+  'admissions.hod.approve',
+] as const
+
 export function isPlatformSuperAdminRole(roles: string[]): boolean {
   return roles.some((role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number]))
+}
+
+export function hasFullAdmissionsAccess(userPermissions: string[], userRoles: string[]): boolean {
+  if (isPlatformSuperAdminRole(userRoles)) return true
+  if (userRoles.some((role) => ['institution-admin', 'admin'].includes(role))) return true
+  return userPermissions.includes('admissions.manage')
 }
 
 export function filterAssignableRoles<T extends { name: string }>(roles: T[], userRoles: string[]): T[] {
@@ -34,6 +50,11 @@ export function canAccessMenu(options: {
   userRoles: string[]
 }): boolean {
   const { permissions = [], roles = [], userPermissions, userRoles } = options
+
+  if (hasFullAdmissionsAccess(userPermissions, userRoles)) {
+    const admissionsOnly = permissions.every((p) => p.startsWith('admissions.'))
+    if (admissionsOnly && permissions.length > 0) return true
+  }
 
   if (permissions.length > 0 && permissions.some((p) => userPermissions.includes(p))) return true
   if (roles.length > 0 && roles.some((r) => userRoles.includes(r))) return true

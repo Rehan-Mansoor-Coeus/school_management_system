@@ -101,11 +101,9 @@ export default function CourseRegistrationPage() {
     }
   };
 
-  const emptyMessage = emptyReason === 'no_student'
-    ? t('coursesNoStudent')
-    : emptyReason === 'no_subjects'
-      ? t('coursesNoSubjects')
-      : serverMessage || t('coursesNone');
+  const emptyMessage = emptyReason === 'no_student' || emptyReason === 'no_subjects'
+    ? t('coursesFeePending')
+    : serverMessage || t('coursesNone');
 
   const selectableCourses = courses.filter((course) => !registeredSubjectIds.has(course.id));
 

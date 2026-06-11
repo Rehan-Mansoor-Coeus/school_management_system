@@ -13,6 +13,7 @@ import {
   Flame,
   History,
   Settings,
+  Clock,
 } from 'lucide-react'
 import type { TabColor } from '../ui/ColoredModuleTabsNav'
 
@@ -40,3 +41,17 @@ export const libraryMenuItems: LibraryMenuItem[] = [
   { label: 'Borrowing History', path: '/library/history', icon: History, color: 'slate', perms: ['view_own_borrow_requests', 'view_library_reports'] },
   { label: 'Library Settings', path: '/library/settings', icon: Settings, color: 'slate', perms: ['manage_library_settings'] },
 ]
+
+/** Student-facing library navigation (no register book / admin tools). */
+export const studentLibraryMenuItems: LibraryMenuItem[] = [
+  { label: 'Library Dashboard', path: '/library', icon: LayoutDashboard, color: 'blue', perms: ['view_library_menu', 'borrow_books'] },
+  { label: 'Borrow Request', path: '/library/borrow', icon: BookMarked, color: 'indigo', perms: ['borrow_books'] },
+  { label: 'Borrow History', path: '/library/history', icon: History, color: 'slate', perms: ['view_own_borrow_requests', 'borrow_books'] },
+  { label: 'Pending Approval', path: '/library/pending', icon: Clock, color: 'amber', perms: ['view_own_borrow_requests', 'borrow_books'] },
+]
+
+export function isStudentLibraryUser(hasPermission: (perm: string) => boolean): boolean {
+  const canBorrow = hasPermission('borrow_books')
+  const isStaff = hasPermission('register_books') || hasPermission('approve_borrow_requests') || hasPermission('view_library_reports')
+  return canBorrow && !isStaff
+}

@@ -5,7 +5,9 @@ namespace App\Modules\Admissions\Controllers;
 use App\Http\Controllers\Controller;
 use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
+use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Modules\Admissions\Services\PaymentService;
+use App\Modules\Admissions\Services\PaymentInvoiceService;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
@@ -94,6 +96,32 @@ class PaymentController extends Controller
             'success' => true,
             'message' => $this->transForUser('admissions.payment_verified'),
             'data' => $verificationResult,
+        ]);
+    }
+
+    public function invoice($paymentId)
+    {
+        $payment = ApplicationPayment::with(['application.applicant', 'application.programme'])->findOrFail($paymentId);
+        $application = $payment->application;
+
+        if (! $application) {
+            abort(404);
+        }
+
+        $user = auth()->user();
+        $isOwner = (int) optional($application->applicant)->user_id === (int) $user->id;
+        $isStaff = $user->hasRole(['registry', 'finance-officer', 'registrar', 'institution-admin', 'admin', 'super-admin', 'system-super-admin']);
+
+        if (! $isOwner && ! $isStaff) {
+            abort(403, $this->transForUser('admissions.unauthorized'));
+        }
+
+        $pdf = (new PaymentInvoiceService())->renderInvoicePdf($payment);
+        $filename = 'invoice-'.$payment->reference_number.'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
         ]);
     }
 

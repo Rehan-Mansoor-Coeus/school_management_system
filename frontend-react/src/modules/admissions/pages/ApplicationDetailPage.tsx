@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import type { Application } from '../types';
-import { fetchApplication, resendAdmissionLetter, cancelApplication } from '../../../api/admissions';
+import { fetchApplication, resendAdmissionLetter, cancelApplication, openPaymentInvoice, downloadPaymentInvoice } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
 import { useAuth } from '../../../context/AuthContext';
 import { publicFileUrl } from '../../../utils/publicFileUrl';
 import ApplicationProgressBar from '../components/ApplicationProgressBar';
 import ApplicationDocumentReviewSection from '../components/ApplicationDocumentReviewSection';
+import ApplicationDetailStaffActions from '../components/ApplicationDetailStaffActions';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import StudentApplicationActions from '../components/StudentApplicationActions';
 import { acceptAdmission } from '../../../api/admissions';
@@ -34,7 +35,8 @@ export default function ApplicationDetailPage() {
   const { canAccess } = useAuth();
   const isStaffViewer = canViewApplicationDetails(canAccess);
   const canResendLetter = canAccess({ permissions: ['admissions.registrar.admit', 'admissions.manage'] });
-  const canReviewDocuments = canAccess({ permissions: ['admissions.registry.review', 'admissions.registrar.admit', 'admissions.manage'] });
+  const canReviewDocuments = canAccess({ permissions: ['admissions.registry.review', 'admissions.registrar.admit', 'admissions.manage'] })
+    || canAccess({ roles: ['super-admin', 'system-super-admin', 'admin', 'institution-admin'] });
   const fromPath = (location.state as { from?: string } | null)?.from;
   const backPath = fromPath || (isStaffViewer ? '/admissions/applications' : '/admissions/my-applications');
   const backLabel = fromPath
@@ -144,6 +146,10 @@ export default function ApplicationDetailPage() {
 
       <ApplicationProgressBar progress={application.progress} />
 
+      {isStaffViewer && (
+        <ApplicationDetailStaffActions application={application} onUpdated={reloadApplication} />
+      )}
+
       {!isStaffViewer && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-4">{t('nextSteps')}</h3>
@@ -179,6 +185,57 @@ export default function ApplicationDetailPage() {
           {application.rejection_reason && <DetailRow label={t('reason')} value={application.rejection_reason} />}
           {application.admission_comment && <DetailRow label={t('comment')} value={application.admission_comment} />}
         </dl>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="font-semibold text-slate-900 mb-4">{t('paymentsTitle')}</h3>
+        {(application.payments || []).length === 0 ? (
+          <p className="text-sm text-slate-500">{t('noPaymentsYet')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">{t('feeType')}</th>
+                  <th className="px-3 py-2">{t('amount')}</th>
+                  <th className="px-3 py-2">{t('status')}</th>
+                  <th className="px-3 py-2">{t('paymentMethod')}</th>
+                  <th className="px-3 py-2">{t('paidAt')}</th>
+                  <th className="px-3 py-2">{t('invoiceActions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(application.payments || []).map((payment) => (
+                  <tr key={payment.id} className="border-t border-slate-100">
+                    <td className="px-3 py-2 capitalize">{payment.payment_type.replace('_', ' ')}</td>
+                    <td className="px-3 py-2">{formatMoney(payment.amount)}</td>
+                    <td className="px-3 py-2 capitalize">{payment.status}</td>
+                    <td className="px-3 py-2 capitalize">{payment.payment_method?.replace('_', ' ') || '—'}</td>
+                    <td className="px-3 py-2">{payment.paid_at || payment.created_at || '—'}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openPaymentInvoice(payment.id)}
+                          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          {t('printInvoice')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadPaymentInvoice(payment.id, payment.reference_number)}
+                          className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          {t('downloadInvoice')}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {showResendLetter && (

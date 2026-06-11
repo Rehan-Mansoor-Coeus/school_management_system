@@ -8,22 +8,21 @@ use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Modules\Admissions\Resources\ApplicationResource;
+use App\Modules\Admissions\Services\EnrollmentService;
 use App\Modules\Admissions\Services\NotificationService;
-use App\Institution;
-use App\Role;
 use App\Services\UserAccountNotificationService;
-use App\Student;
-use App\User;
-use Illuminate\Support\Str;
 
 class FinanceController extends Controller
 {
     use ResolvesInstitution, TranslatesForUser;
 
+    protected $enrollmentService;
+
     public function __construct()
     {
         $this->middleware('auth:api');
-        $this->middleware('role:finance-officer|institution-admin|admin|super-admin');
+        $this->middleware('role:finance-officer|institution-admin|admin|super-admin|system-super-admin');
+        $this->enrollmentService = new EnrollmentService();
     }
 
     public function pendingTuition()
@@ -59,10 +58,9 @@ class FinanceController extends Controller
             ], 400);
         }
 
-        $result = $this->createStudentFromApplication($application);
+        $result = $this->enrollmentService->enrollFromApplication($application, auth()->id());
         $student = $result['student'];
         $plainPassword = $result['plain_password'];
-        $application->markTuitionVerified(auth()->id());
 
         $notificationService = new NotificationService();
         $user = $student->user;
@@ -74,7 +72,7 @@ class FinanceController extends Controller
                 $student->registration_number
             );
         } else {
-            $notificationService->sendApplicationStatusNotification($application, 'enrolled', [
+            $notificationService->sendApplicationStatusNotification($application->fresh(), 'enrolled', [
                 'reg' => $student->registration_number,
             ]);
         }
@@ -113,86 +111,5 @@ class FinanceController extends Controller
                     ->sum('amount'),
             ],
         ]);
-    }
-
-    protected function createStudentFromApplication(Application $application)
-    {
-        $applicant = $application->applicant;
-        $existing = Student::where('applicant_id', $applicant->id)->first();
-        if ($existing) {
-            return ['student' => $existing->load('user'), 'plain_password' => null];
-        }
-
-        $plainPassword = null;
-        $user = $applicant->user;
-        if (! $user) {
-            $plainPassword = UserAccountNotificationService::generateTemporaryPassword();
-            $user = User::create([
-                'institution_id' => $application->institution_id,
-                'name' => $applicant->full_name,
-                'email' => $applicant->email,
-                'phone_number' => $applicant->phone,
-                'username' => UserAccountNotificationService::generateUsername($applicant->full_name, $applicant->email),
-                'password' => bcrypt($plainPassword),
-                'api_token' => Str::random(60),
-                'status' => 'active',
-            ]);
-            $applicant->update(['user_id' => $user->id]);
-        }
-
-        $studentRole = Role::where('name', 'student')->first();
-        if ($studentRole && ! $user->hasRole('student')) {
-            $user->assignRole($studentRole);
-        }
-
-        $student = Student::create([
-            'institution_id' => $application->institution_id,
-            'user_id' => $user->id,
-            'applicant_id' => $applicant->id,
-            'programme_id' => $application->programme_id,
-            'registration_number' => $this->generateRegistrationNumber($application),
-            'status' => 'active',
-            'admission_date' => now(),
-            'current_level' => 100,
-            'is_active' => true,
-        ]);
-
-        return ['student' => $student->load('user'), 'plain_password' => $plainPassword];
-    }
-
-    protected function generateRegistrationNumber(Application $application)
-    {
-        $application->loadMissing(['applicant', 'programme', 'institution']);
-
-        $institution = $application->institution ?: Institution::find($application->institution_id);
-        $programme = $application->programme;
-        $applicant = $application->applicant;
-
-        $schoolCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) optional($institution)->code ?: 'SCH'));
-        $programCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) optional($programme)->code ?: 'PRG'));
-
-        $idNumber = preg_replace('/\s+/', '', (string) optional($applicant)->id_number);
-        $idSuffix = strtoupper(substr($idNumber, -5));
-        if (strlen($idSuffix) < 5) {
-            $idSuffix = str_pad($idSuffix, 5, '0', STR_PAD_LEFT);
-        }
-
-        if ($schoolCode === '') {
-            $schoolCode = 'SCH';
-        }
-        if ($programCode === '') {
-            $programCode = 'PRG';
-        }
-
-        $base = $schoolCode.':'.$programCode.':'.$idSuffix;
-        $candidate = $base;
-        $counter = 1;
-
-        while (Student::where('registration_number', $candidate)->exists()) {
-            $candidate = $base.'-'.$counter;
-            $counter++;
-        }
-
-        return $candidate;
     }
 }

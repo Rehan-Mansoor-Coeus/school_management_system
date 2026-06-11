@@ -41,6 +41,7 @@ Route::prefix('admissions')->group(function () {
         Route::post('payment/confirm-offline', [PaymentController::class, 'confirmOffline']);
         Route::get('payment/methods', [PaymentController::class, 'methods']);
         Route::get('payment/verify', [PaymentController::class, 'verify']);
+        Route::get('payment/{paymentId}/invoice', [PaymentController::class, 'invoice']);
         Route::post('payment/stripe/intent', [StripePaymentController::class, 'createIntent']);
         Route::post('payment/stripe/confirm', [StripePaymentController::class, 'confirm']);
         Route::post('payment/campay/collect', [CampayPaymentController::class, 'collect']);
