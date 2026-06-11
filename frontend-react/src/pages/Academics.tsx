@@ -18,6 +18,8 @@ import {
   updateSemesterSubject,
   updateSubject,
 } from '../api/admin'
+import { useAcademicInstitutionParams } from '../context/AcademicInstitutionContext'
+
 import ProgrammeRequiredDocumentsEditor, {
   type ProgrammeRequiredDocumentInput,
 } from '../components/academics/ProgrammeRequiredDocumentsEditor'
@@ -25,6 +27,7 @@ import ProgrammeAgreementEditor, {
   type ProgrammeAgreementInput,
 } from '../components/academics/ProgrammeAgreementEditor'
 import InstitutionAgreementSection from '../components/academics/InstitutionAgreementSection'
+
 
 const programmeLevels = [
   { value: 'certificate', label: 'Certificate' },
@@ -99,6 +102,7 @@ interface Subject {
   name: string
   code: string
   description?: string
+  credit_hours?: number
   default_contact_hours: number
   is_active: boolean
 }
@@ -126,6 +130,7 @@ const initialSubjectForm = {
   name: '',
   code: '',
   description: '',
+  credit_hours: 0,
   default_contact_hours: 0,
   is_active: true,
 }
@@ -142,6 +147,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
   const { user } = useAuth()
   const { formatMoney } = useFormatMoney()
   const { pushToast } = useToast()
+  const { institutionId: contextInstitutionId, requiresSelection, params: institutionParams } = useAcademicInstitutionParams()
 
   const [activeTab, setActiveTab] = useState<'programmes' | 'subjects'>(initialTab)
 
@@ -170,15 +176,22 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
 
   useEffect(() => {
     loadPageData()
-  }, [])
+  }, [contextInstitutionId])
 
   const loadPageData = async () => {
+    if (requiresSelection && !contextInstitutionId) {
+      setProgrammes([])
+      setSubjects([])
+      setDepartments([])
+      return
+    }
     setLoading(true)
     try {
+      const listParams = { search, ...institutionParams }
       const [programmesRes, subjectsRes, departmentsRes] = await Promise.all([
-        fetchPrograms({ search }),
-        fetchSubjects({ search }),
-        fetchDepartments(),
+        fetchPrograms(listParams),
+        fetchSubjects(listParams),
+        fetchDepartments(institutionParams),
       ])
       setProgrammes(programmesRes.data)
       setSubjects(subjectsRes.data)
@@ -266,6 +279,7 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       name: subject.name,
       code: subject.code,
       description: subject.description || '',
+      credit_hours: subject.credit_hours ?? 0,
       default_contact_hours: subject.default_contact_hours,
       is_active: subject.is_active,
     })
@@ -310,12 +324,17 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
 
   const handleProgrammeSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (requiresSelection && !contextInstitutionId) {
+      pushToast('Select an institution first.', 'error')
+      return
+    }
+    const payload = { ...programmeForm, ...institutionParams }
     try {
       if (selectedProgramme) {
-        await updateProgram(selectedProgramme.id, programmeForm)
+        await updateProgram(selectedProgramme.id, payload)
         pushToast('Programme updated successfully.')
       } else {
-        await createProgram(programmeForm)
+        await createProgram(payload)
         pushToast('Programme created successfully.')
       }
       setProgrammeModalOpen(false)
@@ -328,12 +347,17 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
 
   const handleSubjectSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (requiresSelection && !contextInstitutionId) {
+      pushToast('Select an institution first.', 'error')
+      return
+    }
+    const payload = { ...subjectForm, ...institutionParams }
     try {
       if (selectedSubject) {
-        await updateSubject(selectedSubject.id, subjectForm)
+        await updateSubject(selectedSubject.id, payload)
         pushToast('Subject updated successfully.')
       } else {
-        await createSubject(subjectForm)
+        await createSubject(payload)
         pushToast('Subject created successfully.')
       }
       setSubjectModalOpen(false)
@@ -729,6 +753,17 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
               onChange={(event) => setSubjectForm((prev) => ({ ...prev, code: event.target.value }))}
               type="text"
               required
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Credit hours</label>
+            <input
+              value={subjectForm.credit_hours}
+              onChange={(event) => setSubjectForm((prev) => ({ ...prev, credit_hours: Number(event.target.value) }))}
+              type="number"
+              min={0}
+              step="0.5"
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
           </div>

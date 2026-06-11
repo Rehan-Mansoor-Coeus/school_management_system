@@ -5,6 +5,7 @@ import HasPermission from '../../../components/HasPermission'
 import type { Institution, InstitutionType, PaginatedResponse } from '../types'
 import { institutionFileUrl } from '../utils'
 import { useInstitutions } from '../hooks/useInstitutions'
+import { countryOptions } from '../../../config/locationData'
 import InstitutionForm from './InstitutionForm'
 import InstitutionDetail from './InstitutionDetail'
 
@@ -92,8 +93,9 @@ export default function InstitutionList() {
   }
 
   const countries = useMemo(() => {
-    const list = (data?.data || []).map((i) => i.country).filter(Boolean) as string[]
-    return Array.from(new Set(list)).sort()
+    const fromData = (data?.data || []).map((i) => i.country).filter(Boolean) as string[]
+    const all = countryOptions.map((c) => c.name)
+    return Array.from(new Set([...all, ...fromData])).sort()
   }, [data])
 
   return (

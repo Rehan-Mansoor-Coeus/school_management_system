@@ -63,8 +63,9 @@ export function fetchInstitutions(params?: Record<string, any>) {
   return api.get('/institutions', { params })
 }
 
-export function fetchDepartments(search?: string) {
-  return api.get('/departments', { params: { search } })
+export function fetchDepartments(searchOrParams?: string | Record<string, unknown>) {
+  const params = typeof searchOrParams === 'string' ? { search: searchOrParams } : searchOrParams || {}
+  return api.get('/departments', { params })
 }
 
 export function createDepartment(payload: any) {
@@ -129,6 +130,46 @@ export function updateSemesterSubject(id: number, payload: any) {
 
 export function deleteSemesterSubject(id: number) {
   return api.delete(`/academics/semester-subjects/${id}`)
+}
+
+export function fetchAcademicUnits(params?: Record<string, unknown>) {
+  return api.get('/academics/units', { params })
+}
+
+export function createAcademicUnit(payload: Record<string, unknown>) {
+  return api.post('/academics/units', payload)
+}
+
+export function updateAcademicUnit(id: number, payload: Record<string, unknown>) {
+  return api.put(`/academics/units/${id}`, payload)
+}
+
+export function deleteAcademicUnit(id: number) {
+  return api.delete(`/academics/units/${id}`)
+}
+
+export function fetchSemesters(params?: Record<string, unknown>) {
+  return api.get('/academics/semesters', { params })
+}
+
+export function createSemester(payload: Record<string, unknown>) {
+  return api.post('/academics/semesters', payload)
+}
+
+export function fetchOrganizationTree(params?: Record<string, unknown>) {
+  return api.get('/academics/organization', { params })
+}
+
+export function fetchProgramSubjects(params?: Record<string, unknown>) {
+  return api.get('/academics/program-subjects', { params })
+}
+
+export function createProgramSubject(payload: Record<string, unknown>) {
+  return api.post('/academics/program-subjects', payload)
+}
+
+export function deleteProgramSubject(id: number) {
+  return api.delete(`/academics/program-subjects/${id}`)
 }
 
 export function fetchInstitutionModules(institutionId: number) {

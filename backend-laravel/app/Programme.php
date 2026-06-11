@@ -12,10 +12,13 @@ class Programme extends Model
     protected $fillable = [
         'institution_id',
         'department_id',
+        'academic_unit_id',
         'name',
         'code',
         'description',
         'duration_years',
+        'duration_value',
+        'duration_unit',
         'level',
         'semester_count',
         'tuition_fee',
@@ -37,6 +40,16 @@ class Programme extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function academicUnit()
+    {
+        return $this->belongsTo(AcademicUnit::class);
+    }
+
+    public function programSubjects()
+    {
+        return $this->hasMany(ProgramSubject::class);
     }
 
     public function semesters()

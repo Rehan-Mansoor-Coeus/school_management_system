@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Department;
+use App\AcademicUnit;
+use App\Institution;
+use App\ProgramSubject;
 use App\Programme;
 use App\ProgrammeLevel;
 use App\ProgrammeRequiredDocument;
@@ -81,6 +84,9 @@ class AcademicController extends Controller
             'level' => ['required', Rule::in(['certificate', 'diploma', 'degree', 'bachelor', 'master', 'phd', 'crash_course', 'other'])],
             'semester_count' => 'required|integer|min:1|max:20',
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')->where(fn ($query) => $query->where('institution_id', $institutionId))],
+            'academic_unit_id' => ['nullable', 'integer', Rule::exists('academic_units', 'id')->where(fn ($query) => $query->where('institution_id', $institutionId))],
+            'duration_value' => 'nullable|integer|min:1|max:20',
+            'duration_unit' => 'nullable|in:months,years',
             'tuition_fee' => 'nullable|numeric|min:0',
             'application_fee' => 'nullable|numeric|min:0',
             'is_active' => 'nullable|boolean',
@@ -102,10 +108,13 @@ class AcademicController extends Controller
         $programme = Programme::create([
             'institution_id' => $institutionId,
             'department_id' => $request->department_id,
+            'academic_unit_id' => $request->academic_unit_id,
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,
             'duration_years' => $request->duration_years,
+            'duration_value' => $request->input('duration_value', $request->duration_years),
+            'duration_unit' => $request->input('duration_unit', 'years'),
             'level' => $request->level,
             'semester_count' => $request->semester_count,
             'tuition_fee' => $request->input('tuition_fee', 0),
@@ -173,10 +182,13 @@ class AcademicController extends Controller
 
         $programme->update([
             'department_id' => $request->department_id,
+            'academic_unit_id' => $request->input('academic_unit_id', $programme->academic_unit_id),
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,
             'duration_years' => $request->duration_years,
+            'duration_value' => $request->input('duration_value', $programme->duration_value ?: $request->duration_years),
+            'duration_unit' => $request->input('duration_unit', $programme->duration_unit ?: 'years'),
             'level' => $request->level,
             'semester_count' => $request->semester_count,
             'tuition_fee' => $request->input('tuition_fee', $programme->tuition_fee),
@@ -261,6 +273,7 @@ class AcademicController extends Controller
                 Rule::unique('subjects')->where(fn ($query) => $query->where('institution_id', $institutionId)),
             ],
             'default_contact_hours' => 'required|integer|min:0',
+            'credit_hours' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -273,6 +286,7 @@ class AcademicController extends Controller
             'institution_id' => $institutionId,
             'name' => $request->name,
             'code' => $request->code,
+            'credit_hours' => $request->input('credit_hours'),
             'default_contact_hours' => $request->default_contact_hours,
             'description' => $request->description,
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : true,
@@ -296,6 +310,7 @@ class AcademicController extends Controller
                 Rule::unique('subjects')->ignore($subject->id)->where(fn ($query) => $query->where('institution_id', $subject->institution_id)),
             ],
             'default_contact_hours' => 'required|integer|min:0',
+            'credit_hours' => 'nullable|numeric|min:0',
             'description' => 'nullable|string|max:1000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -307,6 +322,7 @@ class AcademicController extends Controller
         $subject->update([
             'name' => $request->name,
             'code' => $request->code,
+            'credit_hours' => $request->input('credit_hours', $subject->credit_hours),
             'default_contact_hours' => $request->default_contact_hours,
             'description' => $request->description,
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $subject->is_active,
@@ -336,6 +352,9 @@ class AcademicController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'is_active' => 'nullable|boolean',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'academic_year' => 'nullable|string|max:20',
             'total_semester_fee' => 'nullable|numeric|min:0',
             'expected_payment_date' => 'nullable|date',
             'latest_payment_date' => 'nullable|date',
@@ -349,6 +368,9 @@ class AcademicController extends Controller
         $semester->update([
             'name' => $request->name,
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : $semester->is_active,
+            'start_date' => $request->input('start_date', $semester->start_date),
+            'end_date' => $request->input('end_date', $semester->end_date),
+            'academic_year' => $request->input('academic_year', $semester->academic_year),
             'total_semester_fee' => $request->input('total_semester_fee', $semester->total_semester_fee),
             'expected_payment_date' => $request->input('expected_payment_date', $semester->expected_payment_date),
             'latest_payment_date' => $request->input('latest_payment_date', $semester->latest_payment_date),
@@ -519,6 +541,175 @@ class AcademicController extends Controller
         }
     }
 
+
+    public function semesters(Request $request)
+    {
+        $institutionId = $this->ensureInstitutionId($request);
+
+        $query = ProgrammeSemester::query()
+            ->with(['programme.department', 'programme.academicUnit'])
+            ->whereHas('programme', fn ($q) => $q->where('institution_id', $institutionId));
+
+        if ($request->filled('programme_id')) {
+            $query->where('programme_id', $request->programme_id);
+        }
+
+        return response()->json($query->orderBy('programme_id')->orderBy('semester_number')->get());
+    }
+
+    public function storeSemester(Request $request)
+    {
+        $institutionId = $this->ensureInstitutionId($request);
+
+        $validator = Validator::make($request->all(), [
+            'programme_id' => ['required', 'integer', Rule::exists('programmes', 'id')->where(fn ($q) => $q->where('institution_id', $institutionId))],
+            'semester_number' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:20',
+                Rule::unique('programme_semesters')->where(fn ($q) => $q->where('programme_id', $request->programme_id)),
+            ],
+            'name' => 'required|string|max:255',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+            'academic_year' => 'nullable|string|max:20',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed.'], 422);
+        }
+
+        $semester = ProgrammeSemester::create([
+            'programme_id' => $request->programme_id,
+            'semester_number' => $request->semester_number,
+            'name' => $request->name,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'academic_year' => $request->academic_year,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json($semester->load('programme'), 201);
+    }
+
+    public function organizationTree(Request $request)
+    {
+        $institutionId = $this->ensureInstitutionId($request);
+
+        $institution = Institution::findOrFail($institutionId);
+
+        $units = AcademicUnit::with([
+            'departments.programmes.semesters',
+            'departments.programmes.programSubjects.subject',
+        ])->where('institution_id', $institutionId)->orderBy('name')->get();
+
+        $unassignedDepartments = Department::with([
+            'programmes.semesters',
+            'programmes.programSubjects.subject',
+        ])
+            ->where('institution_id', $institutionId)
+            ->whereNull('academic_unit_id')
+            ->orderBy('name')
+            ->get();
+
+        $subjects = Subject::where('institution_id', $institutionId)->orderBy('name')->get();
+
+        $programLinks = ProgramSubject::with(['programme.department', 'subject', 'semester'])
+            ->where('institution_id', $institutionId)
+            ->orderBy('programme_id')
+            ->get();
+
+        $departments = Department::with('academicUnit')
+            ->where('institution_id', $institutionId)
+            ->orderBy('name')
+            ->get();
+
+        $programmes = Programme::with(['department', 'academicUnit', 'semesters'])
+            ->where('institution_id', $institutionId)
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'institution' => ['id' => $institution->id, 'name' => $institution->name],
+            'academic_units' => $units,
+            'unassigned_departments' => $unassignedDepartments,
+            'departments' => $departments,
+            'programmes' => $programmes,
+            'subjects' => $subjects,
+            'program_links' => $programLinks,
+        ]);
+    }
+
+    public function programSubjects(Request $request)
+    {
+        $institutionId = $this->ensureInstitutionId($request);
+
+        $query = ProgramSubject::with(['programme', 'subject', 'semester'])
+            ->where('institution_id', $institutionId);
+
+        if ($request->filled('programme_id')) {
+            $query->where('programme_id', $request->programme_id);
+        }
+
+        return response()->json($query->orderBy('programme_id')->get());
+    }
+
+    public function storeProgramSubject(Request $request)
+    {
+        $institutionId = $this->ensureInstitutionId($request);
+
+        $validator = Validator::make($request->all(), [
+            'programme_id' => ['required', Rule::exists('programmes', 'id')->where(fn ($q) => $q->where('institution_id', $institutionId))],
+            'subject_id' => ['required', Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('institution_id', $institutionId))],
+            'programme_semester_id' => 'nullable|integer|exists:programme_semesters,id',
+            'credit_hours_override' => 'nullable|numeric|min:0',
+            'contact_hours_override' => 'nullable|integer|min:0',
+            'is_required' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $link = ProgramSubject::create([
+            'institution_id' => $institutionId,
+            'programme_id' => $request->programme_id,
+            'subject_id' => $request->subject_id,
+            'programme_semester_id' => $request->programme_semester_id,
+            'credit_hours_override' => $request->credit_hours_override,
+            'contact_hours_override' => $request->contact_hours_override,
+            'is_required' => $request->boolean('is_required', true),
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json($link->load(['programme', 'subject', 'semester']), 201);
+    }
+
+    public function updateProgramSubject(Request $request, ProgramSubject $programSubject)
+    {
+        if ($programSubject->institution_id !== $this->ensureInstitutionId($request)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        $programSubject->update($request->only([
+            'programme_semester_id', 'credit_hours_override', 'contact_hours_override', 'is_required', 'is_active',
+        ]));
+
+        return response()->json($programSubject->fresh(['programme', 'subject', 'semester']));
+    }
+
+    public function destroyProgramSubject(Request $request, ProgramSubject $programSubject)
+    {
+        if ($programSubject->institution_id !== $this->ensureInstitutionId($request)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        $programSubject->delete();
+
+        return response()->json(['message' => 'Link removed.']);
     protected function syncRequiredDocuments(Programme $programme, array $documents): void
     {
         if (! Schema::hasTable('programme_required_documents')) {

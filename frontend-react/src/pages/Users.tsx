@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { UserPlus, Users as UsersIcon } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import { useToast } from '../components/ui/ToastProvider'
+import { FormField, formInputClass } from '../components/ui/FormField'
+import FormSelect from '../components/ui/FormSelect'
 import { useAuth } from '../context/AuthContext'
+
 import {
   assignUserRoles,
   createUser,
@@ -27,6 +31,7 @@ interface Institution {
 interface User {
   id: number
   name: string
+  username?: string | null
   email: string
   institution_id?: number
   institution?: Institution | null
@@ -51,6 +56,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({
     institution_id: '' as number | '',
     name: '',
+    username: '',
     email: '',
     password: '',
     phone_number: '',
@@ -98,6 +104,7 @@ export default function UsersPage() {
     setForm({
       institution_id: institutionFilter || '',
       name: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', primary_role: '', roles: [],
+
     })
     setModalOpen(true)
   }
@@ -108,6 +115,7 @@ export default function UsersPage() {
     setForm({
       institution_id: user.institution_id || user.institution?.id || '',
       name: user.name,
+      username: user.username || '',
       email: user.email,
       password: '',
       phone_number: user.phone_number || '',
@@ -131,10 +139,10 @@ export default function UsersPage() {
     const roleIds = form.primary_role
       ? Array.from(new Set([Number(form.primary_role), ...form.roles.filter(id => id !== Number(form.primary_role))]))
       : form.roles
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: form.name,
+      username: form.username || undefined,
       email: form.email,
-      password: form.password,
       phone_number: form.phone_number,
       additional_phone_number: form.additional_phone_number,
       address: form.address,
@@ -142,6 +150,8 @@ export default function UsersPage() {
       roles: roleIds,
       ...(isPlatformSuperAdmin && form.institution_id ? { institution_id: Number(form.institution_id) } : {}),
     }
+    if (form.password) payload.password = form.password
+
     try {
       if (activeUser) {
         await updateUser(activeUser.id, payload)
@@ -185,6 +195,11 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+
+      <div className="flex justify-end">
+        <button onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#162d4a]">
+          <UserPlus className="h-4 w-4" />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         {isPlatformSuperAdmin && (
           <div className="min-w-[220px]">
@@ -204,6 +219,7 @@ export default function UsersPage() {
           </div>
         )}
         <button onClick={openCreateModal} className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700">
+
           New user
         </button>
       </div>
@@ -213,6 +229,7 @@ export default function UsersPage() {
           <thead className="bg-slate-50">
             <tr>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Name</th>
+              <th className="px-6 py-3 text-sm font-semibold text-slate-700">Username</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Email</th>
               {isPlatformSuperAdmin && (
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Institution</th>
@@ -225,13 +242,16 @@ export default function UsersPage() {
           <tbody className="divide-y divide-slate-200">
             {loading ? (
               <tr>
+
                 <td colSpan={isPlatformSuperAdmin ? 6 : 5} className="px-6 py-10 text-center text-slate-500">
                   Loading users...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
+
                 <td colSpan={isPlatformSuperAdmin ? 6 : 5} className="px-6 py-10 text-center text-slate-500">
+
                   No users found.
                 </td>
               </tr>
@@ -239,6 +259,7 @@ export default function UsersPage() {
               users.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{user.name}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{user.username || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                   {isPlatformSuperAdmin && (
                     <td className="px-6 py-4 text-sm text-slate-600">{user.institution?.name || '—'}</td>
@@ -275,134 +296,192 @@ export default function UsersPage() {
             <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
               Cancel
             </button>
-            <button type="submit" form="user-form" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="submit" form="user-form" className="rounded-xl bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]">
               Save
             </button>
           </div>
         }
       >
-        <form id="user-form" onSubmit={handleFormSubmit} className="space-y-4">
-          {isPlatformSuperAdmin && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Institution</label>
-              <select
-                value={form.institution_id}
-                onChange={(event) => setForm((prev) => ({ ...prev, institution_id: event.target.value ? Number(event.target.value) : '' }))}
+<form id="user-form" onSubmit={handleFormSubmit} className="space-y-6">
+
+  {/* Institution (only for super admin) */}
+  {isPlatformSuperAdmin && (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+      <label className="block text-sm font-medium text-slate-700">
+        Institution
+      </label>
+
+      <select
+        value={form.institution_id}
+        onChange={(event) =>
+          setForm((prev) => ({
+            ...prev,
+            institution_id: event.target.value
+              ? Number(event.target.value)
+              : "",
+          }))
+        }
+        required
+        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#1e3a5f]"
+      >
+        <option value="">Select institution</option>
+        {institutions.map((institution) => (
+          <option key={institution.id} value={institution.id}>
+            {institution.name}
+            {institution.code ? ` (${institution.code})` : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+  )}
+
+  {/* Account Details */}
+  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+    <div className="mb-4 flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f]/10 text-[#1e3a5f]">
+        <UsersIcon className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-900">
+          Account details
+        </p>
+        <p className="text-xs text-slate-500">
+          Username and password can differ from email.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid gap-4 md:grid-cols-2">
+      <FormField label="Name" required>
+        <input
+          value={form.name}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, name: e.target.value }))
+          }
+          type="text"
+          required
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField label="Username" hint="Used for login">
+        <input
+          value={form.username}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, username: e.target.value }))
+          }
+          type="text"
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField label="Email" required>
+        <input
+          value={form.email}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, email: e.target.value }))
+          }
+          type="email"
+          required
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField
+        label="Password"
+        required={!activeUser}
+        hint={
+          activeUser
+            ? "Leave blank to keep current password"
+            : undefined
+        }
+      >
+        <input
+          value={form.password}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, password: e.target.value }))
+          }
+          type="password"
+          className={formInputClass}
+          {...(!activeUser ? { required: true } : {})}
+        />
+      </FormField>
+
+      {/* Phone Number */}
+      <FormField label="Phone Number">
+        <input
+          value={form.phone_number}
+          onChange={(e) =>
+            setForm((prev) => ({
+              ...prev,
+              phone_number: e.target.value,
+            }))
+          }
+          type="text"
+          className={formInputClass}
+        />
+      </FormField>
+    </div>
+  </div>
+
+</form>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Phone number">
+              <input value={form.phone_number} onChange={(e) => setForm((prev) => ({ ...prev, phone_number: e.target.value }))} type="text" className={formInputClass} />
+            </FormField>
+            <FormField label="Additional phone">
+              <input value={form.additional_phone_number} onChange={(e) => setForm((prev) => ({ ...prev, additional_phone_number: e.target.value }))} type="text" className={formInputClass} />
+            </FormField>
+            <FormField label="Address" className="md:col-span-2">
+              <input value={form.address} onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))} type="text" className={formInputClass} />
+            </FormField>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Status">
+              <FormSelect
+                value={form.status}
+                onChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                placeholder="Select status"
+              />
+            </FormField>
+            <FormField label="Primary role" required>
+              <FormSelect
+                value={form.primary_role ? String(form.primary_role) : ''}
+                onChange={(value) => setForm((prev) => ({ ...prev, primary_role: value ? Number(value) : '' }))}
+                options={roleOptions.map((role) => ({ value: String(role.id), label: role.label }))}
+                placeholder="Select role"
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-              >
-                <option value="">Select institution</option>
-                {institutions.map((institution) => (
-                  <option key={institution.id} value={institution.id}>
-                    {institution.name}{institution.code ? ` (${institution.code})` : ''}
-                  </option>
-                ))}
-              </select>
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Additional roles">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {roleOptions.map((role) => (
+                <label key={role.id} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.roles.includes(role.id)}
+                    onChange={(event) => {
+                      const value = Number(role.id)
+                      setForm((prev) => ({
+                        ...prev,
+                        roles: event.target.checked ? [...prev.roles, value] : prev.roles.filter((item) => item !== value),
+                      }))
+                    }}
+                  />
+                  {role.label}
+                </label>
+              ))}
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Name</label>
-            <input
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              type="text"
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Email</label>
-            <input
-              value={form.email}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-              type="email"
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Password</label>
-            <input
-              value={form.password}
-              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-              type="password"
-              placeholder={activeUser ? 'Leave blank to keep current password' : ''}
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-              {...(!activeUser ? { required: true } : {})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Phone Number</label>
-            <input
-              value={form.phone_number}
-              onChange={(event) => setForm((prev) => ({ ...prev, phone_number: event.target.value }))}
-              type="text"
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Additional Phone Number</label>
-            <input
-              value={form.additional_phone_number}
-              onChange={(event) => setForm((prev) => ({ ...prev, additional_phone_number: event.target.value }))}
-              type="text"
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700">Address</label>
-            <input
-              value={form.address}
-              onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-              type="text"
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Status</label>
-            <select
-              value={form.status}
-              onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Primary Role</label>
-            <select
-              value={form.primary_role}
-              onChange={(event) => setForm((prev) => ({ ...prev, primary_role: event.target.value ? Number(event.target.value) : '' }))}
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            >
-              <option value="">Select role</option>
-              {roleOptions.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Additional Roles</label>
-            <select
-              value={form.roles.map(String)}
-              onChange={(event) => {
-                const selected = Array.from(event.target.selectedOptions, (option) => Number(option.value))
-                setForm((prev) => ({ ...prev, roles: selected }))
-              }}
-              multiple
-              className="mt-2 w-full min-h-[120px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            >
-              {roleOptions.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          </FormField>
         </form>
       </Modal>
 
@@ -415,7 +494,7 @@ export default function UsersPage() {
             <button type="button" onClick={() => setRoleModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
               Cancel
             </button>
-            <button type="button" onClick={handleAssignRoles} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            <button type="button" onClick={handleAssignRoles} className="rounded-xl bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]">
               Save Roles
             </button>
           </div>
