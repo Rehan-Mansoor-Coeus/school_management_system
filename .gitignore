@@ -40,6 +40,9 @@ bootstrap/cache/*
 backend-laravel/storage/logs/
 backend-laravel/bootstrap/cache/
 
+# Milestone backups (DB dumps, storage snapshots — not committed)
+backups/
+
 # Accidental CLI artifacts
 Admin,
 admin@test.com,
