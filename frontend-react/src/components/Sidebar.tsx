@@ -31,6 +31,7 @@ import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useLettersI18n } from '../hooks/useLettersI18n'
 import { useAuth } from '../context/AuthContext'
 import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS } from '../utils/accessControl'
+import { publicFileUrl } from '../utils/publicFileUrl'
 
 type SidebarItem = {
   label: string
@@ -177,7 +178,7 @@ export default function Sidebar() {
     <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
       <div className="mb-6 shrink-0">
         {institution?.logo_url ? (
-          <img src={institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
+          <img src={publicFileUrl(institution.logo_url) || institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
         ) : null}
         <div className="text-2xl font-bold tracking-tight text-[#eab308]">{institutionName}</div>
         {institutionSubtitle ? <div className="text-sm text-blue-100">{institutionSubtitle}</div> : null}

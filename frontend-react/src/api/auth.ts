@@ -26,12 +26,16 @@ export function completeStudentSignup(payload: {
   return api.post('/auth/signup/complete', payload)
 }
 
-export function requestPasswordResetOtp(login: string) {
-  return api.post('/auth/forgot-password/request-otp', { login })
+export function requestForgotUsername(phone_number: string) {
+  return api.post('/auth/forgot-username', { phone_number })
 }
 
-export function verifyPasswordResetOtp(login: string, otp: string) {
-  return api.post('/auth/forgot-password/verify-otp', { login, otp })
+export function requestPasswordResetOtp(phone_number: string) {
+  return api.post('/auth/forgot-password/request-otp', { phone_number })
+}
+
+export function verifyPasswordResetOtp(phone_number: string, otp: string) {
+  return api.post('/auth/forgot-password/verify-otp', { phone_number, otp })
 }
 
 export function resetPassword(payload: { reset_token: string; password: string; password_confirmation: string }) {

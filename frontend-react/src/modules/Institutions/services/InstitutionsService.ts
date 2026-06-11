@@ -18,11 +18,11 @@ export async function fetchInstitution(id: number) {
 }
 
 export async function createInstitution(payload: FormData) {
-  return api.post('/institutions', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
+  return api.post('/institutions', payload)
 }
 
 export async function updateInstitution(id: number, payload: FormData) {
-  return api.post(`/institutions/${id}?_method=PUT`, payload, { headers: { 'Content-Type': 'multipart/form-data' } })
+  return api.post(`/institutions/${id}?_method=PUT`, payload)
 }
 
 export async function deleteInstitution(id: number) {
@@ -48,6 +48,6 @@ export async function uploadInstitutionFile(id: number, kind: 'logo' | 'letterhe
     footer: `/institutions/${id}/upload-footer`,
   }
 
-  return api.post(endpointMap[kind], form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  return api.post(endpointMap[kind], form)
 }
 

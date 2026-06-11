@@ -85,7 +85,7 @@ export function useInstitutions() {
     }
   }, [])
 
-  const uploadFile = useCallback(async (id: number, type: 'logo' | 'letterhead' | 'signature' | 'stamp', file: File) => {
+  const uploadFile = useCallback(async (id: number, type: 'logo' | 'letterhead' | 'signature' | 'footer', file: File) => {
     setLoading(true)
     try {
       const res = await uploadInstitutionFile(id, type, file)

@@ -215,6 +215,12 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {searchParams.get('reset') === 'success' && (
+                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  Password updated successfully. Sign in with your new password.
+                </div>
+              )}
+
               {error && (
                 <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                   {error}
@@ -247,7 +253,7 @@ export default function LoginPage() {
 
               <div className="mt-4 text-sm">
                 <Link to="/forgot-password" className="font-medium text-[#1e3a5f] hover:underline">
-                  Forgot password?
+                  Forgot username or password?
                 </Link>
               </div>
 

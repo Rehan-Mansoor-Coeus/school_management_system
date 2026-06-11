@@ -74,9 +74,48 @@ class AuthOtpService
         return $payload;
     }
 
+    public function requestForgotUsername(string $phone): array
+    {
+        $user = $this->findUserByPhone($phone);
+        if (! $user) {
+            return ['success' => true, 'message' => 'If an account exists, your username was sent to WhatsApp.'];
+        }
+
+        $targetPhone = $this->resolveUserPhone($user);
+        if (! $targetPhone) {
+            return ['success' => false, 'message' => 'This account has no phone number on file.'];
+        }
+
+        $username = trim((string) ($user->username ?: $user->email ?: ''));
+        if ($username === '') {
+            return ['success' => false, 'message' => 'This account has no username on file. Contact your administrator.'];
+        }
+
+        $institutionName = optional($user->institution)->name ?: 'School Management System';
+        $message = "Username recovery for {$institutionName}:\n\nYour username is: {$username}\n\nIf you did not request this, ignore this message.";
+
+        $send = $this->whatsapp->sendTextMessage($targetPhone, $message);
+
+        $this->messageLogs->logWhatsAppResult((int) $user->institution_id, $send, [
+            'phone_number' => $targetPhone,
+            'message_type' => 'text',
+            'module' => 'auth',
+            'message' => 'Username recovery',
+        ]);
+
+        if (! ($send['success'] ?? false)) {
+            return [
+                'success' => false,
+                'message' => $send['error'] ?? 'Failed to send username via WhatsApp.',
+            ];
+        }
+
+        return ['success' => true, 'message' => 'If an account exists, your username was sent to WhatsApp.'];
+    }
+
     public function requestPasswordResetOtp(string $login): array
     {
-        $user = $this->findUserByLogin($login);
+        $user = $this->findUserByLogin($login) ?: $this->findUserByPhone($login);
         if (! $user) {
             return ['success' => true, 'message' => 'If an account exists, an OTP was sent to the registered WhatsApp number.'];
         }
@@ -103,7 +142,7 @@ class AuthOtpService
 
     public function verifyPasswordResetOtp(string $login, string $otp): array
     {
-        $user = $this->findUserByLogin($login);
+        $user = $this->findUserByLogin($login) ?: $this->findUserByPhone($login);
         if (! $user) {
             return ['success' => false, 'message' => 'Invalid OTP.'];
         }
@@ -243,6 +282,29 @@ class AuthOtpService
         $log->save();
 
         return ['success' => true, 'message' => 'OTP verified.'];
+    }
+
+    public function findUserByPhone(string $phone): ?User
+    {
+        $phone = trim($phone);
+        if ($phone === '') {
+            return null;
+        }
+
+        $normalized = $this->whatsapp->normalizePhoneNumber($phone);
+        $query = User::query();
+        if ($normalized) {
+            $query->where(function ($q) use ($phone, $normalized) {
+                $q->where('phone_number', $normalized)
+                    ->orWhere('phone_number', $phone)
+                    ->orWhere('additional_phone_number', $normalized)
+                    ->orWhere('additional_phone_number', $phone);
+            });
+        } else {
+            $query->where('phone_number', $phone)->orWhere('additional_phone_number', $phone);
+        }
+
+        return $query->first();
     }
 
     public function findUserByLogin(string $login): ?User

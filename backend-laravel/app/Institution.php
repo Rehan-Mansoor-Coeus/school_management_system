@@ -4,7 +4,6 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 class Institution extends Model
 {
@@ -105,7 +104,7 @@ class Institution extends Model
 
     public function getFooterUrlAttribute()
     {
-        $path = $this->footer ?: $this->official_stamp;
+        $path = $this->footer ?: $this->official_stamp ?: $this->attributes['footer_path'] ?? null;
 
         return $this->publicFileUrl($path);
     }
@@ -125,6 +124,6 @@ class Institution extends Model
             return $path;
         }
 
-        return url(Storage::disk('public')->url($path));
+        return \App\Support\StorageUrl::public($path);
     }
 }

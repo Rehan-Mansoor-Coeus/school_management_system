@@ -10,6 +10,7 @@ Route::prefix('auth')->group(function () {
     Route::post('signup/request-otp', 'Api\AuthController@requestSignupOtp');
     Route::post('signup/verify-otp', 'Api\AuthController@verifySignupOtp');
     Route::post('signup/complete', 'Api\AuthController@studentSignup');
+    Route::post('forgot-username', 'Api\AuthController@requestForgotUsername');
     Route::post('forgot-password/request-otp', 'Api\AuthController@requestPasswordResetOtp');
     Route::post('forgot-password/verify-otp', 'Api\AuthController@verifyPasswordResetOtp');
     Route::post('forgot-password/reset', 'Api\AuthController@resetPassword');

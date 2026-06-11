@@ -5,6 +5,7 @@ import HasPermission from '../../../components/HasPermission'
 import { useAuth } from '../../../context/AuthContext'
 import type { Institution, InstitutionType } from '../types'
 import { institutionFileUrl } from '../utils'
+import { uploadInstitutionFile } from '../services/InstitutionsService'
 import { useTranslation } from 'react-i18next'
 import FormSelect from '../../../components/ui/FormSelect'
 import SearchableSelect from '../../../components/ui/SearchableSelect'
@@ -113,6 +114,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   const { hasPermission } = useAuth()
   const { t } = useTranslation()
   const { loading, fetchInstitution, createInstitution, updateInstitution } = useInstitutions()
+  const [uploadingBrand, setUploadingBrand] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -361,11 +363,19 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     try {
       const payload = buildPayload()
       if (effectiveInstitutionId) {
-        await updateInstitution(effectiveInstitutionId, payload)
+        const data = await updateInstitution(effectiveInstitutionId, payload)
+        if (data?.institution) {
+          setBranding((current) => ({ ...current, current: data.institution, logo: null, letterhead: null, footer: null }))
+        }
       } else {
         const data = await createInstitution(payload)
         const newId = data?.institution?.id ?? data?.id
-        if (newId) setSavedInstitutionId(newId)
+        if (newId) {
+          setSavedInstitutionId(newId)
+          if (data?.institution) {
+            setBranding((current) => ({ ...current, current: data.institution, logo: null, letterhead: null, footer: null }))
+          }
+        }
       }
       ignoreNextDirty.current = true
       setDirty(false)
@@ -389,6 +399,32 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     if (!ok) return
     pushToast(mode === 'create' || savedInstitutionId ? t('institutions.form.created', { defaultValue: 'Institution saved.' }) : t('institutions.form.updated'), 'success')
     onSaved()
+  }
+
+  const handleBrandFileChange = async (key: 'logo' | 'letterhead' | 'footer', file: File | null) => {
+    setBranding((c) => ({ ...c, [key]: file } as typeof branding))
+    if (!file || !effectiveInstitutionId) return
+
+    setUploadingBrand(key)
+    try {
+      const res = await uploadInstitutionFile(effectiveInstitutionId, key, file)
+      const url = res.data?.url as string | undefined
+      const path = res.data?.path as string | undefined
+      setBranding((c) => ({
+        ...c,
+        [key]: null,
+        current: {
+          ...c.current,
+          [key]: path || c.current[key],
+          [`${key}_url`]: url || c.current[`${key}_url` as keyof Institution],
+        },
+      }))
+      pushToast(`${key} uploaded.`, 'success')
+    } catch (error: any) {
+      pushToast(error?.response?.data?.message || `Unable to upload ${key}.`, 'error')
+    } finally {
+      setUploadingBrand(null)
+    }
   }
 
   const currentStepName = steps[step] || steps[0]
@@ -639,12 +675,16 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                     <input
                       type="file"
                       accept={item.accept}
+                      disabled={uploadingBrand === item.key}
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null
-                        setBranding((c) => ({ ...c, [item.key]: file } as any))
+                        void handleBrandFileChange(item.key, file)
                       }}
                       className="block w-full text-sm"
                     />
+                    {uploadingBrand === item.key && (
+                      <p className="mt-2 text-xs text-slate-500">Uploading…</p>
+                    )}
                   </div>
                 ))}
               </div>
