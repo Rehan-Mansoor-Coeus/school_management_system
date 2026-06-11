@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Application } from '../types';
 import {
   acceptAdmission,
+  cancelApplication,
   fetchMyApplications,
 } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
@@ -21,6 +22,7 @@ function StatusBadge({ status, t }: { status: string; t: (k: string) => string }
     tuition_paid: 'bg-orange-100 text-orange-800',
     enrolled: 'bg-green-100 text-green-800',
     rejected: 'bg-red-100 text-red-800',
+    cancelled: 'bg-slate-100 text-slate-600',
   };
   const key = statusLabelKey(status);
   return (
@@ -60,6 +62,17 @@ export default function MyApplicationsPage() {
     setActionId(appId);
     try {
       await acceptAdmission(appId);
+      await load();
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleCancel = async (appId: number) => {
+    if (!window.confirm(t('cancelApplicationConfirm'))) return;
+    setActionId(appId);
+    try {
+      await cancelApplication(appId);
       await load();
     } finally {
       setActionId(null);
@@ -133,6 +146,7 @@ export default function MyApplicationsPage() {
               onPayApplicationFee={(application) => openPayment(application, 'application_fee')}
               onPayTuition={(application) => openPayment(application, 'tuition')}
               onAcceptAdmission={handleAccept}
+              onCancelApplication={handleCancel}
             />
           </div>
         </div>

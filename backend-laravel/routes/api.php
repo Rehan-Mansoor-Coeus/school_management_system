@@ -4,18 +4,36 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
+    Route::get('institutions', 'Api\AuthController@publicInstitutions');
     Route::post('register', 'Api\AuthController@register');
     Route::post('login', 'Api\AuthController@login');
+    Route::post('forgot-password/request-otp', 'Api\AuthController@requestPasswordResetOtp');
+    Route::post('forgot-password/verify-otp', 'Api\AuthController@verifyPasswordResetOtp');
+    Route::post('forgot-password/reset', 'Api\AuthController@resetPassword');
 
     Route::middleware('auth:api')->group(function () {
         Route::post('logout', 'Api\AuthController@logout');
         Route::get('user', 'Api\AuthController@me');
+        Route::post('change-password', 'Api\AuthController@changePassword');
     });
+});
+
+Route::prefix('public')->group(function () {
+    Route::get('settings', 'Api\\Landing\\LandingController@settings');
+    Route::get('institutions', 'Api\\Landing\\LandingController@institutions');
+    Route::get('institutions/{id}', 'Api\\Landing\\LandingController@institution');
+    Route::post('institution-requests', 'Api\\Landing\\LandingController@storeInstitutionRequest');
+    Route::post('support-tickets', 'Api\\Landing\\LandingController@storeSupportTicket');
 });
 
 Route::middleware('auth:api')->get('me', 'Api\AuthController@me');
 
 Route::middleware('auth:api')->group(function () {
+    Route::get('general-settings', 'Api\\GeneralSettingsController@show');
+    Route::put('general-settings', 'Api\\GeneralSettingsController@update');
+    Route::get('institution-requests', 'Api\\InstitutionRegistrationRequestController@index');
+    Route::post('institution-requests/{id}/approve', 'Api\\InstitutionRegistrationRequestController@approve');
+    Route::post('institution-requests/{id}/reject', 'Api\\InstitutionRegistrationRequestController@reject');
     Route::get('app-notifications', 'Api\AppNotificationController@index');
     Route::post('app-notifications/{notificationId}/read', 'Api\AppNotificationController@markRead');
     Route::post('app-notifications/read-all', 'Api\AppNotificationController@markAllRead');
@@ -140,12 +158,25 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions', 'Api\InstitutionController@index');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('institutions', 'Api\InstitutionController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
-    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('institutions/{id}', 'Api\InstitutionController@update');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->match(['put', 'post'], 'institutions/{id}', 'Api\InstitutionController@update');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('institutions/{id}', 'Api\InstitutionController@destroy');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('departments', 'Api\DepartmentController@index');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('departments', 'Api\DepartmentController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('departments/{department}', 'Api\DepartmentController@update');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('departments/{department}', 'Api\DepartmentController@destroy');
+
+    Route::middleware(['module_enabled:academics', 'permission:academics.semesters.view'])->get('academics/semesters', 'Api\AcademicController@semesters');
+    Route::middleware(['module_enabled:academics', 'permission:academics.semesters.create'])->post('academics/semesters', 'Api\AcademicController@storeSemester');
+    Route::middleware(['module_enabled:academics', 'permission:academics.organization.manage'])->get('academics/organization', 'Api\AcademicController@organizationTree');
+    Route::middleware(['module_enabled:academics', 'permission:academics.subjects.view'])->get('academics/program-subjects', 'Api\AcademicController@programSubjects');
+    Route::middleware(['module_enabled:academics', 'permission:academics.subjects.create'])->post('academics/program-subjects', 'Api\AcademicController@storeProgramSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.subjects.edit'])->put('academics/program-subjects/{programSubject}', 'Api\AcademicController@updateProgramSubject');
+    Route::middleware(['module_enabled:academics', 'permission:academics.subjects.delete'])->delete('academics/program-subjects/{programSubject}', 'Api\AcademicController@destroyProgramSubject');
+
+    Route::middleware(['module_enabled:academics', 'permission:academics.units.view'])->get('academics/units', 'Api\AcademicUnitController@index');
+    Route::middleware(['module_enabled:academics', 'permission:academics.units.create'])->post('academics/units', 'Api\AcademicUnitController@store');
+    Route::middleware(['module_enabled:academics', 'permission:academics.units.edit'])->put('academics/units/{academicUnit}', 'Api\AcademicUnitController@update');
+    Route::middleware(['module_enabled:academics', 'permission:academics.units.delete'])->delete('academics/units/{academicUnit}', 'Api\AcademicUnitController@destroy');
 
     Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academics/programs', 'Api\AcademicController@programs');
     Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academics/programs/{programme}', 'Api\AcademicController@showProgram');
@@ -265,4 +296,64 @@ Route::middleware('auth:api')->group(function () {
     require base_path('app/Modules/Canteen/Routes/api.php');
     require base_path('app/Modules/CharacterCertificates/Routes/api.php');
     require base_path('app/Modules/Hostel/Routes/api.php');
+
+    Route::prefix('library')->group(function () {
+        // Dashboard
+        Route::get('dashboard', 'Api\Library\LibraryDashboardController@index');
+
+        // Settings
+        Route::get('settings', 'Api\Library\LibrarySettingsController@show');
+        Route::put('settings', 'Api\Library\LibrarySettingsController@update');
+
+        // Categories
+        Route::get('categories', 'Api\Library\LibraryCategoryController@index');
+        Route::post('categories', 'Api\Library\LibraryCategoryController@store');
+        Route::put('categories/{id}', 'Api\Library\LibraryCategoryController@update');
+        Route::delete('categories/{id}', 'Api\Library\LibraryCategoryController@destroy');
+
+        // Books + search + availability + frequently signed
+        Route::get('books', 'Api\Library\LibraryBookController@index');
+        Route::get('books/search', 'Api\Library\LibraryBookController@search');
+        Route::get('books/frequently-signed', 'Api\Library\LibraryBookController@frequentlySigned');
+        Route::post('books', 'Api\Library\LibraryBookController@store');
+        Route::get('books/{id}', 'Api\Library\LibraryBookController@show');
+        Route::put('books/{id}', 'Api\Library\LibraryBookController@update');
+        Route::post('books/{id}', 'Api\Library\LibraryBookController@update');
+        Route::delete('books/{id}', 'Api\Library\LibraryBookController@destroy');
+
+        // Reviews / ratings
+        Route::get('books/{id}/reviews', 'Api\Library\LibraryReviewController@index');
+        Route::post('books/{id}/reviews', 'Api\Library\LibraryReviewController@store');
+
+        // Book copies
+        Route::get('copies', 'Api\Library\LibraryBookCopyController@index');
+        Route::get('copies/suggest-accession', 'Api\Library\LibraryBookCopyController@suggestAccession');
+        Route::post('copies/bulk', 'Api\Library\LibraryBookCopyController@bulkStore');
+        Route::post('copies', 'Api\Library\LibraryBookCopyController@store');
+        Route::put('copies/{id}', 'Api\Library\LibraryBookCopyController@update');
+        Route::delete('copies/{id}', 'Api\Library\LibraryBookCopyController@destroy');
+
+        // Borrow lifecycle
+        Route::get('borrow-requests', 'Api\Library\LibraryBorrowController@index');
+        Route::post('borrow-requests', 'Api\Library\LibraryBorrowController@store');
+        Route::get('borrow-requests/borrowed', 'Api\Library\LibraryBorrowController@borrowed');
+        Route::get('borrow-requests/due-for-return', 'Api\Library\LibraryBorrowController@dueForReturn');
+        Route::get('borrow-requests/overdue', 'Api\Library\LibraryBorrowController@overdue');
+        Route::get('borrow-requests/history', 'Api\Library\LibraryBorrowController@history');
+        Route::get('borrow-requests/scan/{token}', 'Api\Library\LibraryBorrowController@scan');
+        Route::post('borrow-requests/bulk-reminder', 'Api\Library\LibraryBorrowController@bulkReminder');
+        Route::get('borrow-requests/{id}', 'Api\Library\LibraryBorrowController@show');
+        Route::post('borrow-requests/{id}/approve', 'Api\Library\LibraryBorrowController@approve');
+        Route::post('borrow-requests/{id}/reject', 'Api\Library\LibraryBorrowController@reject');
+        Route::post('borrow-requests/{id}/issue', 'Api\Library\LibraryBorrowController@issue');
+        Route::post('borrow-requests/{id}/return', 'Api\Library\LibraryBorrowController@returnBook');
+        Route::post('borrow-requests/{id}/lost-damaged', 'Api\Library\LibraryBorrowController@markLostOrDamaged');
+        Route::post('borrow-requests/{id}/cancel', 'Api\Library\LibraryBorrowController@cancel');
+        Route::post('borrow-requests/{id}/reminder', 'Api\Library\LibraryBorrowController@sendReminder');
+
+        // Fines
+        Route::get('fines', 'Api\Library\LibraryFineController@index');
+        Route::post('fines/{id}/pay', 'Api\Library\LibraryFineController@markPaid');
+        Route::post('fines/{id}/waive', 'Api\Library\LibraryFineController@waive');
+    });
 });

@@ -6,6 +6,9 @@ import { useAuth } from '../../../context/AuthContext'
 import type { Institution, InstitutionType } from '../types'
 import { institutionFileUrl } from '../utils'
 import { useTranslation } from 'react-i18next'
+import FormSelect from '../../../components/ui/FormSelect'
+import UploadProgressBar from '../../../components/ui/UploadProgressBar'
+import { countryOptions, getSubdivisionConfig, getCityOptions, defaultCityForCountry, DEFAULT_COUNTRY } from '../../../config/locationData'
 import { useInstitutions } from '../hooks/useInstitutions'
 
 type Props = {
@@ -111,6 +114,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [savedInstitutionId, setSavedInstitutionId] = useState<number | null>(null)
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
 
@@ -122,8 +126,8 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     phone: '',
     website: '',
     address: '',
-    city: '',
-    country: '',
+    city: defaultCityForCountry(DEFAULT_COUNTRY),
+    country: DEFAULT_COUNTRY,
     language: 'en' as 'en' | 'fr',
     currency: '',
     timezone: '',
@@ -165,7 +169,6 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     const baseSteps = [
       t('institutions.form.steps.basic'),
       t('institutions.form.steps.branding'),
-      t('institutions.form.steps.academic'),
       t('institutions.form.steps.fees'),
       t('institutions.form.steps.grading'),
       t('institutions.form.steps.calendar'),
@@ -207,6 +210,8 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     }
     setDirty(true)
   }, [basic, branding, faculties, fees, grades, calendar, payment])
+
+  const effectiveInstitutionId = institutionId ?? savedInstitutionId
 
   useEffect(() => {
     if (mode !== 'edit' || !institutionId) return
@@ -283,11 +288,15 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
   const buildPayload = () => {
     const form = new FormData()
-    Object.entries(basic).forEach(([key, value]) => {
-      form.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : (value as any))
+    const basicPayload = { ...basic }
+    if (basicPayload.website?.trim() && !/^https?:\/\//i.test(basicPayload.website)) {
+      basicPayload.website = `https://${basicPayload.website.trim()}`
+    }
+    Object.entries(basicPayload).forEach(([key, value]) => {
+      form.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value ?? ''))
     })
 
-    const academic_structure = { faculties }
+    const academic_structure = { note: 'Managed via Academics module pages' }
     const fee_structure = { fees, currency: basic.currency || null }
     const grading_system = { grades }
     const academic_calendar = { semesters: calendar }
@@ -340,40 +349,66 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
     if (branding.logo) form.append('logo', branding.logo)
     if (branding.letterhead) form.append('letterhead', branding.letterhead)
-    if (branding.registrar_signature) form.append('registrar_signature', branding.registrar_signature)
+    if (mode === 'edit' && branding.registrar_signature) form.append('registrar_signature', branding.registrar_signature)
     if (branding.official_stamp) form.append('official_stamp', branding.official_stamp)
 
     return form
   }
 
-  const save = async () => {
-    if (!validateClient()) return
+  const saveProgress = async (options?: { silent?: boolean }) => {
+    if (step === 0 && !validateClient()) return false
     setSaving(true)
     setErrors({})
     try {
       const payload = buildPayload()
-      if (mode === 'create') {
-        await createInstitution(payload)
-        pushToast(t('institutions.form.created'), 'success')
-      } else if (institutionId) {
-        await updateInstitution(institutionId, payload)
-        pushToast(t('institutions.form.updated'), 'success')
+      if (effectiveInstitutionId) {
+        await updateInstitution(effectiveInstitutionId, payload)
+      } else {
+        const data = await createInstitution(payload)
+        const newId = data?.institution?.id ?? data?.id
+        if (newId) setSavedInstitutionId(newId)
       }
+      ignoreNextDirty.current = true
       setDirty(false)
-      onSaved()
+      if (!options?.silent) {
+        pushToast(t('institutions.form.saved', { defaultValue: 'Progress saved.' }), 'success')
+      }
+      return true
     } catch (error: any) {
       if (error?.response?.status === 422) {
         setErrors(error.response.data?.errors || {})
       }
       pushToast(error?.response?.data?.message || t('institutions.form.saveError'), 'error')
+      return false
     } finally {
       setSaving(false)
     }
   }
 
-  const currentStepName = steps[step] || steps[0]
+  const save = async () => {
+    const ok = await saveProgress({ silent: true })
+    if (!ok) return
+    pushToast(mode === 'create' || savedInstitutionId ? t('institutions.form.created', { defaultValue: 'Institution saved.' }) : t('institutions.form.updated'), 'success')
+    onSaved()
+  }
 
-  const next = () => setStep((s) => Math.min(steps.length - 1, s + 1))
+  const currentStepName = steps[step] || steps[0]
+  const progressPercent = Math.round(((step + 1) / steps.length) * 100)
+
+  const goToStep = async (idx: number) => {
+    if (idx === step) return
+    if (idx > step) {
+      const ok = await saveProgress()
+      if (!ok) return
+    }
+    setStep(idx)
+  }
+
+  const next = async () => {
+    const ok = await saveProgress()
+    if (!ok) return
+    setStep((s) => Math.min(steps.length - 1, s + 1))
+  }
   const back = () => setStep((s) => Math.max(0, s - 1))
 
   const fieldError = (key: string) => (errors[key] || []).join(' ')
@@ -387,16 +422,27 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
         </div>
       ) : (
         <div className="space-y-6">
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-600">
+              <span>
+                Step {step + 1} of {steps.length}: {currentStepName}
+              </span>
+              <span>{progressPercent}%</span>
+            </div>
+            <UploadProgressBar progress={progressPercent} />
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {steps.map((label, idx) => (
               <button
                 key={label}
                 type="button"
-                onClick={() => setStep(idx)}
+                onClick={() => goToStep(idx)}
                 className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                  idx === step ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  idx === step ? 'bg-slate-900 text-white' : idx < step ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
+                {idx < step ? '✓ ' : ''}
                 {label}
               </button>
             ))}
@@ -427,28 +473,29 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Type</label>
-                  <select
-                    value={basic.type}
-                    onChange={(e) => setBasic((c) => ({ ...c, type: e.target.value as InstitutionType }))}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  >
-                    {institutionTypeKeys.map((value) => (
-                      <option key={value} value={value}>
-                        {t(`institutions.types.${value}`)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="mt-2">
+                    <FormSelect
+                      value={basic.type}
+                      onChange={(value) => setBasic((c) => ({ ...c, type: value as InstitutionType }))}
+                      options={institutionTypeKeys.map((value) => ({
+                        value,
+                        label: t(`institutions.types.${value}`),
+                      }))}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Language</label>
-                  <select
-                    value={basic.language}
-                    onChange={(e) => setBasic((c) => ({ ...c, language: e.target.value as any }))}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  >
-                    <option value="en">English</option>
-                    <option value="fr">French</option>
-                  </select>
+                  <div className="mt-2">
+                    <FormSelect
+                      value={basic.language}
+                      onChange={(value) => setBasic((c) => ({ ...c, language: value as 'en' | 'fr' }))}
+                      options={[
+                        { value: 'en', label: 'English' },
+                        { value: 'fr', label: 'French' },
+                      ]}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Email</label>
@@ -492,20 +539,37 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">City</label>
-                  <input
-                    value={basic.city}
-                    onChange={(e) => setBasic((c) => ({ ...c, city: e.target.value }))}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  />
+                  <label className="block text-sm font-medium text-slate-700">Country</label>
+                  <div className="mt-2">
+                    <FormSelect
+                      value={basic.country}
+                      onChange={(value) => {
+                        const city = defaultCityForCountry(value)
+                        setBasic((c) => ({ ...c, country: value, city: city || c.city }))
+                      }}
+                      options={countryOptions.map((c) => ({ value: c.name, label: c.name }))}
+                      placeholder="Select country"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Country</label>
-                  <input
-                    value={basic.country}
-                    onChange={(e) => setBasic((c) => ({ ...c, country: e.target.value }))}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  />
+                  <label className="block text-sm font-medium text-slate-700">City</label>
+                  <div className="mt-2">
+                    {getCityOptions(basic.country).length > 0 ? (
+                      <FormSelect
+                        value={basic.city}
+                        onChange={(value) => setBasic((c) => ({ ...c, city: value }))}
+                        options={getCityOptions(basic.country).map((city) => ({ value: city, label: city }))}
+                        placeholder="Select city"
+                      />
+                    ) : (
+                      <input
+                        value={basic.city}
+                        onChange={(e) => setBasic((c) => ({ ...c, city: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
+                      />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Currency</label>
@@ -544,7 +608,9 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                   [
                     { key: 'logo', label: 'Logo', accept: 'image/*', current: branding.current.logo },
                     { key: 'letterhead', label: 'Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
-                    { key: 'registrar_signature', label: 'Registrar signature', accept: 'image/*', current: branding.current.registrar_signature },
+                    ...(mode === 'edit'
+                      ? [{ key: 'registrar_signature' as const, label: 'Registrar signature', accept: 'image/*', current: branding.current.registrar_signature }]
+                      : []),
                     { key: 'official_stamp', label: 'Official stamp', accept: 'image/*', current: branding.current.official_stamp },
                   ] as const
                 ).map((item) => (
@@ -581,165 +647,6 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
             )}
 
             {step === 2 && (
-              <div className="space-y-4">
-                {faculties.map((faculty, fIdx) => (
-                  <div key={fIdx} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <input
-                        value={faculty.name}
-                        onChange={(e) =>
-                          setFaculties((current) => current.map((f, idx) => (idx === fIdx ? { ...f, name: e.target.value } : f)))
-                        }
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-900"
-                        placeholder="Faculty / School name"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setFaculties((current) => current.filter((_, idx) => idx !== fIdx))}
-                        className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
-                      >
-                        Remove
-                      </button>
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      {faculty.departments.map((dept, dIdx) => (
-                        <div key={dIdx} className="rounded-3xl border border-slate-200 bg-white p-4">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <input
-                              value={dept.name}
-                              onChange={(e) =>
-                                setFaculties((current) =>
-                                  current.map((f, idx) =>
-                                    idx === fIdx
-                                      ? {
-                                          ...f,
-                                          departments: f.departments.map((d, j) => (j === dIdx ? { ...d, name: e.target.value } : d)),
-                                        }
-                                      : f
-                                  )
-                                )
-                              }
-                              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                              placeholder="Department name"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setFaculties((current) =>
-                                  current.map((f, idx) =>
-                                    idx === fIdx ? { ...f, departments: f.departments.filter((_, j) => j !== dIdx) } : f
-                                  )
-                                )
-                              }
-                              className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-200"
-                            >
-                              Remove
-                            </button>
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            {dept.programmes.map((prog, pIdx) => (
-                              <div key={pIdx} className="flex gap-2">
-                                <input
-                                  value={prog.name}
-                                  onChange={(e) =>
-                                    setFaculties((current) =>
-                                      current.map((f, idx) =>
-                                        idx === fIdx
-                                          ? {
-                                              ...f,
-                                              departments: f.departments.map((d, j) =>
-                                                j === dIdx
-                                                  ? {
-                                                      ...d,
-                                                      programmes: d.programmes.map((p, k) => (k === pIdx ? { ...p, name: e.target.value } : p)),
-                                                    }
-                                                  : d
-                                              ),
-                                            }
-                                          : f
-                                      )
-                                    )
-                                  }
-                                  className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2 outline-none focus:border-slate-900"
-                                  placeholder="Programme name"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setFaculties((current) =>
-                                      current.map((f, idx) =>
-                                        idx === fIdx
-                                          ? {
-                                              ...f,
-                                              departments: f.departments.map((d, j) =>
-                                                j === dIdx ? { ...d, programmes: d.programmes.filter((_, k) => k !== pIdx) } : d
-                                              ),
-                                            }
-                                          : f
-                                      )
-                                    )
-                                  }
-                                  className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))}
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setFaculties((current) =>
-                                  current.map((f, idx) =>
-                                    idx === fIdx
-                                      ? {
-                                          ...f,
-                                          departments: f.departments.map((d, j) =>
-                                            j === dIdx ? { ...d, programmes: [...d.programmes, { name: '' }] } : d
-                                          ),
-                                        }
-                                      : f
-                                  )
-                                )
-                              }
-                              className="rounded-xl bg-blue-100 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200"
-                            >
-                              + Add Programme
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFaculties((current) =>
-                            current.map((f, idx) =>
-                              idx === fIdx ? { ...f, departments: [...f.departments, { name: '', programmes: [{ name: '' }] }] } : f
-                            )
-                          )
-                        }
-                        className="rounded-xl bg-blue-100 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200"
-                      >
-                        + Add Department
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => setFaculties((current) => [...current, { name: '', departments: [{ name: '', programmes: [{ name: '' }] }] }])}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                >
-                  + Add Faculty/School
-                </button>
-              </div>
-            )}
-
-            {step === 3 && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-500">
                   Set standard institution fees. Tuition per semester or year will be configured separately later.
@@ -781,7 +688,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
               </div>
             )}
 
-            {step === 4 && (
+            {step === 3 && (
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -895,7 +802,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
               </div>
             )}
 
-            {step === 5 && (
+            {step === 4 && (
               <div className="space-y-4">
                 {calendar.map((sem, idx) => (
                   <div key={idx} className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-5">
@@ -947,7 +854,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
               </div>
             )}
 
-            {canShowPayment && step === 6 && (
+            {canShowPayment && step === 5 && (
               <HasPermission permission="institutions.settings" fallback={<div className="text-sm text-slate-500">{t('institutions.form.paymentNoAccess')}</div>}>
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1103,8 +1010,13 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
             </button>
             <div className="flex gap-2">
               {step < steps.length - 1 ? (
-                <button type="button" onClick={next} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-                  {t('common.next')}
+                <button
+                  type="button"
+                  onClick={next}
+                  disabled={saving}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${saving ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'}`}
+                >
+                  {saving ? t('common.saving') : t('common.next')}
                 </button>
               ) : (
                 <button

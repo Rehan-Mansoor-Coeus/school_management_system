@@ -12,10 +12,13 @@ class Programme extends Model
     protected $fillable = [
         'institution_id',
         'department_id',
+        'academic_unit_id',
         'name',
         'code',
         'description',
         'duration_years',
+        'duration_value',
+        'duration_unit',
         'level',
         'semester_count',
         'tuition_fee',
@@ -39,6 +42,16 @@ class Programme extends Model
         return $this->belongsTo(Department::class);
     }
 
+    public function academicUnit()
+    {
+        return $this->belongsTo(AcademicUnit::class);
+    }
+
+    public function programSubjects()
+    {
+        return $this->hasMany(ProgramSubject::class);
+    }
+
     public function semesters()
     {
         return $this->hasMany(ProgrammeSemester::class)->orderBy('semester_number');
@@ -47,5 +60,15 @@ class Programme extends Model
     public function levels()
     {
         return $this->hasMany(ProgrammeLevel::class)->orderBy('sort_order');
+    }
+
+    public function requiredDocuments()
+    {
+        return $this->hasMany(ProgrammeRequiredDocument::class)->orderBy('sort_order');
+    }
+
+    public function admissionAgreement()
+    {
+        return $this->hasOne(AdmissionAgreement::class, 'programme_id');
     }
 }

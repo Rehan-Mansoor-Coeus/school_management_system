@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchFeeReports, fetchFees } from '../../../api/fees';
 import { useFormatMoney } from '../../../hooks/useFormatMoney';
+import DashboardStatCard from '../../../components/ui/DashboardStatCard';
 
 const STATUS_LABELS: Record<string, string> = {
   paid: 'Paid',
@@ -44,12 +45,18 @@ export default function FeesDashboardPage() {
 
       {reports?.summary && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
-          {Object.entries(reports.summary).map(([key, value]) => (
-            <div key={key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-slate-500">{key.replace(/_/g, ' ')}</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900">{String(value)}</p>
-            </div>
-          ))}
+          {Object.entries(reports.summary).map(([key, value]) => {
+            const filterable = ['paid', 'pending', 'partial', 'due', 'overdue'].includes(key);
+            return (
+              <DashboardStatCard
+                key={key}
+                label={key.replace(/_/g, ' ')}
+                value={String(value)}
+                onClick={filterable ? () => setStatusFilter(key) : undefined}
+                hint={filterable ? 'Filter table below' : undefined}
+              />
+            );
+          })}
         </div>
       )}
 

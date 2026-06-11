@@ -1,19 +1,23 @@
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom'
+import { Users, GraduationCap, Briefcase, UserCog, User } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import ColoredModuleTabsNav from '../ui/ColoredModuleTabsNav'
 import UsersPage from '../../pages/Users'
 
 const linkDefs = [
-  { path: '/users', label: 'All Users', end: true, permissions: ['view_users', 'manage_users'] },
-  { path: '/users/customers', label: 'Customers', permissions: ['view_customers', 'manage_users'] },
-  { path: '/users/students', label: 'Students', permissions: ['view_students', 'manage_users'] },
-  { path: '/users/teachers', label: 'Teachers', permissions: ['view_teachers', 'manage_users'] },
-  { path: '/users/staff', label: 'Staff', permissions: ['view_staff', 'manage_users'] },
+
+  { path: '/users', label: 'All Users', end: true, permissions: ['view_users', 'manage_users'], icon: Users, color: 'blue' as const },
+  { path: '/users/customers', label: 'Customers', permissions: ['view_customers', 'manage_users'], icon: User, color: 'teal' as const },
+  { path: '/users/students', label: 'Students', permissions: ['view_students', 'manage_users'], icon: GraduationCap, color: 'indigo' as const },
+  { path: '/users/teachers', label: 'Teachers', permissions: ['view_teachers', 'manage_users'], icon: Briefcase, color: 'emerald' as const },
+  { path: '/users/staff', label: 'Staff', permissions: ['view_staff', 'manage_users'], icon: UserCog, color: 'violet' as const },
+
 ]
 
 function UsersIndexPage() {
   const { canAccess } = useAuth()
 
-  if (canAccess({ permissions: ['view_users', 'manage_users'] })) {
+  if (canAccess({ permissions: ['users.view', 'view_users', 'manage_users'] })) {
     return <UsersPage />
   }
 
@@ -25,7 +29,7 @@ function UsersIndexPage() {
     return <Navigate to={firstTab.path} replace />
   }
 
-  return <Navigate to="/" replace />
+  return <Navigate to="/dashboard" replace />
 }
 
 export default function UsersLayout() {
@@ -43,22 +47,15 @@ export default function UsersLayout() {
       </div>
 
       {showTabs && (
-        <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-          {visibleLinks.map((link) => (
-            <NavLink
-              key={link.path}
-              to={link.path}
-              end={link.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  isActive ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
+        <ColoredModuleTabsNav
+          items={visibleLinks.map((link) => ({
+            label: link.label,
+            path: link.path,
+            end: link.end,
+            icon: link.icon,
+            color: link.color,
+          }))}
+        />
       )}
 
       <Outlet />

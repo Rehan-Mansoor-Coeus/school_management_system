@@ -111,7 +111,7 @@ function Barcode({ value }: { value?: string }) {
 
 function resolveStorageUrl(url?: string | null): string | undefined {
   if (!url) return undefined
-  const apiBase = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
+  const apiBase = (import.meta as any).env?.VITE_API_BASE || '/api'
   const apiOrigin = apiBase.replace(/\/api\/?$/, '')
   try {
     const parsed = new URL(url)

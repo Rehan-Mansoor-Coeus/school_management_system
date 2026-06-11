@@ -13,12 +13,14 @@ class Subject extends Model
         'institution_id',
         'name',
         'code',
+        'credit_hours',
         'default_contact_hours',
         'description',
         'is_active',
     ];
 
     protected $casts = [
+        'credit_hours' => 'float',
         'default_contact_hours' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -31,5 +33,10 @@ class Subject extends Model
     public function assignments()
     {
         return $this->hasMany(ProgrammeSemesterSubject::class);
+    }
+
+    public function programLinks()
+    {
+        return $this->hasMany(ProgramSubject::class);
     }
 }

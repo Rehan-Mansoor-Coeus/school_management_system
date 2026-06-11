@@ -11,6 +11,9 @@ class ProgrammeSemester extends Model
         'programme_level_id',
         'semester_number',
         'name',
+        'start_date',
+        'end_date',
+        'academic_year',
         'total_semester_fee',
         'expected_payment_date',
         'latest_payment_date',
@@ -19,6 +22,8 @@ class ProgrammeSemester extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'start_date' => 'date',
+        'end_date' => 'date',
         'expected_payment_date' => 'date',
         'latest_payment_date' => 'date',
     ];

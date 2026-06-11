@@ -5,6 +5,7 @@ import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
 import ApplicationProgressBar, { type ApplicationProgress } from './ApplicationProgressBar';
 import { useFormatMoney } from '../../../hooks/useFormatMoney';
+import DashboardStatCard from '../../../components/ui/DashboardStatCard';
 
 type ApplicationSummary = {
   id: number;
@@ -62,41 +63,47 @@ export default function StudentAdmissionsStats() {
   }
 
   const stats = [
-    { label: t('statTotalApplications'), value: data.total_applications },
-    { label: t('statActiveApplications'), value: data.active_applications },
-    { label: t('statEnrolled'), value: data.enrolled_count },
-    { label: t('statPendingFee'), value: data.pending_fee_count },
-    { label: t('statUnreadNotifications'), value: data.unread_notifications },
+    { label: t('statTotalApplications'), value: data.total_applications, to: '/admissions/my-applications' },
+    { label: t('statActiveApplications'), value: data.active_applications, to: '/admissions/my-applications' },
+    { label: t('statEnrolled'), value: data.enrolled_count, to: '/admissions/my-applications' },
+    { label: t('statPendingFee'), value: data.pending_fee_count, to: '/admissions/my-applications' },
+    { label: t('statUnreadNotifications'), value: data.unread_notifications, to: '/notifications' },
   ];
 
   const applications = data.applications_summary || [];
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <DashboardStatCard label={t('submitApplication')} value="Apply" to="/admissions/apply" />
+        <DashboardStatCard label={t('trackApplication')} value={data.active_applications} to="/admissions/my-applications" />
+        <DashboardStatCard label={t('courseRegistration')} value="Register" to="/admissions/courses" />
+        <DashboardStatCard label={t('statUnreadNotifications')} value={data.unread_notifications} to="/notifications" />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-500">{stat.label}</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">{stat.value}</p>
-          </div>
+          <DashboardStatCard key={stat.label} label={stat.label} value={stat.value} to={stat.to} />
         ))}
       </div>
 
       {(data.registration_fee_status || data.tuition_fee_status) && (
         <div className="grid gap-3 md:grid-cols-2">
           {data.registration_fee_status && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs text-slate-500">{t('registrationFee')}</p>
-              <p className="mt-1 font-semibold text-slate-900 capitalize">{data.registration_fee_status.paid ? t('paid') : data.registration_fee_status.status}</p>
-              <p className="text-sm text-slate-500">{formatMoney(data.registration_fee_status.amount || 0)}</p>
-            </div>
+            <DashboardStatCard
+              label={t('registrationFee')}
+              value={data.registration_fee_status.paid ? t('paid') : data.registration_fee_status.status}
+              to="/admissions/my-applications"
+              hint={formatMoney(data.registration_fee_status.amount || 0)}
+            />
           )}
           {data.tuition_fee_status && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs text-slate-500">{t('tuitionFee')}</p>
-              <p className="mt-1 font-semibold text-slate-900 capitalize">{data.tuition_fee_status.paid ? t('paid') : data.tuition_fee_status.status}</p>
-              <p className="text-sm text-slate-500">{formatMoney(data.tuition_fee_status.amount || 0)}</p>
-            </div>
+            <DashboardStatCard
+              label={t('tuitionFee')}
+              value={data.tuition_fee_status.paid ? t('paid') : data.tuition_fee_status.status}
+              to="/admissions/my-applications"
+              hint={formatMoney(data.tuition_fee_status.amount || 0)}
+            />
           )}
         </div>
       )}
@@ -137,7 +144,11 @@ export default function StudentAdmissionsStats() {
         ) : (
           <div className="space-y-4">
             {applications.map((app) => (
-              <div key={app.id} className="rounded-xl border border-slate-200 p-4">
+              <Link
+                key={app.id}
+                to={`/admissions/my-applications/${app.id}`}
+                className="block rounded-xl border border-slate-200 p-4 transition hover:border-[#1e3a5f]/30 hover:bg-slate-50"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{app.application_number}</p>
@@ -150,15 +161,8 @@ export default function StudentAdmissionsStats() {
                   </span>
                 </div>
                 <ApplicationProgressBar progress={app.progress} compact />
-                <div className="mt-3">
-                  <Link
-                    to={`/admissions/my-applications/${app.id}`}
-                    className="text-sm font-medium text-[#1e3a5f] hover:underline"
-                  >
-                    {t('viewDetails')}
-                  </Link>
-                </div>
-              </div>
+                <p className="mt-3 text-sm font-medium text-[#1e3a5f]">{t('viewDetails')} →</p>
+              </Link>
             ))}
           </div>
         )}

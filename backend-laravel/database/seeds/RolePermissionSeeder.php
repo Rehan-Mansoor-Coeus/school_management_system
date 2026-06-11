@@ -126,7 +126,34 @@ class RolePermissionSeeder extends Seeder
             'admissions.courses.register',
             'admissions.hod.approve',
             'academics.view',
+            'academics.create',
+            'academics.edit',
+            'academics.delete',
             'academics.manage',
+            'academics.create',
+            'academics.edit',
+            'academics.delete',
+            'academics.units.view',
+            'academics.units.create',
+            'academics.units.edit',
+            'academics.units.delete',
+            'academics.departments.view',
+            'academics.departments.create',
+            'academics.departments.edit',
+            'academics.departments.delete',
+            'academics.programs.view',
+            'academics.programs.create',
+            'academics.programs.edit',
+            'academics.programs.delete',
+            'academics.semesters.view',
+            'academics.semesters.create',
+            'academics.semesters.edit',
+            'academics.semesters.delete',
+            'academics.subjects.view',
+            'academics.subjects.create',
+            'academics.subjects.edit',
+            'academics.subjects.delete',
+            'academics.organization.manage',
             'attendance.view',
             'attendance.manage',
             'results.view',
@@ -308,7 +335,15 @@ class RolePermissionSeeder extends Seeder
             'view_permissions', 'assign_permissions',
             'institutions.view', 'institutions.create', 'institutions.edit', 'institutions.delete', 'institutions.settings',
             'modules.view', 'modules.manage',
-            'academics.view', 'academics.manage',
+
+            'academics.view', 'academics.manage', 'academics.create', 'academics.edit', 'academics.delete',
+            'academics.units.view', 'academics.units.create', 'academics.units.edit', 'academics.units.delete',
+            'academics.departments.view', 'academics.departments.create', 'academics.departments.edit', 'academics.departments.delete',
+            'academics.programs.view', 'academics.programs.create', 'academics.programs.edit', 'academics.programs.delete',
+            'academics.semesters.view', 'academics.semesters.create', 'academics.semesters.edit', 'academics.semesters.delete',
+            'academics.subjects.view', 'academics.subjects.create', 'academics.subjects.edit', 'academics.subjects.delete',
+            'academics.organization.manage',
+
             'view_customers', 'create_customers', 'edit_customers', 'delete_customers',
             'view_students', 'create_students', 'edit_students', 'delete_students',
         ];
@@ -365,7 +400,20 @@ class RolePermissionSeeder extends Seeder
             'timesheets.view_own',
         ]));
 
-        $studentRole->syncPermissions(['admissions.apply', 'admissions.courses.register', 'canteen.view', 'character_certificates.view', 'hostel.view']);
+        $studentRole->syncPermissions([
+            'admissions.apply',
+            'admissions.courses.register',
+            'canteen.view',
+            'character_certificates.view',
+            'hostel.view',
+            'view_library_menu',
+            'view_books',
+            'borrow_books',
+            'view_own_borrow_requests',
+            'view_frequently_signed_books',
+            'rate_books',
+            'comment_on_books',
+        ]);
 
         $admissionsStaffPermissions = ['admissions.view', 'admissions.manage'];
         $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review']));
@@ -454,8 +502,7 @@ class RolePermissionSeeder extends Seeder
                 'name' => 'Test Admin',
                 'password' => Hash::make('admin123'),
                 'api_token' => Str::random(60),
-                'institution_id' => $defaultInstitution->id,
-                'is_active' => true,
+                'status' => 'active',
                 'locale' => 'en',
             ]
         );
@@ -479,7 +526,7 @@ class RolePermissionSeeder extends Seeder
                     'name' => 'Test Teacher',
                     'password' => Hash::make('teacher123'),
                     'api_token' => Str::random(60),
-                    'is_active' => true,
+                    'status' => 'active',
                     'locale' => 'en',
                 ]
             );
@@ -495,7 +542,7 @@ class RolePermissionSeeder extends Seeder
                     'name' => 'Test Student',
                     'password' => Hash::make('student123'),
                     'api_token' => Str::random(60),
-                    'is_active' => true,
+                    'status' => 'active',
                     'locale' => 'en',
                 ]
             );

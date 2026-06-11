@@ -28,6 +28,26 @@ export interface Programme {
   level: string;
   duration_years: number;
   tuition_fee: number;
+  required_documents?: ProgrammeRequiredDocument[];
+  admission_agreement?: AdmissionAgreement | null;
+}
+
+export interface ProgrammeRequiredDocument {
+  id: number;
+  name: string;
+  description?: string | null;
+  is_required: boolean;
+  sort_order: number;
+}
+
+export interface AdmissionAgreement {
+  id: number;
+  institution_id?: number;
+  programme_id?: number | null;
+  title: string;
+  content: string;
+  is_required: boolean;
+  is_active?: boolean;
 }
 
 export interface AcademicYear {
@@ -50,7 +70,8 @@ export type ApplicationStatus =
   | 'admitted'
   | 'accepted'
   | 'tuition_paid'
-  | 'enrolled';
+  | 'enrolled'
+  | 'cancelled';
 
 export interface Application {
   id: number;
@@ -83,15 +104,26 @@ export interface Application {
   can_accept_admission?: boolean;
   can_pay_tuition?: boolean;
   can_submit_tuition_proof?: boolean;
+  can_cancel?: boolean;
+  can_update?: boolean;
   latest_application_fee_payment?: ApplicationPaymentProof | null;
   latest_tuition_payment?: ApplicationPaymentProof | null;
   documents?: ApplicationDocument[];
+  accepted_agreement_ids?: number[];
+  applicant_signature_url?: string | null;
   progress?: ApplicationProgress;
 }
 
 export interface ApplicationDocument {
   id: number;
   document_name: string;
+  comment?: string | null;
+  programme_required_document_id?: number | null;
+  is_required?: boolean | null;
+  review_status?: 'pending' | 'approved' | 'rejected';
+  review_comment?: string | null;
+  reviewed_at?: string | null;
+  reviewed_by_name?: string | null;
   file_path?: string;
   url?: string | null;
   mime_type?: string | null;

@@ -13,16 +13,26 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $institutionId = (int) (optional(request()->user())->institution_id ?: 1);
-        return response()->json(User::with('roles')->loginAccounts()->where('institution_id', $institutionId)->get());
+        $query = User::with(['roles', 'institution:id,name,code'])
+            ->loginAccounts()
+            ->orderBy('name');
+
+        $scopeId = $this->scopedInstitutionId($request);
+        if ($scopeId) {
+            $query->where('institution_id', $scopeId);
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
     {
+        $isPlatformSuperAdmin = $this->isPlatformSuperAdmin($request->user());
+
         $validator = Validator::make($request->all(), [
-            'institution_id' => 'nullable|integer|min:1',
+            'institution_id' => ($isPlatformSuperAdmin ? 'required' : 'nullable').'|integer|exists:institutions,id',
             'name' => 'required|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users',
@@ -39,8 +49,10 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $institutionId = $this->resolveTargetInstitutionId($request);
+
         $user = User::create([
-            'institution_id' => $request->institution_id ?: (optional($request->user())->institution_id ?: 1),
+            'institution_id' => $institutionId,
             'name' => $request->name,
             'username' => $request->username,
             'email' => $request->email,
@@ -58,25 +70,24 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
-        $user->load('roles');
+        $user->load(['roles', 'institution:id,name,code']);
         if ($user->hasRole('student')) {
             (new UserAccountNotificationService())->notifyAccountCreated($user, $request->password, [
                 'category' => 'academic',
             ]);
         }
 
-        return response()->json(['message' => 'User created successfully.', 'user' => $user->load('roles')], 201);
+        return response()->json(['message' => 'User created successfully.', 'user' => $user], 201);
     }
 
     public function update(Request $request, User $user)
     {
-        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
-        if ((int) $user->institution_id !== $institutionId) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
+        $this->authorizeUserAccess($request, $user);
+
+        $isPlatformSuperAdmin = $this->isPlatformSuperAdmin($request->user());
 
         $validator = Validator::make($request->all(), [
-            'institution_id' => 'nullable|integer|min:1',
+            'institution_id' => ($isPlatformSuperAdmin ? 'required' : 'nullable').'|integer|exists:institutions,id',
             'name' => 'required|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username,'.$user->id,
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
@@ -94,7 +105,9 @@ class UserController extends Controller
         }
 
         $user->update([
-            'institution_id' => $request->institution_id ?: $user->institution_id,
+            'institution_id' => $isPlatformSuperAdmin
+                ? (int) $request->institution_id
+                : ($request->institution_id ?: $user->institution_id),
             'name' => $request->name,
             'username' => $request->username,
             'email' => $request->email,
@@ -110,15 +123,15 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
-        return response()->json(['message' => 'User updated successfully.', 'user' => $user->load('roles')]);
+        return response()->json([
+            'message' => 'User updated successfully.',
+            'user' => $user->load(['roles', 'institution:id,name,code']),
+        ]);
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
-        $institutionId = (int) (optional(request()->user())->institution_id ?: 1);
-        if ((int) $user->institution_id !== $institutionId) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
+        $this->authorizeUserAccess($request, $user);
 
         $user->delete();
 
@@ -127,10 +140,7 @@ class UserController extends Controller
 
     public function assignRoles(Request $request, User $user)
     {
-        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
-        if ((int) $user->institution_id !== $institutionId) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
+        $this->authorizeUserAccess($request, $user);
 
         $validator = Validator::make($request->all(), [
             'roles' => 'required|array',
@@ -144,5 +154,40 @@ class UserController extends Controller
         $user->syncRoles(Role::whereIn('id', $request->roles)->get());
 
         return response()->json(['message' => 'User roles updated successfully.', 'roles' => $user->roles]);
+    }
+
+    protected function isPlatformSuperAdmin($user): bool
+    {
+        return $user && $user->hasRole(['super-admin', 'system-super-admin']);
+    }
+
+    protected function scopedInstitutionId(Request $request): ?int
+    {
+        if ($this->isPlatformSuperAdmin($request->user())) {
+            return $request->filled('institution_id') ? (int) $request->institution_id : null;
+        }
+
+        return (int) (optional($request->user())->institution_id ?: 1);
+    }
+
+    protected function resolveTargetInstitutionId(Request $request): int
+    {
+        if ($this->isPlatformSuperAdmin($request->user())) {
+            return (int) $request->institution_id;
+        }
+
+        return (int) (optional($request->user())->institution_id ?: 1);
+    }
+
+    protected function authorizeUserAccess(Request $request, User $user): void
+    {
+        if ($this->isPlatformSuperAdmin($request->user())) {
+            return;
+        }
+
+        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
+        if ((int) $user->institution_id !== $institutionId) {
+            abort(404, 'User not found.');
+        }
     }
 }

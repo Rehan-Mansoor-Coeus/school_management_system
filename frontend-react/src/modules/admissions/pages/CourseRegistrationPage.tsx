@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchAvailableCourses, registerCourses } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 
-type Course = { id: number; name: string; code: string; credit_units: number; programme_semester_id?: number | null };
+type Course = { id: number; name: string; code: string; credit_units: number; programme_semester_id?: number | null; is_required?: boolean };
 
 type Registration = {
   id: number;
@@ -59,10 +59,18 @@ export default function CourseRegistrationPage() {
       setRegistrations(mine);
       setEmptyReason(list.length ? null : (reason === 'no_student' || reason === 'no_subjects' ? reason : 'unknown'));
       setServerMessage(apiMessage || '');
-      setSelected((prev) => prev.filter((id) => !mine.some((registration) => {
-        if (!isActiveRegistration(registration)) return false;
-        return registrationSubjectId(registration) === id;
-      })));
+      const mandatoryIds = list.filter((course) => course.is_required).map((course) => course.id);
+      setSelected((prev) => {
+        const registeredIds = new Set<number>();
+        for (const registration of mine) {
+          if (!isActiveRegistration(registration)) continue;
+          const subjectId = registrationSubjectId(registration);
+          if (subjectId) registeredIds.add(subjectId);
+        }
+        const selectableMandatory = mandatoryIds.filter((id) => !registeredIds.has(id));
+        const optionalSelected = prev.filter((id) => !mandatoryIds.includes(id) && !registeredIds.has(id));
+        return [...new Set([...selectableMandatory, ...optionalSelected])];
+      });
     } catch {
       setCourses([]);
       setRegistrations([]);
@@ -166,23 +174,34 @@ export default function CourseRegistrationPage() {
           <ul className="space-y-2">
             {courses.map((course) => {
               const alreadyRegistered = registeredSubjectIds.has(course.id);
+              const isMandatory = Boolean(course.is_required);
               return (
                 <label
                   key={course.id}
                   className={`flex items-center gap-3 rounded-lg border bg-white p-3 ${
-                    alreadyRegistered ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+                    alreadyRegistered || isMandatory ? 'cursor-default' : 'cursor-pointer'
                   }`}
                 >
                   <input
                     type="checkbox"
-                    disabled={alreadyRegistered}
-                    checked={selected.includes(course.id)}
+                    disabled={alreadyRegistered || isMandatory}
+                    checked={selected.includes(course.id) || alreadyRegistered}
                     onChange={(e) => setSelected((prev) => (
                       e.target.checked ? [...prev, course.id] : prev.filter((id) => id !== course.id)
                     ))}
                   />
                   <span className="flex-1">
                     <strong>{course.code}</strong> — {course.name} ({course.credit_units} {t('creditUnits')})
+                    {isMandatory && (
+                      <span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">
+                        {t('mandatoryDocument')}
+                      </span>
+                    )}
+                    {!isMandatory && (
+                      <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                        {t('optionalDocument')}
+                      </span>
+                    )}
                   </span>
                   {alreadyRegistered && (
                     <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">

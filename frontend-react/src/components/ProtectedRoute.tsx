@@ -1,78 +1,112 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
-import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import {
+  applyToken,
+  clearStoredSession,
+  fetchAuthProfile,
+  readCachedProfile,
+} from '../utils/authSession'
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
   const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
-  const [rateLimited, setRateLimited] = useState(false)
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null)
   const { setAuth } = useAuth()
-  const checkedRef = useRef(false)
 
   useEffect(() => {
-    if (checkedRef.current) return
-    checkedRef.current = true
+    let cancelled = false
 
-    const token = localStorage.getItem('token')
-    if (!token) {
-      setAuthed(false)
-      setLoading(false)
-      return
-    }
+    async function bootstrap() {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        if (!cancelled) {
+          setAuthed(false)
+          setLoading(false)
+        }
+        return
+      }
 
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      applyToken(token)
+      const cached = readCachedProfile()
 
-    api
-      .get('/auth/user')
-      .then((res) => {
-        const user = res.data?.user ?? res.data
-        const enabledModules = res.data?.enabled_modules ?? []
-        const permissions = res.data?.permissions ?? []
-        const institution = res.data?.institution ?? user?.institution ?? null
-        localStorage.setItem('me', JSON.stringify(user))
-        localStorage.setItem('permissions', JSON.stringify(permissions))
-        localStorage.setItem('enabled_modules', JSON.stringify(enabledModules))
-        localStorage.setItem('institution', JSON.stringify(institution))
-        setAuth({ user, permissions, enabledModules, institution })
+      // Show the app immediately when we have a cached profile; refresh in background.
+      if (cached.user) {
+        setAuth(cached)
+        setAuthed(true)
+        setLoading(false)
+      }
+
+      try {
+        const profile = await fetchAuthProfile()
+        if (cancelled) return
+        setAuth(profile)
         setAuthed(true)
         setSessionExpired(false)
-        setRateLimited(false)
-      })
-      .catch((error) => {
+        setBootstrapError(null)
+      } catch (error: any) {
+        if (cancelled) return
+
         const status = error?.response?.status
-        if (status === 429) {
-          setRateLimited(true)
+        if (status === 401) {
+          clearStoredSession()
+          setAuth({ user: null, permissions: [], enabledModules: [], institution: null })
           setAuthed(false)
+          setSessionExpired(true)
           return
         }
-        if (status === 401) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('me')
-          localStorage.removeItem('permissions')
-          localStorage.removeItem('enabled_modules')
-          localStorage.removeItem('institution')
-          delete api.defaults.headers.common['Authorization']
-          setAuth({ user: null, permissions: [], enabledModules: [], institution: null })
-          setSessionExpired(true)
+
+        if (status === 429) {
+          if (!cached.user) {
+            setBootstrapError('Too many requests. Wait a minute and try again.')
+            setAuthed(false)
+          }
+          return
         }
+
+        // Network/API misconfiguration: keep cached session if we have one.
+        if (cached.user) {
+          setAuthed(true)
+          setBootstrapError('Could not refresh session. Showing cached data.')
+          return
+        }
+
+        const message = error?.code === 'ECONNABORTED'
+          ? 'API server timed out. Check that Laravel is running and VITE_API_BASE is correct.'
+          : error?.code === 'INVALID_API_RESPONSE'
+            ? 'API returned HTML instead of JSON. Ensure /api is proxied to Laravel (production nginx).'
+            : error?.message === 'Network Error'
+              ? 'Cannot reach API server. Is Laravel running?'
+              : 'Unable to verify session.'
+
+        setBootstrapError(message)
         setAuthed(false)
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    bootstrap()
+    return () => {
+      cancelled = true
+    }
   }, [setAuth])
 
-  if (loading) return <div className="p-6">Loading...</div>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 text-slate-600">
+        Loading…
+      </div>
+    )
+  }
 
-  if (rateLimited) {
+  if (bootstrapError && !authed) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <div className="max-w-md rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
-          <h2 className="text-lg font-semibold text-amber-900">Too many requests</h2>
-          <p className="mt-2 text-sm text-amber-800">
-            The server is temporarily rate-limiting requests. Wait a minute and refresh the page.
-          </p>
+        <div className="max-w-md rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <h2 className="text-lg font-semibold text-red-900">Connection problem</h2>
+          <p className="mt-2 text-sm text-red-800">{bootstrapError}</p>
           <button
             type="button"
             className="mt-4 rounded-lg bg-[#1e3a5f] px-4 py-2 text-sm text-white"
@@ -86,7 +120,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   }
 
   if (!authed) {
-    return <Navigate to={sessionExpired ? '/login?session=expired' : '/login'} replace />
+    return <Navigate to={sessionExpired ? '/admin?session=expired' : '/admin'} replace />
   }
 
   return children
