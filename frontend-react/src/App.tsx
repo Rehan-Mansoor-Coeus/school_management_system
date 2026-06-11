@@ -205,16 +205,6 @@ export default function App(){
               <Route path="my" element={<MyCertificatesPage />} />
               <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
             </Route>
-
-          <Route path="roles" element={<RolesPage/>} />
-          <Route path="permissions" element={<PermissionsPage/>} />
-          <Route path="modules" element={<ModulesPage/>} />
-          <Route path="institutions" element={<InstitutionList />} />
-          <Route path="departments" element={<DepartmentsPage />} />
-          <Route path="admissions" element={<AdmissionsLayout />}>
-            <Route index element={<AdmissionsOverviewPage />} />
-            <Route path="apply" element={<ApplicationPage />} />
-       
           </Route>
 
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />

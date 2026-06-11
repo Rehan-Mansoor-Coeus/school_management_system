@@ -11,6 +11,7 @@ import {
   CreditCard,
   GraduationCap,
   Home,
+  KeyRound,
   LayoutDashboard,
   Library,
   Mail,

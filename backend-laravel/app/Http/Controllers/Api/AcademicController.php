@@ -710,6 +710,8 @@ class AcademicController extends Controller
         $programSubject->delete();
 
         return response()->json(['message' => 'Link removed.']);
+    }
+
     protected function syncRequiredDocuments(Programme $programme, array $documents): void
     {
         if (! Schema::hasTable('programme_required_documents')) {

@@ -161,33 +161,32 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
             </div>
 
             {meta.supportsRoles && (
-<div className="md:col-span-2">
-  <FormField label="Roles">
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {assignableRoles.map(role => (
-        <label
-          key={role.id}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
-        >
-          <input
-            type="checkbox"
-            checked={form.roles.includes(role.id)}
-            onChange={(e) => {
-              const id = role.id
-              setForm({
-                ...form,
-                roles: e.target.checked
-                  ? [...form.roles, id]
-                  : form.roles.filter(r => r !== id),
-              })
-            }}
-          />
-          {role.name}
-        </label>
-      ))}
-    </div>
-  </FormField>
-</div>
+              <div className="md:col-span-2">
+                <FormField label="Roles">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {assignableRoles.map(role => (
+                      <label
+                        key={role.id}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.roles.includes(role.id)}
+                          onChange={(e) => {
+                            const id = role.id
+                            setForm({
+                              ...form,
+                              roles: e.target.checked
+                                ? [...form.roles, id]
+                                : form.roles.filter(r => r !== id),
+                            })
+                          }}
+                        />
+                        {role.name}
+                      </label>
+                    ))}
+                  </div>
+                </FormField>
               </div>
             )}
 

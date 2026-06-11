@@ -48,7 +48,7 @@ const systemFeatures = [
     icon: Building2,
     title: 'Institution operations',
     description:
-      'Hostel, canteen, letters, timesheets, and other modules configured per institution.',
+      'Hostel, canteen, library, letters, timesheets, and other modules configured per institution.',
   },
   {
     icon: ShieldCheck,
@@ -90,9 +90,7 @@ export default function LoginPage() {
       localStorage.setItem('token', token)
       applyToken(token)
 
-      let profile = profileFromAuthResponse(
-        res.data as Record<string, unknown>
-      )
+      let profile = profileFromAuthResponse(res.data as Record<string, unknown>)
 
       if (!profile.user) {
         profile = await fetchAuthProfile()
@@ -103,18 +101,19 @@ export default function LoginPage() {
       setAuth(profile)
 
       const redirect = searchParams.get('redirect')
-
       const safeRedirect =
-        redirect &&
-        redirect.startsWith('/') &&
-        !redirect.startsWith('//')
+        redirect && redirect.startsWith('/') && !redirect.startsWith('//')
           ? redirect
           : '/dashboard'
 
       navigate(safeRedirect)
-    } catch (err: any) {
-      const data = err?.response?.data
-
+    } catch (err: unknown) {
+      const apiErr = err as {
+        response?: { data?: { errors?: Record<string, string[]>; message?: string } }
+        code?: string
+        message?: string
+      }
+      const data = apiErr?.response?.data
       const validation = data?.errors
         ? Object.values(data.errors).flat().join(' ')
         : null
@@ -122,198 +121,140 @@ export default function LoginPage() {
       setError(
         validation ||
           data?.message ||
-          (err?.code === 'ECONNABORTED'
+          (apiErr?.code === 'ECONNABORTED'
             ? 'API server timed out. Is Laravel running on port 8000?'
             : null) ||
-          (err?.code === 'INVALID_API_RESPONSE'
-            ? 'API returned HTML instead of JSON. Check that /api is proxied to Laravel.'
-            : null) ||
-          (err?.message === 'Network Error'
+          (apiErr?.message === 'Network Error'
             ? 'Cannot reach API server. Run: php artisan serve'
             : null) ||
-          err?.message ||
-          'Login failed'
+          apiErr?.message ||
+          'Login failed',
       )
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Keep the JSX/UI from feature/resturant-module
-  // and replace only its submit() logic with the one above.
-}
-    }
-  }
-
   return (
-return (
-  <div className="min-h-screen bg-slate-100">
-    <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-2">
-      <div className="hidden flex-col justify-between bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73] p-10 text-white lg:flex">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-200">
-            School Management System
-          </p>
-
-          <h1 className="mt-4 text-3xl font-bold leading-tight">
-            One platform for admissions, academics, and campus operations
-          </h1>
-
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
-            Sign in to manage applications, review documents, verify payments,
-            register courses, and access modules enabled for your institution.
-          </p>
-        </div>
-
-        <div className="mt-10 space-y-4">
-          {systemFeatures.map((feature) => {
-            const Icon = feature.icon
-
-            return (
-              <div
-                key={feature.title}
-                className="flex gap-3 rounded-2xl bg-white/10 p-4"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                  <Icon className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <h2 className="font-semibold">{feature.title}</h2>
-                  <p className="mt-1 text-sm text-blue-100">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <p className="mt-8 text-xs text-blue-200">
-          Need help? Contact your institution administrator for account access.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="mb-6 lg:hidden">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#1e3a5f]">
+    <div className="min-h-screen bg-slate-100">
+      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-2">
+        <div className="hidden flex-col justify-between bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73] p-10 text-white lg:flex">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-200">
               School Management System
             </p>
 
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">
-              Sign in to continue
+            <h1 className="mt-4 text-3xl font-bold leading-tight">
+              One platform for admissions, academics, and campus operations
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Admissions, fees, academics, hostel, canteen, and more — all in
-              one place.
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
+              Sign in to manage applications, review documents, verify payments,
+              register courses, and access modules enabled for your institution.
             </p>
           </div>
 
-          <form
-            onSubmit={submit}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="text-xl font-semibold text-slate-900">
-              Sign in
-            </h2>
+          <div className="mt-10 space-y-4">
+            {systemFeatures.map((feature) => {
+              const Icon = feature.icon
 
-            <p className="mt-1 text-sm text-slate-500">
-              Use your email, username, or phone number and password.
-            </p>
+              return (
+                <div key={feature.title} className="flex gap-3 rounded-2xl bg-white/10 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                    <Icon className="h-5 w-5" />
+                  </div>
 
-            {sessionExpired && (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Your session has expired. Please sign in again.
-              </div>
-            )}
+                  <div>
+                    <h2 className="font-semibold">{feature.title}</h2>
+                    <p className="mt-1 text-sm text-blue-100">{feature.description}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
 
-            {error && (
-              <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
+          <p className="mt-8 text-xs text-blue-200">
+            Need help? Contact your institution administrator for account access.
+          </p>
+        </div>
 
-            <div className="mt-5 space-y-4">
-              <FormField label="Email, username, or phone" required>
-                <input
-                  value={login}
-                  onChange={(e) => setLogin(e.target.value)}
-                  placeholder="admin@test.com"
-                  className={formInputClass}
-                  required
-                  autoComplete="username"
-                />
-              </FormField>
+        <div className="flex items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            <div className="mb-6 lg:hidden">
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#1e3a5f]">
+                School Management System
+              </p>
 
-              <FormField label="Password" required>
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type="password"
-                  className={formInputClass}
-                  required
-                  autoComplete="current-password"
-                />
-              </FormField>
+              <h1 className="mt-2 text-2xl font-bold text-slate-900">Sign in to continue</h1>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Admissions, fees, academics, hostel, canteen, library, and more — all in one place.
+              </p>
             </div>
 
-            <div className="mt-4 text-sm">
-              <Link
-                to="/forgot-password"
-                className="font-medium text-[#1e3a5f] hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-6 w-full rounded-lg bg-[#1e3a5f] py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-60"
+            <form
+              onSubmit={submit}
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             >
-              {submitting ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
+              <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Use your email, username, or phone number and password.
+              </p>
+
+              {sessionExpired && (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Your session has expired. Please sign in again.
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-5 space-y-4">
+                <FormField label="Email, username, or phone" required>
+                  <input
+                    value={login}
+                    onChange={(e) => setLogin(e.target.value)}
+                    placeholder="admin@test.com"
+                    className={formInputClass}
+                    required
+                    autoComplete="username"
+                  />
+                </FormField>
+
+                <FormField label="Password" required>
+                  <input
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    type="password"
+                    className={formInputClass}
+                    required
+                    autoComplete="current-password"
+                  />
+                </FormField>
+              </div>
+
+              <div className="mt-4 text-sm">
+                <Link to="/forgot-password" className="font-medium text-[#1e3a5f] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="mt-6 w-full rounded-lg bg-[#1e3a5f] py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-60"
+              >
+                {submitting ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-)
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-<div>
-  <FormField>
-    <input
-      type="password"
-      placeholder="Enter your password"
-      className={formInputClass}
-      required
-      autoComplete="current-password"
-    />
-  </FormField>
-
-  <div className="mt-4 text-sm">
-    <Link
-      to="/forgot-password"
-      className="font-medium text-[#1e3a5f] hover:underline"
-    >
-      Forgot password?
-    </Link>
-  </div>
-
-  <button
-    type="submit"
-    disabled={submitting}
-    className="mt-6 w-full rounded-xl bg-[#1e3a5f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#162d4a] disabled:opacity-60"
-  >
-    {submitting ? "Signing in…" : "Sign in"}
-  </button>
-</div>
-      </div>
-    </div>
-  );
+  )
 }

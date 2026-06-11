@@ -196,10 +196,6 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
 
-      <div className="flex justify-end">
-        <button onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#162d4a]">
-          <UserPlus className="h-4 w-4" />
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         {isPlatformSuperAdmin && (
           <div className="min-w-[220px]">
@@ -218,8 +214,11 @@ export default function UsersPage() {
             </select>
           </div>
         )}
-        <button onClick={openCreateModal} className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700">
-
+        <button
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#162d4a]"
+        >
+          <UserPlus className="h-4 w-4" />
           New user
         </button>
       </div>
@@ -407,8 +406,7 @@ export default function UsersPage() {
         />
       </FormField>
 
-      {/* Phone Number */}
-      <FormField label="Phone Number">
+      <FormField label="Phone number">
         <input
           value={form.phone_number}
           onChange={(e) =>
@@ -424,13 +422,7 @@ export default function UsersPage() {
     </div>
   </div>
 
-</form>
-          </div>
-
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Phone number">
-              <input value={form.phone_number} onChange={(e) => setForm((prev) => ({ ...prev, phone_number: e.target.value }))} type="text" className={formInputClass} />
-            </FormField>
             <FormField label="Additional phone">
               <input value={form.additional_phone_number} onChange={(e) => setForm((prev) => ({ ...prev, additional_phone_number: e.target.value }))} type="text" className={formInputClass} />
             </FormField>

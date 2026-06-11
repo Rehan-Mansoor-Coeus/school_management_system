@@ -123,8 +123,6 @@ export const ApplicationForm: React.FC = () => {
     }));
   };
 
-  const fetchProgrammes = async () => {
-
   useEffect(() => {
     const requirements = selectedProgrammeData?.required_documents || [];
     setDocumentUploads(
