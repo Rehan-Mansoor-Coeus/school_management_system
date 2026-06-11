@@ -17,7 +17,7 @@ class Application extends Model
 
     protected $fillable = [
         'institution_id', 'applicant_id', 'academic_year_id', 'programme_id',
-        'application_number', 'status', 'application_fee', 'application_fee_paid',
+        'application_number', 'status', 'applicant_signature_path', 'application_fee', 'application_fee_paid',
         'fee_paid_at', 'tuition_fee', 'tuition_fee_paid', 'tuition_paid_at',
         'tuition_verified_by', 'tuition_verified_at',
         'rejection_reason', 'admission_comment', 'department_review_comment',
@@ -102,6 +102,11 @@ class Application extends Model
         return $this->hasMany(ApplicationDocument::class, 'application_id');
     }
 
+    public function agreementAcceptances()
+    {
+        return $this->hasMany(ApplicationAgreementAcceptance::class, 'application_id');
+    }
+
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
@@ -117,6 +122,23 @@ class Application extends Model
         return in_array($this->status, ['submitted'], true)
             && ! $this->application_fee_paid
             && ! $this->hasPendingApplicationFeeProof();
+    }
+
+    public function canCancelByStudent(): bool
+    {
+        return $this->status === 'submitted'
+            && ! $this->application_fee_paid
+            && ! $this->hasPendingApplicationFeeProof();
+    }
+
+    public function canUpdateByStudent(): bool
+    {
+        return $this->canCancelByStudent();
+    }
+
+    public function markCancelled(): void
+    {
+        $this->update(['status' => 'cancelled']);
     }
 
     public function canSubmitApplicationFeeProof()

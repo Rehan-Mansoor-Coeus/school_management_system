@@ -12,11 +12,13 @@ class ProgrammeSemesterSubject extends Model
         'programme_semester_id',
         'subject_id',
         'contact_hours',
+        'is_required',
         'is_active',
     ];
 
     protected $casts = [
         'contact_hours' => 'integer',
+        'is_required' => 'boolean',
         'is_active' => 'boolean',
     ];
 

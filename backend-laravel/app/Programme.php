@@ -61,4 +61,14 @@ class Programme extends Model
     {
         return $this->hasMany(ProgrammeLevel::class)->orderBy('sort_order');
     }
+
+    public function requiredDocuments()
+    {
+        return $this->hasMany(ProgrammeRequiredDocument::class)->orderBy('sort_order');
+    }
+
+    public function admissionAgreement()
+    {
+        return $this->hasOne(AdmissionAgreement::class, 'programme_id');
+    }
 }

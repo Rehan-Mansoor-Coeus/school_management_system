@@ -2,6 +2,20 @@ import type { AuthUser } from '../context/AuthContext'
 
 export const ADMIN_ROLES = ['admin', 'institution-admin', 'super-admin'] as const
 
+export const PLATFORM_SUPER_ADMIN_ROLES = ['super-admin', 'system-super-admin'] as const
+
+export function isPlatformSuperAdminRole(roles: string[]): boolean {
+  return roles.some((role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number]))
+}
+
+export function filterAssignableRoles<T extends { name: string }>(roles: T[], userRoles: string[]): T[] {
+  if (isPlatformSuperAdminRole(userRoles)) {
+    return roles
+  }
+
+  return roles.filter((role) => !PLATFORM_SUPER_ADMIN_ROLES.includes(role.name as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number]))
+}
+
 export function resolveUserRoles(user: AuthUser | null): string[] {
   if (!user || !Array.isArray(user.roles)) return []
   return user.roles
@@ -21,7 +35,6 @@ export function canAccessMenu(options: {
 }): boolean {
   const { permissions = [], roles = [], userPermissions, userRoles } = options
 
-  if (isAdminRole(userRoles)) return true
   if (permissions.length > 0 && permissions.some((p) => userPermissions.includes(p))) return true
   if (roles.length > 0 && roles.some((r) => userRoles.includes(r))) return true
   return permissions.length === 0 && roles.length === 0
@@ -51,7 +64,7 @@ export const MODULE_MENU_PERMISSIONS: Record<string, string[]> = {
     'timesheets.review',
   ],
   letters: ['view_letters_menu', 'create_letters', 'view_announcements', 'create_announcements'],
-  academics: ['academics.view', 'academics.create', 'academics.edit', 'academics.delete'],
+  academics: ['academics.view', 'academics.create', 'academics.edit', 'academics.delete', 'academics.manage'],
   institutions: ['institutions.view', 'institutions.create', 'institutions.edit'],
   departments: ['institutions.view', 'institutions.create', 'institutions.edit'],
   attendance: ['attendance.view', 'attendance.manage'],
@@ -93,16 +106,32 @@ export function characterCertificatesHomePath(
 }
 
 export const ACCESS_CONTROL_PERMISSIONS = [
+  'users.view',
+  'users.create',
+  'users.edit',
+  'users.delete',
   'view_users',
   'create_users',
   'edit_users',
   'delete_users',
   'manage_users',
+  'roles.view',
+  'roles.create',
+  'roles.edit',
+  'roles.delete',
+  'roles.manage',
   'view_roles',
   'create_roles',
   'edit_roles',
+  'delete_roles',
   'manage_roles',
+  'permissions.view',
+  'permissions.create',
+  'permissions.edit',
+  'permissions.delete',
+  'permissions.manage',
   'view_permissions',
+  'assign_permissions',
   'manage_modules',
   'modules.view',
   'view_students',

@@ -9,6 +9,7 @@ use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Modules\Admissions\Resources\ApplicationResource;
 use App\Modules\Admissions\Services\NotificationService;
+use App\Institution;
 use App\Role;
 use App\Services\UserAccountNotificationService;
 use App\Student;
@@ -49,7 +50,7 @@ class FinanceController extends Controller
 
     public function verifyTuition($applicationId)
     {
-        $application = Application::with(['applicant', 'programme'])->findOrFail($applicationId);
+        $application = Application::with(['applicant', 'programme', 'institution'])->findOrFail($applicationId);
 
         if ($application->status !== 'tuition_paid' || ! $application->tuition_fee_paid) {
             return response()->json([
@@ -149,7 +150,7 @@ class FinanceController extends Controller
             'user_id' => $user->id,
             'applicant_id' => $applicant->id,
             'programme_id' => $application->programme_id,
-            'registration_number' => $this->generateRegistrationNumber($application->institution_id),
+            'registration_number' => $this->generateRegistrationNumber($application),
             'status' => 'active',
             'admission_date' => now(),
             'current_level' => 100,
@@ -159,13 +160,39 @@ class FinanceController extends Controller
         return ['student' => $student->load('user'), 'plain_password' => $plainPassword];
     }
 
-    protected function generateRegistrationNumber($institutionId)
+    protected function generateRegistrationNumber(Application $application)
     {
-        $year = date('y');
-        $count = Student::where('institution_id', $institutionId)
-            ->whereYear('created_at', date('Y'))
-            ->count() + 1;
+        $application->loadMissing(['applicant', 'programme', 'institution']);
 
-        return 'REG'.$year.str_pad((string) $count, 5, '0', STR_PAD_LEFT);
+        $institution = $application->institution ?: Institution::find($application->institution_id);
+        $programme = $application->programme;
+        $applicant = $application->applicant;
+
+        $schoolCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) optional($institution)->code ?: 'SCH'));
+        $programCode = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) optional($programme)->code ?: 'PRG'));
+
+        $idNumber = preg_replace('/\s+/', '', (string) optional($applicant)->id_number);
+        $idSuffix = strtoupper(substr($idNumber, -5));
+        if (strlen($idSuffix) < 5) {
+            $idSuffix = str_pad($idSuffix, 5, '0', STR_PAD_LEFT);
+        }
+
+        if ($schoolCode === '') {
+            $schoolCode = 'SCH';
+        }
+        if ($programCode === '') {
+            $programCode = 'PRG';
+        }
+
+        $base = $schoolCode.':'.$programCode.':'.$idSuffix;
+        $candidate = $base;
+        $counter = 1;
+
+        while (Student::where('registration_number', $candidate)->exists()) {
+            $candidate = $base.'-'.$counter;
+            $counter++;
+        }
+
+        return $candidate;
     }
 }

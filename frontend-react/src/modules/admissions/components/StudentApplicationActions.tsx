@@ -9,6 +9,7 @@ type Props = {
   onPayApplicationFee: (app: Application) => void;
   onPayTuition: (app: Application) => void;
   onAcceptAdmission: (appId: number) => void;
+  onCancelApplication?: (appId: number) => void;
   showViewDetails?: boolean;
 };
 
@@ -18,6 +19,7 @@ export default function StudentApplicationActions({
   onPayApplicationFee,
   onPayTuition,
   onAcceptAdmission,
+  onCancelApplication,
   showViewDetails = true,
 }: Props) {
   const { t } = useAdmissionsI18n();
@@ -26,6 +28,8 @@ export default function StudentApplicationActions({
   const showAccept = app.can_accept_admission ?? (app.status === 'admitted' && !app.admission_accepted);
   const showPayTuition = app.can_pay_tuition ?? (app.status === 'accepted' && !app.tuition_fee_paid && tuitionAmount > 0);
   const showPayAppFee = app.can_pay_application_fee ?? (app.status === 'submitted' && !app.application_fee_paid && !app.application_fee_proof_pending);
+  const showEdit = app.can_update ?? showPayAppFee;
+  const showCancel = app.can_cancel ?? showPayAppFee;
   const tuitionPending = app.tuition_fee_proof_pending;
   const awaitingTuitionAfterAccept = app.status === 'accepted' && !app.tuition_fee_paid && tuitionAmount <= 0;
 
@@ -53,6 +57,24 @@ export default function StudentApplicationActions({
           >
             {t('viewDetails')}
           </Link>
+        )}
+        {showEdit && (
+          <Link
+            to={`/admissions/my-applications/${app.id}/edit`}
+            className="rounded-lg border border-[#1e3a5f] px-4 py-2 text-sm font-medium text-[#1e3a5f] hover:bg-slate-50"
+          >
+            {t('editApplication')}
+          </Link>
+        )}
+        {showCancel && onCancelApplication && (
+          <button
+            type="button"
+            disabled={actionId === app.id}
+            onClick={() => onCancelApplication(app.id)}
+            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {t('cancelApplication')}
+          </button>
         )}
         {showPayAppFee && (
           <button

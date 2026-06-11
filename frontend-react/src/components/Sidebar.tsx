@@ -48,7 +48,7 @@ const accessItems: SidebarItem[] = [
     label: 'Users',
     path: '/users',
     icon: Users,
-    permissions: ['view_users', 'manage_users', 'view_customers', 'view_students', 'view_teachers', 'view_staff'],
+    permissions: ['users.view', 'view_users', 'manage_users', 'view_customers', 'view_students', 'view_teachers', 'view_staff'],
   },
   {
     label: 'Roles & Permissions',
@@ -59,6 +59,9 @@ const accessItems: SidebarItem[] = [
   { label: 'Modules', path: '/modules', icon: Puzzle, permissions: ['manage_modules', 'modules.view'] },
   { label: 'General Settings', path: '/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2, permissions: ['institutions.view', 'institutions.create'] },
+  { label: 'Roles', path: '/roles', icon: UserCog, permissions: ['roles.view', 'view_roles', 'manage_roles', 'roles.manage'] },
+  { label: 'Permissions', path: '/permissions', icon: KeyRound, permissions: ['permissions.view', 'view_permissions', 'manage_roles', 'permissions.manage'] },
+  { label: 'Modules', path: '/modules', icon: Puzzle, permissions: ['modules.view', 'modules.manage', 'manage_modules'] },
 ]
 
 const moduleItems: ModuleItem[] = [

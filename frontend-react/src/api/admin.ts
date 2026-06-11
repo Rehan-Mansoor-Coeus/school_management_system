@@ -1,7 +1,10 @@
 import api from './client'
 
-export function fetchUsers() {
-  return api.get('/users')
+export function fetchUsers(params?: { institution_id?: number }) {
+  return api.get('/users', {
+    params,
+    headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+  })
 }
 
 export function createUser(payload: any) {

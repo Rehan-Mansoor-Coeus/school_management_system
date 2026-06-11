@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Application } from '../types';
-import { fetchRegistryPending, reviewRegistryApplication } from '../../../api/admissions';
+import { fetchApplication, fetchRegistryPending, reviewRegistryApplication } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import PaymentProofReviewSection from '../components/PaymentProofReviewSection';
+import ApplicationDocumentReviewSection from '../components/ApplicationDocumentReviewSection';
 
 export default function RegistryPage() {
   const { t } = useAdmissionsI18n();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Application | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<Application | null>(null);
   const [comment, setComment] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
@@ -25,6 +27,14 @@ export default function RegistryPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!selected?.id) {
+      setSelectedDetail(null);
+      return;
+    }
+    fetchApplication(selected.id).then(setSelectedDetail).catch(() => setSelectedDetail(selected));
+  }, [selected]);
+
   const submit = async (decision: 'approved' | 'rejected') => {
     if (!selected) return;
     await reviewRegistryApplication(selected.id, {
@@ -33,9 +43,16 @@ export default function RegistryPage() {
       rejection_reason: decision === 'rejected' ? rejectionReason : undefined,
     });
     setSelected(null);
+    setSelectedDetail(null);
     setComment('');
     setRejectionReason('');
     await load();
+  };
+
+  const refreshSelected = async () => {
+    if (!selected?.id) return;
+    const detail = await fetchApplication(selected.id);
+    setSelectedDetail(detail);
   };
 
   if (loading) return <p className="text-slate-500">{t('loading')}</p>;
@@ -64,6 +81,13 @@ export default function RegistryPage() {
             </div>
           </div>
         ))}
+
+        {selectedDetail?.documents?.length ? (
+          <ApplicationDocumentReviewSection
+            documents={selectedDetail.documents}
+            onUpdated={refreshSelected}
+          />
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">

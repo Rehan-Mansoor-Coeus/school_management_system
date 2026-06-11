@@ -1,10 +1,17 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useApplicationForm } from '../hooks/useApplicationForm';
-import DocumentUploadList, { type DocumentRow } from './DocumentUploadList';
+import ProgrammeDocumentUploadList, {
+  type ProgrammeRequiredDocument,
+  type RequiredDocumentUpload,
+} from './ProgrammeDocumentUploadList';
+import SignaturePad from '../../../components/letters/SignaturePad';
+import ApplicationAgreementSection from './ApplicationAgreementSection';
 import { fetchAdmissionsReferenceData } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
+
 import FormSelect from '../../../components/ui/FormSelect';
 import {
   countryOptions,
@@ -13,11 +20,15 @@ import {
   getCityOptions,
   getSubdivisionConfig,
 } from '../../../config/locationData';
+import type { AdmissionAgreement } from '../types';
+
 
 interface Programme {
   id: number;
   name: string;
   code: string;
+  required_documents?: ProgrammeRequiredDocument[];
+  admission_agreement?: AdmissionAgreement | null;
 }
 
 interface AcademicYear {
@@ -29,11 +40,13 @@ interface AcademicYear {
 export const ApplicationForm: React.FC = () => {
   const { t } = useAdmissionsI18n();
   const { user } = useAuth();
-  const { step, loading, error, applicant, applicationNumber, uploadProgress, submitApplicantInfo, submitApplication, reset, loadExistingApplicant } =
+  const { step, loading, error, applicant, applicationNumber, uploadProgress, submitApplicantInfo, submitApplication, reset, loadExistingApplicant, setStep } =
     useApplicationForm();
 
   const [programmes, setProgrammes] = React.useState<Programme[]>([]);
   const [academicYears, setAcademicYears] = React.useState<AcademicYear[]>([]);
+  const [institutionAgreement, setInstitutionAgreement] = React.useState<AdmissionAgreement | null>(null);
+  const [acceptedAgreementIds, setAcceptedAgreementIds] = useState<number[]>([]);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -54,15 +67,32 @@ export const ApplicationForm: React.FC = () => {
 
   const [selectedProgramme, setSelectedProgramme] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
-  const [documentRows, setDocumentRows] = useState<DocumentRow[]>([{ id: crypto.randomUUID(), name: '' }]);
+  const [documentUploads, setDocumentUploads] = useState<RequiredDocumentUpload[]>([]);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [localError, setLocalError] = useState('');
 
-  React.useEffect(() => {
-    fetchProgrammes();
-    fetchAcademicYears();
+  const selectedProgrammeData = useMemo(
+    () => programmes.find((programme) => String(programme.id) === selectedProgramme),
+    [programmes, selectedProgramme]
+  );
+
+  const activeAgreements = useMemo(() => {
+    const list: AdmissionAgreement[] = [];
+    if (institutionAgreement?.content?.trim()) {
+      list.push(institutionAgreement);
+    }
+    if (selectedProgrammeData?.admission_agreement?.content?.trim()) {
+      list.push(selectedProgrammeData.admission_agreement);
+    }
+    return list;
+  }, [institutionAgreement, selectedProgrammeData]);
+
+  useEffect(() => {
+    loadReferenceData();
     loadExistingApplicant();
   }, [loadExistingApplicant]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user || applicant) {
       return;
     }
@@ -75,6 +105,7 @@ export const ApplicationForm: React.FC = () => {
       phone: prev.phone || user.phone_number || '',
     }));
   }, [user, applicant]);
+
 
   const subdivision = useMemo(() => getSubdivisionConfig(formData.country), [formData.country]);
   const cityOptions = useMemo(() => getCityOptions(formData.country), [formData.country]);
@@ -93,20 +124,30 @@ export const ApplicationForm: React.FC = () => {
   };
 
   const fetchProgrammes = async () => {
-    try {
-      const data = await fetchAdmissionsReferenceData();
-      setProgrammes(data.programmes || []);
-    } catch (error) {
-      console.error('Failed to fetch programmes:', error);
-    }
-  };
 
-  const fetchAcademicYears = async () => {
+  useEffect(() => {
+    const requirements = selectedProgrammeData?.required_documents || [];
+    setDocumentUploads(
+      requirements.map((requirement) => ({
+        requiredDocumentId: requirement.id,
+        name: requirement.name,
+        description: requirement.description,
+        is_required: requirement.is_required,
+        comment: '',
+      }))
+    );
+    setAcceptedAgreementIds([]);
+  }, [selectedProgrammeData]);
+
+  const loadReferenceData = async () => {
+
     try {
       const data = await fetchAdmissionsReferenceData();
-      setAcademicYears(data.academic_years || []);
-    } catch (error) {
-      console.error('Failed to fetch academic years:', error);
+      setProgrammes((data.programmes as Programme[]) || []);
+      setAcademicYears((data.academic_years as AcademicYear[]) || []);
+      setInstitutionAgreement((data.institution_agreement as AdmissionAgreement) || null);
+    } catch (fetchError) {
+      console.error('Failed to fetch admissions reference data:', fetchError);
     }
   };
 
@@ -120,23 +161,39 @@ export const ApplicationForm: React.FC = () => {
 
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const missingAgreement = activeAgreements.some(
+      (agreement) => agreement.is_required && !acceptedAgreementIds.includes(agreement.id)
+    );
+    if (missingAgreement) {
+      setLocalError(t('agreementsRequired'));
+      return;
+    }
+    setLocalError('');
     try {
       await submitApplication(
-        parseInt(selectedAcademicYear),
-        parseInt(selectedProgramme),
-        documentRows.filter((row) => row.file)
+        parseInt(selectedAcademicYear, 10),
+        parseInt(selectedProgramme, 10),
+        documentUploads,
+        signatureDataUrl,
+        acceptedAgreementIds
       );
-    } catch (err) {
-      console.error('Step 2 submission failed:', err);
+    } catch (submitError) {
+      console.error('Step 2 submission failed:', submitError);
     }
+  };
+
+  const toggleAgreement = (agreementId: number, accepted: boolean) => {
+    setAcceptedAgreementIds((current) =>
+      accepted ? [...current, agreementId] : current.filter((id) => id !== agreementId)
+    );
   };
 
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await submitApplicantInfo(formData);
-    } catch (err) {
-      console.error('Step 1 submission failed:', err);
+    } catch (submitError) {
+      console.error('Step 1 submission failed:', submitError);
     }
   };
 
@@ -146,7 +203,6 @@ export const ApplicationForm: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      {/* Progress Bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
           {[1, 2, 3].map((s) => (
@@ -179,13 +235,12 @@ export const ApplicationForm: React.FC = () => {
         </div>
       </div>
 
-      {error && (
+      {(error || localError) && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
+          {error || localError}
         </div>
       )}
 
-      {/* Step 1: Personal Information */}
       {step === 1 && (
         <form onSubmit={handleStep1Submit} className="bg-white rounded-lg shadow p-6">
           <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('personalInformation')}</h2>
@@ -418,12 +473,11 @@ export const ApplicationForm: React.FC = () => {
         </form>
       )}
 
-      {/* Step 2: Programme and Academic Year */}
       {step === 2 && (
-        <form onSubmit={handleStep2Submit} className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('selectProgramme')}</h2>
+        <form onSubmit={handleStep2Submit} className="bg-white rounded-lg shadow p-6 space-y-6">
+          <h2 className="text-2xl font-bold text-gray-800">{t('selectProgramme')}</h2>
 
-          <div className="mb-6">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('academicYear')} *
             </label>
@@ -442,7 +496,7 @@ export const ApplicationForm: React.FC = () => {
             </select>
           </div>
 
-          <div className="mb-6">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('programme')} *
             </label>
@@ -461,24 +515,53 @@ export const ApplicationForm: React.FC = () => {
             </select>
           </div>
 
-          <DocumentUploadList
-            rows={documentRows}
-            onChange={setDocumentRows}
-            submitProgress={uploadProgress}
-            submitting={loading}
-          />
+          {selectedProgramme && (
+            <>
+              <ProgrammeDocumentUploadList
+                requirements={selectedProgrammeData?.required_documents || []}
+                uploads={documentUploads}
+                onChange={setDocumentUploads}
+                submitProgress={uploadProgress}
+                submitting={loading}
+              />
+
+              {activeAgreements.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-slate-800">{t('applicationAgreements')}</h3>
+                  <p className="mb-3 text-xs text-slate-500">{t('applicationAgreementsHint')}</p>
+                  <ApplicationAgreementSection
+                    agreements={activeAgreements}
+                    acceptedIds={acceptedAgreementIds}
+                    onToggle={toggleAgreement}
+                  />
+                </div>
+              )}
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">{t('applicantSignature')}</h3>
+                <p className="mb-3 text-xs text-slate-500">{t('applicantSignatureHint')}</p>
+                <SignaturePad
+                  label={t('applicantSignature')}
+                  value={signatureDataUrl}
+                  onConfirm={setSignatureDataUrl}
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => reset()}
+              onClick={() => {
+                setStep(1);
+              }}
               className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300"
             >
               {t('back')}
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !selectedProgramme}
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
             >
               {t('continue')} <ChevronRight size={20} />
@@ -487,7 +570,6 @@ export const ApplicationForm: React.FC = () => {
         </form>
       )}
 
-      {/* Step 3: Confirmation */}
       {step === 3 && (
         <div className="bg-white rounded-lg shadow p-6 text-center">
           <div className="mb-6">

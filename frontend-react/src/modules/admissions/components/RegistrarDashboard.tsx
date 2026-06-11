@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { CheckCircle, Download } from 'lucide-react';
 import AdmissionsService from '../services/AdmissionsService';
 import { Application } from '../types';
+import DashboardStatCard from '../../../components/ui/DashboardStatCard';
 
 export const RegistrarDashboard: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -57,18 +59,9 @@ export const RegistrarDashboard: React.FC = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-          <p className="text-gray-600 text-sm">Ready for Admission</p>
-          <p className="text-3xl font-bold text-yellow-600">{stats.ready_for_admission}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <p className="text-gray-600 text-sm">Admitted</p>
-          <p className="text-3xl font-bold text-green-600">{stats.admitted}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-          <p className="text-gray-600 text-sm">Enrolled</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.enrolled}</p>
-        </div>
+        <DashboardStatCard label="Ready for Admission" value={stats.ready_for_admission} to="/admissions/registrar" className="border-l-4 border-yellow-500" />
+        <DashboardStatCard label="Admitted" value={stats.admitted} to="/admissions/applications" className="border-l-4 border-green-500" />
+        <DashboardStatCard label="Enrolled" value={stats.enrolled} to="/admissions/applications" className="border-l-4 border-blue-500" />
       </div>
 
       {/* Applications Table */}
@@ -111,7 +104,9 @@ export const RegistrarDashboard: React.FC = () => {
                 {applications.map((app) => (
                   <tr key={app.id} className="hover:bg-gray-50">
                     <td className="px-6 py-3 text-sm font-medium text-gray-900">
-                      {app.application_number}
+                      <Link to={`/admissions/applications/${app.id}`} className="text-blue-600 hover:underline">
+                        {app.application_number}
+                      </Link>
                     </td>
                     <td className="px-6 py-3 text-sm text-gray-600">
                       {app.applicant.full_name}

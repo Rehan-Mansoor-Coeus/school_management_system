@@ -4,18 +4,28 @@ import Modal from '../components/ui/Modal'
 import { useToast } from '../components/ui/ToastProvider'
 import { FormField, formInputClass } from '../components/ui/FormField'
 import FormSelect from '../components/ui/FormSelect'
+import { useAuth } from '../context/AuthContext'
+
 import {
   assignUserRoles,
   createUser,
   deleteUser,
+  fetchInstitutions,
   fetchRoles,
   fetchUsers,
   updateUser,
 } from '../api/admin'
+import { filterAssignableRoles } from '../utils/accessControl'
 
 interface Role {
   id: number
   name: string
+}
+
+interface Institution {
+  id: number
+  name: string
+  code?: string
 }
 
 interface User {
@@ -23,6 +33,8 @@ interface User {
   name: string
   username?: string | null
   email: string
+  institution_id?: number
+  institution?: Institution | null
   phone_number?: string | null
   additional_phone_number?: string | null
   address?: string | null
@@ -31,13 +43,18 @@ interface User {
 }
 
 export default function UsersPage() {
+  const { userRoles } = useAuth()
+  const isPlatformSuperAdmin = userRoles.includes('super-admin') || userRoles.includes('system-super-admin')
   const [loading, setLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [institutions, setInstitutions] = useState<Institution[]>([])
+  const [institutionFilter, setInstitutionFilter] = useState<number | ''>('')
   const [modalOpen, setModalOpen] = useState(false)
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [activeUser, setActiveUser] = useState<User | null>(null)
   const [form, setForm] = useState({
+    institution_id: '' as number | '',
     name: '',
     username: '',
     email: '',
@@ -54,16 +71,27 @@ export default function UsersPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [institutionFilter, isPlatformSuperAdmin])
 
-  const roleOptions = useMemo(() => roles.map((role) => ({ id: role.id, label: role.name })), [roles])
+  useEffect(() => {
+    if (!isPlatformSuperAdmin) return
+    fetchInstitutions({ per_page: 100 })
+      .then((res) => setInstitutions(res.data?.data || res.data || []))
+      .catch(() => setInstitutions([]))
+  }, [isPlatformSuperAdmin])
+
+  const roleOptions = useMemo(
+    () => filterAssignableRoles(roles, userRoles).map((role) => ({ id: role.id, label: role.name })),
+    [roles, userRoles],
+  )
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [usersRes, rolesRes] = await Promise.all([fetchUsers(), fetchRoles()])
-      setUsers(usersRes.data)
-      setRoles(rolesRes.data)
+      const params = isPlatformSuperAdmin && institutionFilter ? { institution_id: Number(institutionFilter) } : undefined
+      const [usersRes, rolesRes] = await Promise.all([fetchUsers(params), fetchRoles()])
+      setUsers(Array.isArray(usersRes.data) ? usersRes.data : [])
+      setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : [])
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load users', 'error')
     } finally {
@@ -74,7 +102,9 @@ export default function UsersPage() {
   const openCreateModal = () => {
     setActiveUser(null)
     setForm({
-      name: '', username: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', primary_role: '', roles: [],
+      institution_id: institutionFilter || '',
+      name: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', primary_role: '', roles: [],
+
     })
     setModalOpen(true)
   }
@@ -83,6 +113,7 @@ export default function UsersPage() {
     setActiveUser(user)
     const roleIds = user.roles.map((role) => role.id)
     setForm({
+      institution_id: user.institution_id || user.institution?.id || '',
       name: user.name,
       username: user.username || '',
       email: user.email,
@@ -117,6 +148,7 @@ export default function UsersPage() {
       address: form.address,
       status: form.status,
       roles: roleIds,
+      ...(isPlatformSuperAdmin && form.institution_id ? { institution_id: Number(form.institution_id) } : {}),
     }
     if (form.password) payload.password = form.password
 
@@ -163,9 +195,31 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+
       <div className="flex justify-end">
         <button onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#162d4a]">
           <UserPlus className="h-4 w-4" />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {isPlatformSuperAdmin && (
+          <div className="min-w-[220px]">
+            <label className="block text-sm font-medium text-slate-700">Institution</label>
+            <select
+              value={institutionFilter}
+              onChange={(event) => setInstitutionFilter(event.target.value ? Number(event.target.value) : '')}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
+            >
+              <option value="">All institutions</option>
+              {institutions.map((institution) => (
+                <option key={institution.id} value={institution.id}>
+                  {institution.name}{institution.code ? ` (${institution.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <button onClick={openCreateModal} className="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700">
+
           New user
         </button>
       </div>
@@ -177,6 +231,9 @@ export default function UsersPage() {
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Name</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Username</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Email</th>
+              {isPlatformSuperAdmin && (
+                <th className="px-6 py-3 text-sm font-semibold text-slate-700">Institution</th>
+              )}
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Phone</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Roles</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Actions</th>
@@ -185,13 +242,16 @@ export default function UsersPage() {
           <tbody className="divide-y divide-slate-200">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+
+                <td colSpan={isPlatformSuperAdmin ? 6 : 5} className="px-6 py-10 text-center text-slate-500">
                   Loading users...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+
+                <td colSpan={isPlatformSuperAdmin ? 6 : 5} className="px-6 py-10 text-center text-slate-500">
+
                   No users found.
                 </td>
               </tr>
@@ -201,6 +261,9 @@ export default function UsersPage() {
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{user.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.username || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
+                  {isPlatformSuperAdmin && (
+                    <td className="px-6 py-4 text-sm text-slate-600">{user.institution?.name || '—'}</td>
+                  )}
                   <td className="px-6 py-4 text-sm text-slate-600">{user.phone_number || '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{user.roles.map((role) => role.name).join(', ') || 'None'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
@@ -239,31 +302,129 @@ export default function UsersPage() {
           </div>
         }
       >
-        <form id="user-form" onSubmit={handleFormSubmit} className="space-y-6">
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f]/10 text-[#1e3a5f]">
-                <UsersIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Account details</p>
-                <p className="text-xs text-slate-500">Username and password can differ from email.</p>
-              </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Name" required>
-                <input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} type="text" required className={formInputClass} />
-              </FormField>
-              <FormField label="Username" hint="Used for login">
-                <input value={form.username} onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))} type="text" className={formInputClass} />
-              </FormField>
-              <FormField label="Email" required>
-                <input value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} type="email" required className={formInputClass} />
-              </FormField>
-              <FormField label="Password" required={!activeUser} hint={activeUser ? 'Leave blank to keep current password' : undefined}>
-                <input value={form.password} onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))} type="password" className={formInputClass} {...(!activeUser ? { required: true } : {})} />
-              </FormField>
-            </div>
+<form id="user-form" onSubmit={handleFormSubmit} className="space-y-6">
+
+  {/* Institution (only for super admin) */}
+  {isPlatformSuperAdmin && (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+      <label className="block text-sm font-medium text-slate-700">
+        Institution
+      </label>
+
+      <select
+        value={form.institution_id}
+        onChange={(event) =>
+          setForm((prev) => ({
+            ...prev,
+            institution_id: event.target.value
+              ? Number(event.target.value)
+              : "",
+          }))
+        }
+        required
+        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#1e3a5f]"
+      >
+        <option value="">Select institution</option>
+        {institutions.map((institution) => (
+          <option key={institution.id} value={institution.id}>
+            {institution.name}
+            {institution.code ? ` (${institution.code})` : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+  )}
+
+  {/* Account Details */}
+  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+    <div className="mb-4 flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e3a5f]/10 text-[#1e3a5f]">
+        <UsersIcon className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-900">
+          Account details
+        </p>
+        <p className="text-xs text-slate-500">
+          Username and password can differ from email.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid gap-4 md:grid-cols-2">
+      <FormField label="Name" required>
+        <input
+          value={form.name}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, name: e.target.value }))
+          }
+          type="text"
+          required
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField label="Username" hint="Used for login">
+        <input
+          value={form.username}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, username: e.target.value }))
+          }
+          type="text"
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField label="Email" required>
+        <input
+          value={form.email}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, email: e.target.value }))
+          }
+          type="email"
+          required
+          className={formInputClass}
+        />
+      </FormField>
+
+      <FormField
+        label="Password"
+        required={!activeUser}
+        hint={
+          activeUser
+            ? "Leave blank to keep current password"
+            : undefined
+        }
+      >
+        <input
+          value={form.password}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, password: e.target.value }))
+          }
+          type="password"
+          className={formInputClass}
+          {...(!activeUser ? { required: true } : {})}
+        />
+      </FormField>
+
+      {/* Phone Number */}
+      <FormField label="Phone Number">
+        <input
+          value={form.phone_number}
+          onChange={(e) =>
+            setForm((prev) => ({
+              ...prev,
+              phone_number: e.target.value,
+            }))
+          }
+          type="text"
+          className={formInputClass}
+        />
+      </FormField>
+    </div>
+  </div>
+
+</form>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -340,7 +501,7 @@ export default function UsersPage() {
         }
       >
         <div className="grid gap-2 sm:grid-cols-2">
-          {roles.map((role) => (
+          {roleOptions.map((role) => (
             <label key={role.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -352,7 +513,7 @@ export default function UsersPage() {
                   )
                 }}
               />
-              {role.name}
+              {role.label}
             </label>
           ))}
         </div>

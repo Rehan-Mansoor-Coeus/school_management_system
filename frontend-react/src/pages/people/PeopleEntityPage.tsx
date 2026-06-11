@@ -7,6 +7,8 @@ import { PrimaryButton, SecondaryButton } from '../../components/letters/Letters
 import { FormField, formInputClass } from '../../components/ui/FormField'
 import FormSelect from '../../components/ui/FormSelect'
 import { useToast } from '../../components/ui/ToastProvider'
+import { useAuth } from '../../context/AuthContext'
+import { filterAssignableRoles } from '../../utils/accessControl'
 
 const labels: Record<PeopleEntity, { singular: string; plural: string; listPath: string; addPath: string; supportsRoles?: boolean; defaultRoles?: number[] }> = {
   customers: { singular: 'Customer', plural: 'Customers', listPath: '/users/customers', addPath: '/users/customers/add' },
@@ -27,6 +29,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
   const isAddRoute = location.pathname.endsWith('/add')
   const typedEntity = (fixedEntity || (entity in labels ? entity : 'customers')) as PeopleEntity
   const meta = labels[typedEntity]
+  const { userRoles } = useAuth()
   const navigate = useNavigate()
   const { pushToast } = useToast()
   const [search, setSearch] = useState('')
@@ -41,6 +44,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
   const isForm = isAddRoute || !!editing
   const isStudent = typedEntity === 'students'
   const roleMap = useMemo(() => Object.fromEntries(roles.map(role => [role.id, role.name])), [roles])
+  const assignableRoles = useMemo(() => filterAssignableRoles(roles, userRoles), [roles, userRoles])
 
   async function load() {
     setLoading(true)
@@ -157,27 +161,33 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
             </div>
 
             {meta.supportsRoles && (
-              <div>
-                <FormField label="Roles">
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {roles.map(role => (
-                      <label key={role.id} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={form.roles.includes(role.id)}
-                          onChange={(e) => {
-                            const id = role.id
-                            setForm({
-                              ...form,
-                              roles: e.target.checked ? [...form.roles, id] : form.roles.filter(r => r !== id),
-                            })
-                          }}
-                        />
-                        {role.name}
-                      </label>
-                    ))}
-                  </div>
-                </FormField>
+<div className="md:col-span-2">
+  <FormField label="Roles">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {assignableRoles.map(role => (
+        <label
+          key={role.id}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+        >
+          <input
+            type="checkbox"
+            checked={form.roles.includes(role.id)}
+            onChange={(e) => {
+              const id = role.id
+              setForm({
+                ...form,
+                roles: e.target.checked
+                  ? [...form.roles, id]
+                  : form.roles.filter(r => r !== id),
+              })
+            }}
+          />
+          {role.name}
+        </label>
+      ))}
+    </div>
+  </FormField>
+</div>
               </div>
             )}
 

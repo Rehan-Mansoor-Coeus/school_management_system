@@ -3,7 +3,33 @@ import type { Application } from '../modules/admissions/types';
 
 export async function fetchAdmissionsReferenceData() {
   const { data } = await api.get('/admissions/reference-data');
+  return data.data as {
+    programmes?: Array<Record<string, unknown>>;
+    academic_years?: Array<Record<string, unknown>>;
+    institution_agreement?: Record<string, unknown> | null;
+  };
+}
+
+export async function fetchInstitutionAgreement() {
+  const { data } = await api.get('/admissions/agreements/institution');
   return data.data;
+}
+
+export async function updateInstitutionAgreement(payload: {
+  title?: string;
+  content?: string;
+  is_required?: boolean;
+}) {
+  const { data } = await api.put('/admissions/agreements/institution', payload);
+  return data;
+}
+
+export async function reviewApplicationDocument(
+  documentId: number,
+  payload: { decision: 'approved' | 'rejected'; review_comment?: string },
+) {
+  const { data } = await api.post(`/admissions/documents/${documentId}/review`, payload);
+  return data;
 }
 
 export async function fetchMyApplications(page = 1) {
@@ -65,6 +91,29 @@ export async function submitApplication(payload: FormData | Record<string, unkno
 
 export async function acceptAdmission(applicationId: number) {
   const { data } = await api.post(`/admissions/applications/${applicationId}/accept`);
+  return data;
+}
+
+export async function cancelApplication(applicationId: number) {
+  const { data } = await api.post(`/admissions/applications/${applicationId}/cancel`);
+  return data;
+}
+
+export async function updateApplication(
+  applicationId: number,
+  payload: FormData,
+  onProgress?: (percent: number) => void,
+) {
+  const config = onProgress
+    ? {
+        onUploadProgress: (event: { loaded: number; total?: number }) => {
+          if (event.total) {
+            onProgress(Math.round((event.loaded * 100) / event.total));
+          }
+        },
+      }
+    : undefined;
+  const { data } = await api.post(`/admissions/applications/${applicationId}/update`, payload, config);
   return data;
 }
 
@@ -191,6 +240,26 @@ export async function fetchStudentAdmissionsDashboard() {
   };
 }
 
+export async function fetchRegistryDashboard() {
+  const { data } = await api.get('/admissions/registry/dashboard');
+  return data;
+}
+
+export async function fetchDepartmentDashboard() {
+  const { data } = await api.get('/admissions/department/dashboard');
+  return data;
+}
+
+export async function fetchRegistrarDashboard() {
+  const { data } = await api.get('/admissions/registrar/dashboard');
+  return data;
+}
+
+export async function fetchFinanceDashboard() {
+  const { data } = await api.get('/admissions/finance/dashboard');
+  return data;
+}
+
 export async function fetchPendingPaymentProofs(paymentType: 'application_fee' | 'tuition' | 'all' = 'application_fee') {
   const { data } = await api.get('/admissions/payment/pending-proofs', { params: { payment_type: paymentType } });
   return data;
@@ -284,6 +353,19 @@ export async function fetchPendingCourseApprovals() {
 
 export async function bulkApproveCourseRegistrations(studentId: number) {
   const { data } = await api.post('/admissions/courses/bulk-approve', { student_id: studentId });
+  return data;
+}
+
+export async function bulkApproveCourseRegistrationsByIds(registrationIds: number[]) {
+  const { data } = await api.post('/admissions/courses/bulk-approve', { registration_ids: registrationIds });
+  return data;
+}
+
+export async function bulkRejectCourseRegistrations(registrationIds: number[], reason: string) {
+  const { data } = await api.post('/admissions/courses/bulk-reject', {
+    registration_ids: registrationIds,
+    reason,
+  });
   return data;
 }
 

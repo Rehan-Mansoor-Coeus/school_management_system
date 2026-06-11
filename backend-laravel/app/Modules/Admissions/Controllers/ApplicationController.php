@@ -7,12 +7,16 @@ use App\Modules\Admissions\Concerns\ResolvesInstitution;
 use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Applicant;
 use App\Modules\Admissions\Models\Application;
+use App\Modules\Admissions\Models\ApplicationAgreementAcceptance;
 use App\Modules\Admissions\Models\ApplicationDocument;
 use App\Modules\Admissions\Requests\StoreApplicantRequest;
 use App\Modules\Admissions\Requests\StoreApplicationRequest;
+use App\Modules\Admissions\Requests\UpdateApplicationRequest;
 use App\Modules\Admissions\Resources\ApplicationResource;
 use App\AcademicYear;
+use App\AdmissionAgreement;
 use App\Programme;
+use App\ProgrammeRequiredDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -133,8 +137,10 @@ class ApplicationController extends Controller
 
         $this->storeApplicantDocuments($applicant, $request);
         $this->storeApplicationDocuments($application, $applicant, $request);
+        $this->storeApplicantSignature($application, $request);
+        $this->storeAgreementAcceptances($application, $request);
 
-        $application->load(['applicant', 'academicYear', 'programme', 'documents']);
+        $application->load(['applicant', 'academicYear', 'programme', 'documents.programmeRequiredDocument', 'agreementAcceptances']);
 
         (new \App\Modules\Admissions\Services\NotificationService())->notifyRegistry($application);
         (new \App\Modules\Admissions\Services\NotificationService())->sendApplicationStatusNotification($application, 'submitted');
@@ -153,7 +159,7 @@ class ApplicationController extends Controller
         $applications = Application::whereHas('applicant', function ($query) use ($userId) {
             $query->where('user_id', $userId);
         })
-            ->with(['applicant', 'academicYear', 'programme', 'registryReviewedBy', 'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment', 'documents'])
+            ->with(['applicant', 'academicYear', 'programme', 'registryReviewedBy', 'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment', 'documents.programmeRequiredDocument'])
             ->orderByDesc('created_at')
             ->paginate(10);
 
@@ -214,7 +220,8 @@ class ApplicationController extends Controller
     {
         $application = Application::with([
             'applicant', 'academicYear', 'programme', 'registryReviewedBy',
-            'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment', 'documents',
+            'departmentReviewedBy', 'admittedBy', 'latestApplicationFeePayment', 'latestTuitionPayment',
+            'documents.programmeRequiredDocument', 'agreementAcceptances',
         ])->findOrFail($applicationId);
 
         if (! $this->userCanViewApplication($application)) {
@@ -258,16 +265,98 @@ class ApplicationController extends Controller
         ]);
     }
 
+    public function cancelApplication($applicationId)
+    {
+        $application = Application::with('applicant')->findOrFail($applicationId);
+
+        if ((int) optional($application->applicant)->user_id !== (int) auth()->id()) {
+            abort(403, $this->transForUser('admissions.unauthorized'));
+        }
+
+        if (! $application->canCancelByStudent()) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.cannot_cancel_application'),
+            ], 400);
+        }
+
+        $application->markCancelled();
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.application_cancelled'),
+            'data' => new ApplicationResource($application->fresh()),
+        ]);
+    }
+
+    public function updateApplication(UpdateApplicationRequest $request, $applicationId)
+    {
+        $application = Application::with(['applicant', 'documents'])->findOrFail($applicationId);
+        $applicant = $application->applicant;
+
+        if ((int) optional($applicant)->user_id !== (int) auth()->id()) {
+            abort(403, $this->transForUser('admissions.unauthorized'));
+        }
+
+        if (! $application->canUpdateByStudent()) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.cannot_update_application'),
+            ], 400);
+        }
+
+        $programme = Programme::findOrFail($request->programme_id);
+        $programmeChanged = (int) $application->programme_id !== (int) $programme->id;
+        $applicationFee = $programme->application_fee > 0
+            ? $programme->application_fee
+            : max(5000, ($programme->tuition_fee ?? 0) * 0.05);
+
+        $application->update([
+            'academic_year_id' => $request->academic_year_id,
+            'programme_id' => $programme->id,
+            'application_fee' => $applicationFee,
+            'tuition_fee' => $programme->tuition_fee ?? 0,
+        ]);
+
+        if ($programmeChanged) {
+            $this->deleteApplicationDocuments($application);
+        }
+
+        $this->storeApplicantDocuments($applicant, $request);
+        $this->deleteRequestedDocuments($application, $request);
+        $this->syncApplicationDocumentsOnUpdate($application, $applicant, $request, $programmeChanged);
+        $this->storeApplicantSignature($application, $request);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('application_agreement_acceptances')) {
+            $application->agreementAcceptances()->delete();
+        }
+        $this->storeAgreementAcceptances($application, $request);
+
+        $application->load(['applicant', 'academicYear', 'programme', 'documents.programmeRequiredDocument', 'agreementAcceptances']);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.application_updated'),
+            'data' => new ApplicationResource($application),
+        ]);
+    }
+
     public function referenceData()
     {
         $institutionId = $this->institutionId();
 
+        $institutionAgreement = AdmissionAgreement::where('institution_id', $institutionId)
+            ->whereNull('programme_id')
+            ->active()
+            ->first();
+
         return response()->json([
             'success' => true,
             'data' => [
+                'institution_agreement' => $institutionAgreement,
                 'programmes' => Programme::where('institution_id', $institutionId)
                     ->where('is_active', true)
-                    ->with('department:id,name,code')
+                    ->with(['department:id,name,code', 'requiredDocuments', 'admissionAgreement'])
                     ->orderBy('name')
                     ->get(['id', 'name', 'code', 'department_id', 'tuition_fee', 'application_fee', 'level']),
                 'academic_years' => AcademicYear::where('institution_id', $institutionId)
@@ -314,14 +403,56 @@ class ApplicationController extends Controller
 
     protected function storeApplicationDocuments(Application $application, Applicant $applicant, Request $request)
     {
+        $folder = 'admissions/applications/'.$application->id.'/documents';
+
+        $requiredIds = $request->input('required_document_ids', []);
+        $requiredFiles = $request->file('required_documents', []);
+        $comments = $request->input('document_comments', []);
+
+        if (is_array($requiredFiles) && ! empty($requiredFiles)) {
+            foreach ($requiredFiles as $index => $file) {
+                if (! $file) {
+                    continue;
+                }
+
+                $requiredDocId = is_array($requiredIds) && isset($requiredIds[$index])
+                    ? (int) $requiredIds[$index]
+                    : null;
+                $requiredDoc = $requiredDocId
+                    ? ProgrammeRequiredDocument::where('programme_id', $application->programme_id)
+                        ->where('id', $requiredDocId)
+                        ->first()
+                    : null;
+
+                $documentName = $requiredDoc
+                    ? $requiredDoc->name
+                    : 'Document '.($index + 1);
+
+                $path = $file->store($folder, 'public');
+
+                ApplicationDocument::create([
+                    'institution_id' => $application->institution_id,
+                    'application_id' => $application->id,
+                    'applicant_id' => $applicant->id,
+                    'programme_required_document_id' => $requiredDoc ? $requiredDoc->id : null,
+                    'document_name' => $documentName,
+                    'comment' => is_array($comments) && isset($comments[$index])
+                        ? trim((string) $comments[$index]) ?: null
+                        : null,
+                    'file_path' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                    'review_status' => 'pending',
+                ]);
+            }
+        }
+
         $names = $request->input('document_names', []);
         $files = $request->file('documents', []);
 
         if (! is_array($files) || empty($files)) {
             return;
         }
-
-        $folder = 'admissions/applications/'.$application->id.'/documents';
 
         foreach ($files as $index => $file) {
             if (! $file) {
@@ -342,6 +473,151 @@ class ApplicationController extends Controller
                 'file_path' => $path,
                 'mime_type' => $file->getClientMimeType(),
                 'file_size' => $file->getSize(),
+                'review_status' => 'pending',
+            ]);
+        }
+    }
+
+    protected function syncApplicationDocumentsOnUpdate(
+        Application $application,
+        Applicant $applicant,
+        Request $request,
+        bool $programmeChanged
+    ) {
+        $requiredIds = $request->input('required_document_ids', []);
+        $requiredFiles = $request->file('required_documents', []);
+        $comments = $request->input('document_comments', []);
+
+        if (! is_array($requiredFiles) || empty($requiredFiles)) {
+            return;
+        }
+
+        $folder = 'admissions/applications/'.$application->id.'/documents';
+
+        foreach ($requiredFiles as $index => $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $requiredDocId = is_array($requiredIds) && isset($requiredIds[$index])
+                ? (int) $requiredIds[$index]
+                : null;
+
+            if ($requiredDocId) {
+                $existing = ApplicationDocument::where('application_id', $application->id)
+                    ->where('programme_required_document_id', $requiredDocId)
+                    ->get();
+
+                foreach ($existing as $doc) {
+                    if ($doc->file_path) {
+                        Storage::disk('public')->delete($doc->file_path);
+                    }
+                    $doc->delete();
+                }
+            }
+
+            $requiredDoc = $requiredDocId
+                ? ProgrammeRequiredDocument::where('programme_id', $application->programme_id)
+                    ->where('id', $requiredDocId)
+                    ->first()
+                : null;
+
+            $path = $file->store($folder, 'public');
+
+            ApplicationDocument::create([
+                'institution_id' => $application->institution_id,
+                'application_id' => $application->id,
+                'applicant_id' => $applicant->id,
+                'programme_required_document_id' => $requiredDoc ? $requiredDoc->id : null,
+                'document_name' => $requiredDoc ? $requiredDoc->name : 'Document '.($index + 1),
+                'comment' => is_array($comments) && isset($comments[$index])
+                    ? trim((string) $comments[$index]) ?: null
+                    : null,
+                'file_path' => $path,
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+                'review_status' => 'pending',
+            ]);
+        }
+    }
+
+    protected function deleteRequestedDocuments(Application $application, Request $request): void
+    {
+        $deletedIds = $request->input('deleted_document_ids', []);
+        if (! is_array($deletedIds) || empty($deletedIds)) {
+            return;
+        }
+
+        foreach ($deletedIds as $documentId) {
+            $document = ApplicationDocument::where('application_id', $application->id)
+                ->where('id', (int) $documentId)
+                ->first();
+
+            if (! $document) {
+                continue;
+            }
+
+            if ($document->file_path) {
+                Storage::disk('public')->delete($document->file_path);
+            }
+
+            $document->delete();
+        }
+    }
+
+    protected function deleteApplicationDocuments(Application $application): void
+    {
+        foreach ($application->documents as $document) {
+            if ($document->file_path) {
+                Storage::disk('public')->delete($document->file_path);
+            }
+            $document->delete();
+        }
+    }
+
+    protected function storeApplicantSignature(Application $application, Request $request)
+    {
+        if (! $request->hasFile('applicant_signature')) {
+            return;
+        }
+
+        $path = $request->file('applicant_signature')->store(
+            'admissions/applications/'.$application->id,
+            'public'
+        );
+
+        $application->update(['applicant_signature_path' => $path]);
+    }
+
+    protected function storeAgreementAcceptances(Application $application, Request $request)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('application_agreement_acceptances')) {
+            return;
+        }
+
+        $acceptedIds = $request->input('accepted_agreement_ids', []);
+        if (! is_array($acceptedIds)) {
+            return;
+        }
+
+        foreach ($acceptedIds as $agreementId) {
+            $agreement = AdmissionAgreement::where('institution_id', $application->institution_id)
+                ->active()
+                ->where('id', (int) $agreementId)
+                ->where(function ($query) use ($application) {
+                    $query->whereNull('programme_id')
+                        ->orWhere('programme_id', $application->programme_id);
+                })
+                ->first();
+
+            if (! $agreement) {
+                continue;
+            }
+
+            ApplicationAgreementAcceptance::create([
+                'application_id' => $application->id,
+                'admission_agreement_id' => $agreement->id,
+                'accepted_at' => now(),
             ]);
         }
     }

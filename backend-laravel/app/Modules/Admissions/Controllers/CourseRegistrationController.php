@@ -181,6 +181,58 @@ class CourseRegistrationController extends Controller
         ]);
     }
 
+    public function bulkRejectCourseRegistrations(Request $request)
+    {
+        $request->validate([
+            'registration_ids' => 'required|array|min:1',
+            'registration_ids.*' => 'integer|exists:course_registrations,id',
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $user = auth()->user();
+        $institutionId = $this->institutionId();
+
+        $registrations = CourseRegistration::where('institution_id', $institutionId)
+            ->where('approved_by_hod', false)
+            ->where('status', 'registered')
+            ->whereIn('id', $request->registration_ids)
+            ->with(['student.programme'])
+            ->get();
+
+        if ($registrations->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.hod_no_pending_for_student'),
+            ], 404);
+        }
+
+        foreach ($registrations as $registration) {
+            $departmentId = optional($registration->student->programme)->department_id;
+
+            if ($user->department_id && (int) $departmentId !== (int) $user->department_id) {
+                abort(403, $this->transForUser('admissions.hod_unauthorized'));
+            }
+        }
+
+        $ids = $registrations->pluck('id');
+
+        CourseRegistration::whereIn('id', $ids)->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->reason,
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $this->transForUser('admissions.courses_bulk_rejected', ['count' => $ids->count()]),
+            'data' => [
+                'rejected_count' => $ids->count(),
+                'registration_ids' => $ids->values(),
+            ],
+        ]);
+    }
+
     public function approveCourseRegistration($registrationId)
     {
         $registration = CourseRegistration::with(['subject', 'course', 'student.programme'])->findOrFail($registrationId);
@@ -295,6 +347,7 @@ class CourseRegistrationController extends Controller
                         'code' => $subject->code,
                         'credit_units' => $assignment->contact_hours ?: $subject->default_contact_hours,
                         'programme_semester_id' => $assignment->programme_semester_id,
+                        'is_required' => (bool) ($assignment->is_required ?? true),
                     ]);
                 }
             }
@@ -312,6 +365,7 @@ class CourseRegistrationController extends Controller
                         'code' => $subject->code,
                         'credit_units' => $subject->default_contact_hours,
                         'programme_semester_id' => null,
+                        'is_required' => false,
                     ];
                 });
         }

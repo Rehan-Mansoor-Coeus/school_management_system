@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import type { Application } from '../types';
-import { fetchApplication, resendAdmissionLetter } from '../../../api/admissions';
+import { fetchApplication, resendAdmissionLetter, cancelApplication } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
 import { useAuth } from '../../../context/AuthContext';
 import { publicFileUrl } from '../../../utils/publicFileUrl';
 import ApplicationProgressBar from '../components/ApplicationProgressBar';
+import ApplicationDocumentReviewSection from '../components/ApplicationDocumentReviewSection';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import StudentApplicationActions from '../components/StudentApplicationActions';
 import { acceptAdmission } from '../../../api/admissions';
@@ -33,6 +34,7 @@ export default function ApplicationDetailPage() {
   const { canAccess } = useAuth();
   const isStaffViewer = canViewApplicationDetails(canAccess);
   const canResendLetter = canAccess({ permissions: ['admissions.registrar.admit', 'admissions.manage'] });
+  const canReviewDocuments = canAccess({ permissions: ['admissions.registry.review', 'admissions.registrar.admit', 'admissions.manage'] });
   const fromPath = (location.state as { from?: string } | null)?.from;
   const backPath = fromPath || (isStaffViewer ? '/admissions/applications' : '/admissions/my-applications');
   const backLabel = fromPath
@@ -100,6 +102,17 @@ export default function ApplicationDetailPage() {
     }
   };
 
+  const handleCancel = async (appId: number) => {
+    if (!window.confirm(t('cancelApplicationConfirm'))) return;
+    setActionId(appId);
+    try {
+      await cancelApplication(appId);
+      await reloadApplication();
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const handleResendLetter = async () => {
     if (!application) return;
     setResending(true);
@@ -146,6 +159,7 @@ export default function ApplicationDetailPage() {
               setPaymentType('tuition');
             }}
             onAcceptAdmission={handleAccept}
+            onCancelApplication={handleCancel}
             showViewDetails={false}
           />
         </section>
@@ -206,17 +220,41 @@ export default function ApplicationDetailPage() {
         </section>
       )}
 
-      {(application.documents?.length || applicant?.passport_url || applicant?.transcript_url) && (
+      {(application.documents?.length || applicant?.passport_url || applicant?.transcript_url || application.applicant_signature_url) && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-4">{t('uploadedDocuments')}</h3>
+          {canReviewDocuments && application.documents?.length ? (
+            <ApplicationDocumentReviewSection
+              documents={application.documents}
+              canReview={['submitted', 'registry_reviewed'].includes(application.status)}
+              onUpdated={async () => {
+                if (!id) return;
+                setApplication(await fetchApplication(Number(id)));
+              }}
+            />
+          ) : (
           <ul className="space-y-3 text-sm">
             {(application.documents || []).map((doc) => (
-              <li key={doc.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-                <span className="font-medium text-slate-800">{doc.document_name}</span>
-                {doc.url && (
-                  <a href={publicFileUrl(doc.url) || doc.url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
-                    {t('viewDocument')}
-                  </a>
+              <li key={doc.id} className="rounded-lg border border-slate-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <span className="font-medium text-slate-800">{doc.document_name}</span>
+                    {doc.is_required != null && (
+                      <span className="ml-2 text-xs text-slate-500">
+                        ({doc.is_required ? t('mandatoryDocument') : t('optionalDocument')})
+                      </span>
+                    )}
+                  </div>
+                  {doc.url && (
+                    <a href={publicFileUrl(doc.url) || doc.url} target="_blank" rel="noopener noreferrer" className="text-[#1e3a5f] hover:underline">
+                      {t('viewDocument')}
+                    </a>
+                  )}
+                </div>
+                {doc.comment && (
+                  <p className="mt-2 text-slate-600">
+                    <span className="font-medium text-slate-700">{t('documentComment')}:</span> {doc.comment}
+                  </p>
                 )}
               </li>
             ))}
@@ -236,11 +274,22 @@ export default function ApplicationDetailPage() {
                 </a>
               </li>
             )}
+            {application.applicant_signature_url && (
+              <li className="rounded-lg border border-slate-200 px-4 py-3">
+                <div className="mb-2 font-medium text-slate-800">{t('applicantSignatureLabel')}</div>
+                <img
+                  src={publicFileUrl(application.applicant_signature_url) || application.applicant_signature_url}
+                  alt={t('applicantSignature')}
+                  className="h-20 object-contain"
+                />
+              </li>
+            )}
           </ul>
+          )}
         </section>
       )}
 
-      {!application.documents?.length && !applicant?.passport_url && !applicant?.transcript_url && (
+      {!application.documents?.length && !applicant?.passport_url && !applicant?.transcript_url && !application.applicant_signature_url && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-4">{t('uploadedDocuments')}</h3>
           <p className="text-sm text-slate-500">{t('noDocumentsUploaded')}</p>

@@ -1,5 +1,5 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import StaffDashboardOverview from '../components/dashboard/StaffDashboardOverview';
 import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats';
 
 export default function Dashboard() {
@@ -8,10 +8,12 @@ export default function Dashboard() {
 
   if (isStudent) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Your admission applications and progress at a glance.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Your applications, fees, enrollment status, and next steps at a glance.
+          </p>
         </div>
         <StudentAdmissionsStats />
       </div>
@@ -19,14 +21,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 bg-white rounded shadow">
-          <h3 className="text-sm text-gray-500">Overview</h3>
-          <p className="text-sm text-slate-600 mt-2">Use the sidebar to open modules for your role.</p>
-        </div>
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Institution overview, pending tasks, and quick links for your role.
+        </p>
       </div>
+      <StaffDashboardOverview />
     </div>
   );
 }

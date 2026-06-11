@@ -3,6 +3,7 @@
 namespace App\Modules\Admissions\Resources;
 
 use App\Modules\Admissions\Services\ApplicationProgressService;
+use App\Support\StorageUrl;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ApplicationResource extends JsonResource
@@ -15,6 +16,10 @@ class ApplicationResource extends JsonResource
             'id' => $this->id,
             'application_number' => $this->application_number,
             'status' => $this->status,
+            'applicant_signature_url' => $this->applicant_signature_path
+                && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->applicant_signature_path)
+                ? StorageUrl::public($this->applicant_signature_path)
+                : null,
             'application_fee' => (float) $this->application_fee,
             'application_fee_paid' => (bool) $this->application_fee_paid,
             'fee_paid_at' => optional($this->fee_paid_at)->format('Y-m-d H:i:s'),
@@ -61,6 +66,8 @@ class ApplicationResource extends JsonResource
             'can_accept_admission' => (bool) $this->canAcceptAdmission(),
             'can_pay_tuition' => (bool) $this->canPayTuition(),
             'can_submit_tuition_proof' => (bool) $this->canSubmitTuitionProof(),
+            'can_cancel' => (bool) $this->canCancelByStudent(),
+            'can_update' => (bool) $this->canUpdateByStudent(),
             'latest_application_fee_payment' => $this->when(
                 $this->relationLoaded('latestApplicationFeePayment') && $this->latestApplicationFeePayment,
                 function () {
@@ -75,6 +82,16 @@ class ApplicationResource extends JsonResource
             ),
             'documents' => ApplicationDocumentResource::collection(
                 $this->whenLoaded('documents')
+            ),
+            'accepted_agreement_ids' => $this->when(
+                $this->relationLoaded('agreementAcceptances'),
+                function () {
+                    return $this->agreementAcceptances
+                        ->pluck('admission_agreement_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->values()
+                        ->all();
+                }
             ),
             'progress' => $progressService->forApplication($this->resource),
         ];

@@ -12,7 +12,8 @@ use App\Modules\Admissions\Controllers\StripePaymentController;
 use App\Modules\Admissions\Controllers\CampayPaymentController;
 use App\Modules\Admissions\Controllers\StudentDashboardController;
 use App\Modules\Admissions\Controllers\CourseRegistrationController;
-use App\Modules\Admissions\Controllers\NotificationController;
+use App\Modules\Admissions\Controllers\DocumentReviewController;
+use App\Modules\Admissions\Controllers\AdmissionAgreementController;
 
 Route::prefix('admissions')->group(function () {
     Route::post('payment/webhook', [PaymentController::class, 'webhook']);
@@ -30,6 +31,8 @@ Route::prefix('admissions')->group(function () {
         });
         Route::get('applications/{applicationId}', [ApplicationController::class, 'show']);
         Route::post('applications/{applicationId}/accept', [ApplicationController::class, 'acceptAdmission']);
+        Route::post('applications/{applicationId}/cancel', [ApplicationController::class, 'cancelApplication']);
+        Route::post('applications/{applicationId}/update', [ApplicationController::class, 'updateApplication']);
 
         Route::post('payment/application-fee', [PaymentController::class, 'initiateApplicationFee']);
         Route::post('payment/application-fee/proof', [PaymentProofController::class, 'submitApplicationFeeProof']);
@@ -62,12 +65,25 @@ Route::prefix('admissions')->group(function () {
             Route::get('registry/dashboard', [RegistryController::class, 'dashboard']);
         });
 
+        Route::middleware('role:registry|registrar|institution-admin|admin|super-admin')->group(function () {
+            Route::post('documents/{documentId}/review', [DocumentReviewController::class, 'review']);
+        });
+
+        Route::middleware('permission:academics.view|academics.manage')->group(function () {
+            Route::get('agreements/institution', [AdmissionAgreementController::class, 'institutionAgreement']);
+        });
+
+        Route::middleware('permission:academics.edit|academics.manage')->group(function () {
+            Route::put('agreements/institution', [AdmissionAgreementController::class, 'updateInstitutionAgreement']);
+        });
+
         Route::middleware('role:hod|head-of-department|institution-admin|admin|super-admin')->group(function () {
             Route::get('department/pending', [DepartmentReviewController::class, 'pending']);
             Route::post('department/decide/{applicationId}', [DepartmentReviewController::class, 'decide']);
             Route::get('department/dashboard', [DepartmentReviewController::class, 'dashboard']);
             Route::get('courses/pending-approval', [CourseRegistrationController::class, 'pendingHodApproval']);
             Route::post('courses/bulk-approve', [CourseRegistrationController::class, 'bulkApproveCourseRegistrations']);
+            Route::post('courses/bulk-reject', [CourseRegistrationController::class, 'bulkRejectCourseRegistrations']);
             Route::post('courses/{registrationId}/approve', [CourseRegistrationController::class, 'approveCourseRegistration']);
             Route::post('courses/{registrationId}/reject', [CourseRegistrationController::class, 'rejectCourseRegistration']);
         });

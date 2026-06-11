@@ -88,6 +88,7 @@ import AdmissionsOverviewPage from './modules/admissions/pages/AdmissionsOvervie
 import { ApplicationPage } from './modules/admissions/pages/ApplicationPage'
 import MyApplicationsPage from './modules/admissions/pages/MyApplicationsPage'
 import ApplicationDetailPage from './modules/admissions/pages/ApplicationDetailPage'
+import EditApplicationPage from './modules/admissions/pages/EditApplicationPage'
 import AllApplicationsPage from './modules/admissions/pages/AllApplicationsPage'
 import RegistryPage from './modules/admissions/pages/RegistryPage'
 import DepartmentPage from './modules/admissions/pages/DepartmentPage'
@@ -168,6 +169,7 @@ export default function App(){
           <Route path="staff/add" element={<Navigate to="/users/staff/add" replace />} />
           <Route path="access/teachers" element={<Navigate to="/users/teachers" replace />} />
           <Route path="access/students" element={<Navigate to="/users/students" replace />} />
+
           <Route path="roles-permissions" element={<RolesAndPermissionsPage />} />
           <Route path="roles" element={<Navigate to="/roles-permissions" replace />} />
           <Route path="permissions" element={<Navigate to="/roles-permissions" replace />} />
@@ -189,6 +191,7 @@ export default function App(){
               <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
               <Route path="applications" element={<AllApplicationsPage />} />
               <Route path="applications/:id" element={<ApplicationDetailPage />} />
+              <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
               <Route path="registry" element={<RegistryPage />} />
               <Route path="department" element={<DepartmentPage />} />
               <Route path="registrar" element={<RegistrarAdmissionsPage />} />
@@ -202,6 +205,16 @@ export default function App(){
               <Route path="my" element={<MyCertificatesPage />} />
               <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
             </Route>
+
+          <Route path="roles" element={<RolesPage/>} />
+          <Route path="permissions" element={<PermissionsPage/>} />
+          <Route path="modules" element={<ModulesPage/>} />
+          <Route path="institutions" element={<InstitutionList />} />
+          <Route path="departments" element={<DepartmentsPage />} />
+          <Route path="admissions" element={<AdmissionsLayout />}>
+            <Route index element={<AdmissionsOverviewPage />} />
+            <Route path="apply" element={<ApplicationPage />} />
+       
           </Route>
 
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />
