@@ -19,6 +19,7 @@ import {
   Package,
   Puzzle,
   ScrollText,
+  Server,
   Settings,
   Shield,
   UserCog,
@@ -44,6 +45,10 @@ const navItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
 ]
 
+const systemItems: SidebarItem[] = [
+  { label: 'General Settings', path: '/system/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
+]
+
 const accessItems: SidebarItem[] = [
   {
     label: 'Users',
@@ -58,7 +63,6 @@ const accessItems: SidebarItem[] = [
     permissions: ['view_roles', 'manage_roles', 'view_permissions'],
   },
   { label: 'Modules', path: '/modules', icon: Puzzle, permissions: ['manage_modules', 'modules.view'] },
-  { label: 'General Settings', path: '/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2, permissions: ['institutions.view', 'institutions.create'] },
   { label: 'Roles', path: '/roles', icon: UserCog, permissions: ['roles.view', 'view_roles', 'manage_roles', 'roles.manage'] },
   { label: 'Permissions', path: '/permissions', icon: KeyRound, permissions: ['permissions.view', 'view_permissions', 'manage_roles', 'permissions.manage'] },
@@ -150,7 +154,11 @@ export default function Sidebar() {
   const visibleModuleItems = moduleItems.filter((item) => canUseModule(item.key))
   const showModulesSection = visibleModuleItems.length > 0
 
+  const visibleSystemItems = systemItems.filter((item) => canAccess({ permissions: item.permissions }))
+  const showSystemSection = visibleSystemItems.length > 0
+
   const [accessOpen, setAccessOpen] = useSidebarSection(false, ['/users', '/roles-permissions', '/roles', '/permissions', '/modules'])
+  const [systemOpen, setSystemOpen] = useSidebarSection(false, ['/system'])
   const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets'])
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
@@ -337,6 +345,25 @@ export default function Sidebar() {
               <span className={`transition ${modulesOpen ? 'rotate-180' : ''}`}>▾</span>
             </button>
             {modulesOpen && visibleModuleItems.map((item) => (
+              <SidebarLink key={item.path} item={item} nested />
+            ))}
+          </>
+        )}
+
+        {showSystemSection && (
+          <>
+            <button
+              type="button"
+              onClick={() => setSystemOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <Server className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                System
+              </span>
+              <span className={`transition ${systemOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {systemOpen && visibleSystemItems.map((item) => (
               <SidebarLink key={item.path} item={item} nested />
             ))}
           </>

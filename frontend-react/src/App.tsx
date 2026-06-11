@@ -10,6 +10,7 @@ import PublicInstitutionsPage from './landing/pages/PublicInstitutionsPage'
 import RequestInstitutionPage from './landing/pages/RequestInstitutionPage'
 import ContactPage from './landing/pages/ContactPage'
 import GeneralSettingsPage from './pages/GeneralSettingsPage'
+import SystemLayout from './components/system/SystemLayout'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
 import DashboardPage from './pages/Dashboard'
 import RolesAndPermissionsPage from './pages/RolesAndPermissions'
@@ -148,7 +149,11 @@ export default function App(){
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
-          <Route path="general-settings" element={<GeneralSettingsPage />} />
+          <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
+          <Route path="system" element={<SystemLayout />}>
+            <Route path="general-settings" element={<GeneralSettingsPage />} />
+            <Route index element={<Navigate to="general-settings" replace />} />
+          </Route>
           <Route path="institution-requests" element={<InstitutionRequestsPage />} />
           <Route path="users" element={<UsersLayout />}>
             <Route index element={<UsersIndexPage />} />

@@ -212,7 +212,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-logo', 'Api\InstitutionController@uploadLogo');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-letterhead', 'Api\InstitutionController@uploadLetterhead');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-signature', 'Api\InstitutionController@uploadSignature');
-    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-stamp', 'Api\InstitutionController@uploadStamp');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-footer', 'Api\InstitutionController@uploadFooter');
     Route::middleware('permission:modules.view')->get('modules', 'Api\ModuleController@index');
     Route::middleware('permission:modules.manage')->get('institutions/{institution}/modules', 'Api\InstitutionModuleController@show');
     Route::middleware('permission:modules.manage')->put('institutions/{institution}/modules', 'Api\InstitutionModuleController@update');

@@ -25,6 +25,7 @@
             color: #444;
             text-align: center;
         }
+        .footer-image img { max-width: 100%; max-height: 70px; }
     </style>
 </head>
 <body>
@@ -67,9 +68,15 @@
     </div>
 
     <div class="footer-wrap">
-        <strong>{{ $institution->name ?? '' }}</strong>
-        @if(!empty($institution->phone)) &nbsp;|&nbsp; {{ $institution->phone }}@endif
-        @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
+        @if(!empty($footer_path))
+            <div class="footer-image">
+                <img src="{{ $footer_path }}" alt="Footer">
+            </div>
+        @else
+            <strong>{{ $institution->name ?? '' }}</strong>
+            @if(!empty($institution->phone)) &nbsp;|&nbsp; {{ $institution->phone }}@endif
+            @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
+        @endif
     </div>
 </body>
 </html>

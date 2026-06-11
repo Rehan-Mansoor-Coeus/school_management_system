@@ -17,6 +17,7 @@ class Institution extends Model
     protected $appends = [
         'logo_url',
         'letterhead_url',
+        'footer_url',
         'registrar_signature_url',
         'official_stamp_url',
     ];
@@ -36,6 +37,7 @@ class Institution extends Model
         'country',
         'logo',
         'letterhead',
+        'footer',
         'registrar_signature',
         'official_stamp',
         'currency',
@@ -97,6 +99,13 @@ class Institution extends Model
     public function getRegistrarSignatureUrlAttribute()
     {
         $path = $this->registrar_signature ?: $this->attributes['registrar_signature_path'] ?? null;
+
+        return $this->publicFileUrl($path);
+    }
+
+    public function getFooterUrlAttribute()
+    {
+        $path = $this->footer ?: $this->official_stamp;
 
         return $this->publicFileUrl($path);
     }

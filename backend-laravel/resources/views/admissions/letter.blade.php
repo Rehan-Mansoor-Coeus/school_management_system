@@ -23,7 +23,8 @@
             font-size: 10px;
             color: #444;
         }
-        .footer-inner { width: 100%; }
+        .footer-image { text-align: center; margin-bottom: 6px; }
+        .footer-image img { max-width: 100%; max-height: 80px; }
         .footer-contact { text-align: center; line-height: 1.4; margin-bottom: 8px; }
         .footer-codes { width: 100%; margin-top: 6px; }
         .footer-codes td { vertical-align: bottom; text-align: center; }
@@ -69,13 +70,19 @@
     </div>
 
     <div class="footer-wrap">
-        <div class="footer-contact">
-            <strong>{{ $institution->name ?? '' }}</strong><br>
-            @if(!empty($institution->address)){{ $institution->address }}@if(!empty($institution->city)), {{ $institution->city }}@endif<br>@endif
-            @if(!empty($institution->phone)){{ $labels['phone'] ?? 'Tel' }}: {{ $institution->phone }}@endif
-            @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
-            @if(!empty($institution->website)) &nbsp;|&nbsp; {{ $institution->website }}@endif
-        </div>
+        @if(!empty($footer_path))
+            <div class="footer-image">
+                <img src="{{ $footer_path }}" alt="Footer">
+            </div>
+        @else
+            <div class="footer-contact">
+                <strong>{{ $institution->name ?? '' }}</strong><br>
+                @if(!empty($institution->address)){{ $institution->address }}@if(!empty($institution->city)), {{ $institution->city }}@endif<br>@endif
+                @if(!empty($institution->phone)){{ $labels['phone'] ?? 'Tel' }}: {{ $institution->phone }}@endif
+                @if(!empty($institution->email)) &nbsp;|&nbsp; {{ $institution->email }}@endif
+                @if(!empty($institution->website)) &nbsp;|&nbsp; {{ $institution->website }}@endif
+            </div>
+        @endif
         <table class="footer-codes" cellpadding="0" cellspacing="0">
             <tr>
                 <td style="width: 35%;">

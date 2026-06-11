@@ -140,12 +140,12 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   const [branding, setBranding] = useState<{
     logo: File | null
     letterhead: File | null
-    official_stamp: File | null
+    footer: File | null
     current: Partial<Institution>
   }>({
     logo: null,
     letterhead: null,
-    official_stamp: null,
+    footer: null,
     current: {},
   })
 
@@ -349,7 +349,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
     if (branding.logo) form.append('logo', branding.logo)
     if (branding.letterhead) form.append('letterhead', branding.letterhead)
-    if (branding.official_stamp) form.append('official_stamp', branding.official_stamp)
+    if (branding.footer) form.append('footer', branding.footer)
 
     return form
   }
@@ -614,8 +614,8 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 {(
                   [
                     { key: 'logo', label: 'Logo', accept: 'image/*', current: branding.current.logo },
-                    { key: 'letterhead', label: 'Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
-                    { key: 'official_stamp', label: 'Official stamp', accept: 'image/*', current: branding.current.official_stamp },
+                    { key: 'letterhead', label: 'Header / Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
+                    { key: 'footer', label: 'Footer (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.footer },
                   ] as const
                 ).map((item) => (
                   <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

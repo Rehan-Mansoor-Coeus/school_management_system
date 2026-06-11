@@ -37,7 +37,7 @@ export async function updateInstitutionSettings(id: number, data: Partial<Instit
   return api.put(`/institutions/${id}/settings`, data)
 }
 
-export async function uploadInstitutionFile(id: number, kind: 'logo' | 'letterhead' | 'signature' | 'stamp', file: File) {
+export async function uploadInstitutionFile(id: number, kind: 'logo' | 'letterhead' | 'signature' | 'footer', file: File) {
   const form = new FormData()
   form.append('file', file)
 
@@ -45,7 +45,7 @@ export async function uploadInstitutionFile(id: number, kind: 'logo' | 'letterhe
     logo: `/institutions/${id}/upload-logo`,
     letterhead: `/institutions/${id}/upload-letterhead`,
     signature: `/institutions/${id}/upload-signature`,
-    stamp: `/institutions/${id}/upload-stamp`,
+    footer: `/institutions/${id}/upload-footer`,
   }
 
   return api.post(endpointMap[kind], form, { headers: { 'Content-Type': 'multipart/form-data' } })

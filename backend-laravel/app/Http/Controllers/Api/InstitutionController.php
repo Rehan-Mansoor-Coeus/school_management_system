@@ -122,8 +122,8 @@ class InstitutionController extends Controller
 
             'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -186,8 +186,8 @@ class InstitutionController extends Controller
 
             'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -290,16 +290,16 @@ class InstitutionController extends Controller
         return $this->uploadFiles($request, $id, 'registrar_signature');
     }
 
-    public function uploadStamp(Request $request, $id)
+    public function uploadFooter(Request $request, $id)
     {
-        return $this->uploadFiles($request, $id, 'official_stamp');
+        return $this->uploadFiles($request, $id, 'footer');
     }
 
     public function uploadFiles(Request $request, $id, $type = null)
     {
         $institution = Institution::findOrFail($id);
 
-        $allowed = ['logo', 'letterhead', 'registrar_signature', 'official_stamp'];
+        $allowed = ['logo', 'letterhead', 'footer', 'registrar_signature'];
         if (! $type || ! in_array($type, $allowed, true)) {
             return response()->json(['message' => 'Invalid upload type.'], 422);
         }
@@ -307,8 +307,8 @@ class InstitutionController extends Controller
         $rules = [
             'logo' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
         ];
 
         $validator = Validator::make($request->all(), [
@@ -338,7 +338,7 @@ class InstitutionController extends Controller
 
     private function handleBrandUploads(Request $request, Institution $institution)
     {
-        foreach (['logo', 'letterhead', 'registrar_signature', 'official_stamp'] as $field) {
+        foreach (['logo', 'letterhead', 'footer', 'registrar_signature'] as $field) {
             if (! $request->hasFile($field)) {
                 continue;
             }

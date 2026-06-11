@@ -3,7 +3,7 @@ import { backendBaseUrl, publicFileUrl } from '../../utils/publicFileUrl'
 
 export { backendBaseUrl, publicFileUrl }
 
-type BrandingField = 'logo' | 'letterhead' | 'registrar_signature' | 'official_stamp'
+type BrandingField = 'logo' | 'letterhead' | 'footer' | 'registrar_signature'
 
 export function institutionFileUrl(institution: Partial<Institution>, field: BrandingField) {
   const urlField = `${field}_url` as keyof Institution
