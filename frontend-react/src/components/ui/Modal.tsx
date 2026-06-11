@@ -7,9 +7,11 @@ interface ModalProps {
   children: React.ReactNode
   footer?: React.ReactNode
   wide?: boolean
+  /** When false, only the X/Cancel buttons close the modal (prevents accidental dismiss while editing). */
+  closeOnBackdrop?: boolean
 }
 
-export default function Modal({ title, open, onClose, children, footer, wide }: ModalProps) {
+export default function Modal({ title, open, onClose, children, footer, wide, closeOnBackdrop = false }: ModalProps) {
   useEffect(() => {
     if (!open) return undefined
 
@@ -26,7 +28,7 @@ export default function Modal({ title, open, onClose, children, footer, wide }: 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40 p-2 sm:p-4"
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
       role="presentation"
     >
       <div

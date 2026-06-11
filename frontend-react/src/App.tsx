@@ -184,27 +184,29 @@ export default function App(){
             <Route path="academics/semesters" element={<AcademicSemestersPage />} />
             <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />
             <Route path="academics/organization" element={<AcademicOrganizationPage />} />
-            <Route path="admissions" element={<AdmissionsLayout />}>
-              <Route index element={<AdmissionsOverviewPage />} />
-              <Route path="apply" element={<ApplicationPage />} />
-              <Route path="my-applications" element={<MyApplicationsPage />} />
-              <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
-              <Route path="applications" element={<AllApplicationsPage />} />
-              <Route path="applications/:id" element={<ApplicationDetailPage />} />
-              <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
-              <Route path="registry" element={<RegistryPage />} />
-              <Route path="department" element={<DepartmentPage />} />
-              <Route path="registrar" element={<RegistrarAdmissionsPage />} />
-              <Route path="finance" element={<FinancePage />} />
-              <Route path="courses" element={<CourseRegistrationPage />} />
-              <Route path="hod-courses" element={<HodCourseApprovalPage />} />
-            </Route>
-            <Route path="character-certificates" element={<CharacterCertificatesLayout />}>
-              <Route index element={<CharacterCertificatesIndexPage />} />
-              <Route path="create" element={<CharacterCertificatesStaffRoute><CreateCertificatePage /></CharacterCertificatesStaffRoute>} />
-              <Route path="my" element={<MyCertificatesPage />} />
-              <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
-            </Route>
+          </Route>
+
+          <Route path="admissions" element={<AdmissionsLayout />}>
+            <Route index element={<AdmissionsOverviewPage />} />
+            <Route path="apply" element={<ApplicationPage />} />
+            <Route path="my-applications" element={<MyApplicationsPage />} />
+            <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="applications" element={<AllApplicationsPage />} />
+            <Route path="applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
+            <Route path="registry" element={<RegistryPage />} />
+            <Route path="department" element={<DepartmentPage />} />
+            <Route path="registrar" element={<RegistrarAdmissionsPage />} />
+            <Route path="finance" element={<FinancePage />} />
+            <Route path="courses" element={<CourseRegistrationPage />} />
+            <Route path="hod-courses" element={<HodCourseApprovalPage />} />
+          </Route>
+
+          <Route path="character-certificates" element={<CharacterCertificatesLayout />}>
+            <Route index element={<CharacterCertificatesIndexPage />} />
+            <Route path="create" element={<CharacterCertificatesStaffRoute><CreateCertificatePage /></CharacterCertificatesStaffRoute>} />
+            <Route path="my" element={<MyCertificatesPage />} />
+            <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
           </Route>
 
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />

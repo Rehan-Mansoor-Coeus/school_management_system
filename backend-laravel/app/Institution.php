@@ -86,17 +86,19 @@ class Institution extends Model
 
     public function getLogoUrlAttribute()
     {
-        return $this->publicFileUrl($this->logo);
+        return $this->publicFileUrl($this->logo ?: $this->attributes['logo_path'] ?? null);
     }
 
     public function getLetterheadUrlAttribute()
     {
-        return $this->publicFileUrl($this->letterhead);
+        return $this->publicFileUrl($this->letterhead ?: $this->attributes['letterhead_path'] ?? null);
     }
 
     public function getRegistrarSignatureUrlAttribute()
     {
-        return $this->publicFileUrl($this->registrar_signature);
+        $path = $this->registrar_signature ?: $this->attributes['registrar_signature_path'] ?? null;
+
+        return $this->publicFileUrl($path);
     }
 
     public function getOfficialStampUrlAttribute()

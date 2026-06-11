@@ -23,7 +23,11 @@ class AcademicController extends Controller
 {
     protected function getInstitutionId(Request $request)
     {
-        return optional($request->user())->institution_id ?: $request->input('institution_id');
+        if ($request->filled('institution_id')) {
+            return (int) $request->input('institution_id');
+        }
+
+        return optional($request->user())->institution_id;
     }
 
     protected function ensureInstitutionId(Request $request)
@@ -105,6 +109,12 @@ class AcademicController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $durationValue = (int) $request->input('duration_value', $request->duration_years);
+        $durationUnit = $request->input('duration_unit', 'years');
+        $durationYears = $durationUnit === 'months'
+            ? max(1, (int) ceil($durationValue / 12))
+            : max(1, $durationValue);
+
         $programme = Programme::create([
             'institution_id' => $institutionId,
             'department_id' => $request->department_id,
@@ -112,9 +122,9 @@ class AcademicController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'description' => $request->description,
-            'duration_years' => $request->duration_years,
-            'duration_value' => $request->input('duration_value', $request->duration_years),
-            'duration_unit' => $request->input('duration_unit', 'years'),
+            'duration_years' => $durationYears,
+            'duration_value' => $durationValue,
+            'duration_unit' => $durationUnit,
             'level' => $request->level,
             'semester_count' => $request->semester_count,
             'tuition_fee' => $request->input('tuition_fee', 0),

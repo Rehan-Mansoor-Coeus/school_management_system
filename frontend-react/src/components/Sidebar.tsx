@@ -137,7 +137,15 @@ export default function Sidebar() {
     permissions: ['view_library_menu', 'view_library_reports', 'borrow_books', 'approve_borrow_requests'],
   })
 
-  const showAcademics = ['institutions', 'departments', 'academics', 'admissions', 'character_certificates'].some((key) => canUseModule(key))
+  const showAcademics = ['institutions', 'departments', 'academics'].some((key) => canUseModule(key))
+
+  const showAdmissions = canUseModule('admissions') && canAccess({
+    permissions: ['admissions.view', 'admissions.apply', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.courses.register', 'admissions.hod.approve'],
+  })
+
+  const showCertificates = canUseModule('character_certificates') && canAccess({
+    permissions: ['character_certificates.view', 'character_certificates.manage', 'character_certificates.issue'],
+  })
 
   const visibleModuleItems = moduleItems.filter((item) => canUseModule(item.key))
   const showModulesSection = visibleModuleItems.length > 0
@@ -153,9 +161,9 @@ export default function Sidebar() {
   const employeePath = '/timesheets/fill'
   const adminPath = '/timesheets/admin/reports'
   const academicsPath = '/institutions'
-  const academicsActive = ['/institutions', '/departments', '/academics', '/admissions', '/character-certificates'].some((p) =>
-    location.pathname.startsWith(p)
-  )
+  const academicsActive = ['/institutions', '/departments', '/academics'].some((p) => location.pathname.startsWith(p))
+  const admissionsActive = location.pathname.startsWith('/admissions')
+  const certificatesActive = location.pathname.startsWith('/character-certificates')
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
@@ -284,10 +292,32 @@ export default function Sidebar() {
 
         {showAcademics && (
           <NavLink to={academicsPath} className={() => linkClass(academicsActive)}>
-            {({ isActive }) => (
+            {() => (
               <>
-                <GraduationCap className={iconClass(isActive)} aria-hidden="true" />
+                <GraduationCap className={iconClass(academicsActive)} aria-hidden="true" />
                 <span className="truncate">Academics</span>
+              </>
+            )}
+          </NavLink>
+        )}
+
+        {showAdmissions && (
+          <NavLink to="/admissions" className={() => linkClass(admissionsActive)}>
+            {() => (
+              <>
+                <GraduationCap className={iconClass(admissionsActive)} aria-hidden="true" />
+                <span className="truncate">Admissions</span>
+              </>
+            )}
+          </NavLink>
+        )}
+
+        {showCertificates && (
+          <NavLink to="/character-certificates" className={() => linkClass(certificatesActive)}>
+            {() => (
+              <>
+                <Award className={iconClass(certificatesActive)} aria-hidden="true" />
+                <span className="truncate">Certificates</span>
               </>
             )}
           </NavLink>

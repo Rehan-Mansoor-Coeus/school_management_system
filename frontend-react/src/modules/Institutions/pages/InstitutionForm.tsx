@@ -7,8 +7,10 @@ import type { Institution, InstitutionType } from '../types'
 import { institutionFileUrl } from '../utils'
 import { useTranslation } from 'react-i18next'
 import FormSelect from '../../../components/ui/FormSelect'
+import SearchableSelect from '../../../components/ui/SearchableSelect'
 import UploadProgressBar from '../../../components/ui/UploadProgressBar'
 import { countryOptions, getSubdivisionConfig, getCityOptions, defaultCityForCountry, DEFAULT_COUNTRY } from '../../../config/locationData'
+import { timezoneOptions, defaultTimezoneForCountry } from '../../../config/timezoneData'
 import { useInstitutions } from '../hooks/useInstitutions'
 
 type Props = {
@@ -538,14 +540,20 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Country</label>
                   <div className="mt-2">
-                    <FormSelect
+                    <SearchableSelect
                       value={basic.country}
                       onChange={(value) => {
                         const city = defaultCityForCountry(value)
-                        setBasic((c) => ({ ...c, country: value, city: city || c.city }))
+                        const timezone = defaultTimezoneForCountry(value)
+                        setBasic((c) => ({
+                          ...c,
+                          country: value,
+                          city: city || c.city,
+                          timezone: c.timezone || timezone,
+                        }))
                       }}
                       options={countryOptions.map((c) => ({ value: c.name, label: c.name }))}
-                      placeholder="Select country"
+                      placeholder="Search country…"
                     />
                   </div>
                 </div>
@@ -579,12 +587,14 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Timezone</label>
-                  <input
-                    value={basic.timezone}
-                    onChange={(e) => setBasic((c) => ({ ...c, timezone: e.target.value }))}
-                    placeholder="e.g. Africa/Lagos"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  />
+                  <div className="mt-2">
+                    <SearchableSelect
+                      value={basic.timezone}
+                      onChange={(value) => setBasic((c) => ({ ...c, timezone: value }))}
+                      options={timezoneOptions}
+                      placeholder="Search timezone…"
+                    />
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">

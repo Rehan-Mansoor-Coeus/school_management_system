@@ -73,7 +73,6 @@ class InstitutionController extends Controller
 
     public function myInstitution(Request $request)
     {
-        return response()->json('dd');
         $user = $request->user();
 
         if (! $user || ! $user->institution_id) {
@@ -349,6 +348,10 @@ class InstitutionController extends Controller
 
             $this->deleteOldPublicFile($institution->{$field});
             $institution->{$field} = $path;
+            $legacyField = $field . '_path';
+            if (array_key_exists($legacyField, $institution->getAttributes())) {
+                $institution->{$legacyField} = $path;
+            }
         }
 
         $institution->save();

@@ -180,7 +180,14 @@ export default function InstitutionList() {
                       <tr key={row.id}>
                         <td className="px-6 py-4">
                           {logoUrl ? (
-                            <img src={logoUrl} alt={row.name} className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200" />
+                            <img
+                              src={logoUrl}
+                              alt={row.name}
+                              className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none'
+                              }}
+                            />
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
                               {(row.name || 'I').slice(0, 1).toUpperCase()}
