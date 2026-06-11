@@ -144,7 +144,6 @@ export default function InstitutionDetail({ institutionId, onClose, onEdit }: Pr
                 {(
                   [
                     { label: t('institutions.detail.letterhead'), field: 'letterhead' as const },
-                    { label: t('institutions.detail.signature'), field: 'registrar_signature' as const },
                     { label: t('institutions.detail.stamp'), field: 'official_stamp' as const },
                   ] as const
                 ).map((item) => {

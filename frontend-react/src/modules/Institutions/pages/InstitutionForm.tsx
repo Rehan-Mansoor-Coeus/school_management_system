@@ -138,13 +138,11 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   const [branding, setBranding] = useState<{
     logo: File | null
     letterhead: File | null
-    registrar_signature: File | null
     official_stamp: File | null
     current: Partial<Institution>
   }>({
     logo: null,
     letterhead: null,
-    registrar_signature: null,
     official_stamp: null,
     current: {},
   })
@@ -349,7 +347,6 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
     if (branding.logo) form.append('logo', branding.logo)
     if (branding.letterhead) form.append('letterhead', branding.letterhead)
-    if (mode === 'edit' && branding.registrar_signature) form.append('registrar_signature', branding.registrar_signature)
     if (branding.official_stamp) form.append('official_stamp', branding.official_stamp)
 
     return form
@@ -608,9 +605,6 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                   [
                     { key: 'logo', label: 'Logo', accept: 'image/*', current: branding.current.logo },
                     { key: 'letterhead', label: 'Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
-                    ...(mode === 'edit'
-                      ? [{ key: 'registrar_signature' as const, label: 'Registrar signature', accept: 'image/*', current: branding.current.registrar_signature }]
-                      : []),
                     { key: 'official_stamp', label: 'Official stamp', accept: 'image/*', current: branding.current.official_stamp },
                   ] as const
                 ).map((item) => (
