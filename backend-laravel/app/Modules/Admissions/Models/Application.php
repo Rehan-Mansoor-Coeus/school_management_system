@@ -211,6 +211,42 @@ class Application extends Model
         }
     }
 
+    /**
+     * Ensure completed card/online payments appear in the payments list even if only flags were set.
+     */
+    public function syncPaymentRecordsFromFlags(): void
+    {
+        if ($this->application_fee_paid
+            && ! $this->payments()->applicationFee()->where('status', 'completed')->exists()) {
+            ApplicationPayment::create([
+                'institution_id' => $this->institution_id,
+                'application_id' => $this->id,
+                'reference_number' => 'PAY-APP-'.$this->id.'-'.time(),
+                'payment_type' => 'application_fee',
+                'payment_method' => 'stripe',
+                'amount' => $this->application_fee,
+                'status' => 'completed',
+                'paid_at' => $this->fee_paid_at ?? now(),
+                'description' => 'Application fee for '.$this->application_number,
+            ]);
+        }
+
+        if ($this->tuition_fee_paid
+            && ! $this->payments()->where('payment_type', 'tuition')->where('status', 'completed')->exists()) {
+            ApplicationPayment::create([
+                'institution_id' => $this->institution_id,
+                'application_id' => $this->id,
+                'reference_number' => 'PAY-TUI-'.$this->id.'-'.time(),
+                'payment_type' => 'tuition',
+                'payment_method' => 'stripe',
+                'amount' => $this->tuition_fee,
+                'status' => 'completed',
+                'paid_at' => $this->tuition_paid_at ?? now(),
+                'description' => 'Tuition fee for '.$this->application_number,
+            ]);
+        }
+    }
+
     public function canRegistryReview()
     {
         return $this->status === 'submitted' && $this->application_fee_paid;

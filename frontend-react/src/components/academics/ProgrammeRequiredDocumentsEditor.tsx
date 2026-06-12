@@ -15,14 +15,15 @@ type Props = {
 
 export default function ProgrammeRequiredDocumentsEditor({ documents, onChange }: Props) {
   const addRow = () => {
+    const newRow = {
+      name: '',
+      description: '',
+      is_required: true,
+      sort_order: 0,
+    };
     onChange([
-      ...documents,
-      {
-        name: '',
-        description: '',
-        is_required: true,
-        sort_order: documents.length,
-      },
+      newRow,
+      ...documents.map((row, rowIndex) => ({ ...row, sort_order: rowIndex + 1 })),
     ]);
   };
 
@@ -59,7 +60,7 @@ export default function ProgrammeRequiredDocumentsEditor({ documents, onChange }
         <p className="text-sm text-slate-500">No documents configured yet.</p>
       ) : (
         documents.map((row, index) => (
-          <div key={row.id ?? `new-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+          <div key={row.id ?? `doc-${row.sort_order}-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex items-start gap-3">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-slate-600">Document name</label>

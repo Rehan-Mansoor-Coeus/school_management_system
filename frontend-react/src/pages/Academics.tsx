@@ -27,6 +27,7 @@ import ProgrammeAgreementEditor, {
   type ProgrammeAgreementInput,
 } from '../components/academics/ProgrammeAgreementEditor'
 import InstitutionAgreementSection from '../components/academics/InstitutionAgreementSection'
+import FormSelect from '../components/ui/FormSelect'
 
 
 const programmeLevels = [
@@ -111,6 +112,8 @@ const initialProgrammeForm = {
   name: '',
   code: '',
   description: '',
+  duration_value: 1,
+  duration_unit: 'years' as 'years' | 'months',
   duration_years: 1,
   level: 'degree',
   semester_count: 2,
@@ -172,7 +175,13 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
   const [programmeForm, setProgrammeForm] = useState(initialProgrammeForm)
   const [subjectForm, setSubjectForm] = useState(initialSubjectForm)
   const [assignmentForm, setAssignmentForm] = useState(initialAssignmentForm)
+  const [programmeSaving, setProgrammeSaving] = useState(false)
   const [semesterNameUpdates, setSemesterNameUpdates] = useState<Record<number, string>>({})
+
+  function durationYearsFromForm(value: number, unit: 'years' | 'months') {
+    if (unit === 'months') return Math.max(1, Math.ceil(value / 12))
+    return Math.max(1, value)
+  }
 
   useEffect(() => {
     loadPageData()
@@ -238,10 +247,15 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
 
   const openEditProgrammeModal = (programme: Programme) => {
     setSelectedProgramme(programme)
+    const durationUnit = (programme as Programme & { duration_unit?: string }).duration_unit === 'months' ? 'months' : 'years'
+    const durationValue = (programme as Programme & { duration_value?: number }).duration_value
+      ?? (durationUnit === 'months' ? programme.duration_years * 12 : programme.duration_years)
     setProgrammeForm({
       name: programme.name,
       code: programme.code,
       description: programme.description || '',
+      duration_value: durationValue,
+      duration_unit: durationUnit,
       duration_years: programme.duration_years,
       level: programme.level,
       semester_count: programme.semester_count,
@@ -328,7 +342,19 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       pushToast('Select an institution first.', 'error')
       return
     }
-    const payload = { ...programmeForm, ...institutionParams }
+    if (!programmeForm.department_id) {
+      pushToast('Please select a department.', 'error')
+      return
+    }
+    const durationYears = durationYearsFromForm(programmeForm.duration_value, programmeForm.duration_unit)
+    const payload = {
+      ...programmeForm,
+      duration_years: durationYears,
+      duration_value: programmeForm.duration_value,
+      duration_unit: programmeForm.duration_unit,
+      ...institutionParams,
+    }
+    setProgrammeSaving(true)
     try {
       if (selectedProgramme) {
         await updateProgram(selectedProgramme.id, payload)
@@ -338,10 +364,12 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
         pushToast('Programme created successfully.')
       }
       setProgrammeModalOpen(false)
-      loadProgrammes()
+      await loadPageData()
     } catch (error: any) {
       const validation = error?.response?.data?.errors ? Object.values(error.response.data.errors).flat().join(' ') : null
       pushToast(validation || error?.response?.data?.message || 'Unable to save programme', 'error')
+    } finally {
+      setProgrammeSaving(false)
     }
   }
 
@@ -591,6 +619,21 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
       <Modal title={selectedProgramme ? 'Edit programme' : 'Create programme'} open={programmeModalOpen} onClose={() => setProgrammeModalOpen(false)}>
         <form onSubmit={handleProgrammeSubmit} className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-slate-700">Department</label>
+            <div className="mt-2">
+              <FormSelect
+                value={programmeForm.department_id ? String(programmeForm.department_id) : ''}
+                onChange={(value) => setProgrammeForm((prev) => ({ ...prev, department_id: value ? Number(value) : undefined }))}
+                options={departments.map((department) => ({
+                  value: String(department.id),
+                  label: department.code ? `${department.name} (${department.code})` : department.name,
+                }))}
+                placeholder="Select department first"
+                required
+              />
+            </div>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
               value={programmeForm.name}
@@ -611,47 +654,42 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Department</label>
-            <select
-              value={programmeForm.department_id ?? ''}
-              onChange={(event) => setProgrammeForm((prev) => ({ ...prev, department_id: Number(event.target.value) || undefined }))}
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            >
-              <option value="">Select department</option>
-              {departments.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name} {department.code ? `(${department.code})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-slate-700">Level</label>
-            <select
-              value={programmeForm.level}
-              onChange={(event) => setProgrammeForm((prev) => ({ ...prev, level: event.target.value }))}
-              required
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-            >
-              {programmeLevels.map((level) => (
-                <option key={level.value} value={level.value}>
-                  {level.label}
-                </option>
-              ))}
-            </select>
+            <div className="mt-2">
+              <FormSelect
+                value={programmeForm.level}
+                onChange={(value) => setProgrammeForm((prev) => ({ ...prev, level: value }))}
+                options={programmeLevels}
+                placeholder="Select level"
+                required
+              />
+            </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Duration (years)</label>
+              <label className="block text-sm font-medium text-slate-700">Duration</label>
               <input
-                value={programmeForm.duration_years}
-                onChange={(event) => setProgrammeForm((prev) => ({ ...prev, duration_years: Number(event.target.value) }))}
+                value={programmeForm.duration_value}
+                onChange={(event) => setProgrammeForm((prev) => ({ ...prev, duration_value: Number(event.target.value) || 1 }))}
                 type="number"
                 min={1}
                 required
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Unit</label>
+              <div className="mt-2">
+                <FormSelect
+                  value={programmeForm.duration_unit}
+                  onChange={(value) => setProgrammeForm((prev) => ({ ...prev, duration_unit: value as 'years' | 'months' }))}
+                  options={[
+                    { value: 'years', label: 'Years' },
+                    { value: 'months', label: 'Months' },
+                  ]}
+                  placeholder="Unit"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">Semester count</label>
@@ -727,8 +765,8 @@ export default function AcademicsPage({ initialTab = 'programmes' }: { initialTa
             <button type="button" onClick={() => setProgrammeModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
               Cancel
             </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save
+            <button type="submit" disabled={programmeSaving} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+              {programmeSaving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>

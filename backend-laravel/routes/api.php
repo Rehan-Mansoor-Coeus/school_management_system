@@ -7,6 +7,10 @@ Route::prefix('auth')->group(function () {
     Route::get('institutions', 'Api\AuthController@publicInstitutions');
     Route::post('register', 'Api\AuthController@register');
     Route::post('login', 'Api\AuthController@login');
+    Route::post('signup/request-otp', 'Api\AuthController@requestSignupOtp');
+    Route::post('signup/verify-otp', 'Api\AuthController@verifySignupOtp');
+    Route::post('signup/complete', 'Api\AuthController@studentSignup');
+    Route::post('forgot-username', 'Api\AuthController@requestForgotUsername');
     Route::post('forgot-password/request-otp', 'Api\AuthController@requestPasswordResetOtp');
     Route::post('forgot-password/verify-otp', 'Api\AuthController@verifyPasswordResetOtp');
     Route::post('forgot-password/reset', 'Api\AuthController@resetPassword');
@@ -209,7 +213,7 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-logo', 'Api\InstitutionController@uploadLogo');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-letterhead', 'Api\InstitutionController@uploadLetterhead');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-signature', 'Api\InstitutionController@uploadSignature');
-    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-stamp', 'Api\InstitutionController@uploadStamp');
+    Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->post('institutions/{id}/upload-footer', 'Api\InstitutionController@uploadFooter');
     Route::middleware('permission:modules.view')->get('modules', 'Api\ModuleController@index');
     Route::middleware('permission:modules.manage')->get('institutions/{institution}/modules', 'Api\InstitutionModuleController@show');
     Route::middleware('permission:modules.manage')->put('institutions/{institution}/modules', 'Api\InstitutionModuleController@update');

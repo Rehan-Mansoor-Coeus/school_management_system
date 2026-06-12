@@ -7,7 +7,7 @@ import CertificatesListPage from '../pages/CertificatesListPage'
 const linkDefs = [
   {
     path: '/character-certificates',
-    labelKey: 'allCertificates',
+    label: 'Character Certificate',
     end: true,
     permissions: [...CHARACTER_CERT_STAFF_PERMISSIONS],
   },
@@ -61,7 +61,7 @@ export default function CharacterCertificatesLayout() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{t('moduleTitle')}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Certificates</h1>
         <p className="mt-1 text-sm text-slate-500">
           {isStudentPortal ? t('studentModuleSubtitle') : t('moduleSubtitle')}
         </p>
@@ -83,7 +83,7 @@ export default function CharacterCertificatesLayout() {
                 }`
               }
             >
-              {t(link.labelKey)}
+              {link.label ?? t(link.labelKey!)}
             </NavLink>
           ))}
         </nav>

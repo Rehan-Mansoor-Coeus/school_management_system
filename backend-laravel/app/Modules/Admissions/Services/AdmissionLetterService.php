@@ -28,6 +28,10 @@ class AdmissionLetterService
         $institution = $application->institution;
         $settings = LetterSetting::where('institution_id', $application->institution_id)->first();
 
+        $verifyUrl = rtrim(config('app.url'), '/').'/admissions/applications/'.$application->id;
+        $barcodeData = urlencode($application->application_number);
+        $qrData = urlencode($verifyUrl);
+
         $data = [
             'institution' => $institution,
             'applicant' => $application->applicant,
@@ -37,10 +41,15 @@ class AdmissionLetterService
             'letterhead_path' => LetterAssetHelper::pdfDataUri(
                 optional($settings)->letterhead_path ?: optional($institution)->letterhead
             ),
+            'footer_path' => LetterAssetHelper::pdfDataUri(
+                optional($institution)->footer ?: optional($institution)->official_stamp
+            ),
             'logo_path' => LetterAssetHelper::pdfDataUri(
                 optional($settings)->logo_path ?: optional($institution)->logo
             ),
             'registrar_signature_path' => LetterAssetHelper::pdfDataUri(optional($institution)->registrar_signature),
+            'qr_code_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data='.$qrData,
+            'barcode_url' => 'https://barcode.tec-it.com/barcode.ashx?data='.$barcodeData.'&code=Code128&translate-esc=on&dpi=96',
             'labels' => [
                 'title' => $this->transForUser('admissions.letter_title', [], $user),
                 'date' => $this->transForUser('admissions.letter_date', [], $user),
@@ -55,6 +64,8 @@ class AdmissionLetterService
                 'closing' => $this->transForUser('admissions.letter_closing', [], $user),
                 'yours' => $this->transForUser('admissions.letter_yours', [], $user),
                 'registrar' => $this->transForUser('admissions.letter_registrar', [], $user),
+                'phone' => $this->transForUser('admissions.letter_phone', [], $user),
+                'scan_verify' => $this->transForUser('admissions.letter_scan_verify', [], $user),
             ],
         ];
 

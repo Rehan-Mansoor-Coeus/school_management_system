@@ -43,6 +43,94 @@ class NotificationService
         return $whatsappResult;
     }
 
+    public function sendRejectionLetter(Application $application, string $stage)
+    {
+        $application->loadMissing(['applicant.user', 'programme', 'institution']);
+        $user = optional($application->applicant)->user;
+
+        $letterPath = (new RejectionLetterService())->generateRejectionLetter($application, $stage);
+        $stageLabel = $this->transForUser('admissions.rejection_stage_'.$stage, [], $user);
+
+        $header = $this->transForUser('admissions.rejection_notify_header', [], $user);
+        $message = $this->formatStructuredMessage(
+            $header,
+            $this->transForUser('admissions.notify_greeting', ['name' => optional($application->applicant)->first_name ?: optional($user)->name], $user),
+            [
+                $this->transForUser('admissions.notify_line_application', ['number' => $application->application_number], $user),
+                $this->transForUser('admissions.notify_line_programme', ['programme' => optional($application->programme)->name ?: '—'], $user),
+                $this->transForUser('admissions.rejection_notify_body', ['stage' => $stageLabel], $user),
+            ],
+            optional($application->institution)->name
+        );
+
+        $this->sendRejectionEmail($application, $letterPath, $stageLabel);
+        $this->sendRejectionWhatsApp($application, $letterPath, $message);
+
+        if ($application->applicant->user_id) {
+            $this->createInAppNotification(
+                $application->applicant->user_id,
+                $application->institution_id,
+                $header,
+                $message,
+                'admission'
+            );
+        }
+    }
+
+    protected function sendRejectionEmail(Application $application, string $pdfPath, string $stageLabel)
+    {
+        try {
+            $applicant = $application->applicant;
+            $user = $applicant->user;
+
+            $subject = $this->transForUser('admissions.rejection_email_subject', [
+                'number' => $application->application_number,
+            ], $user);
+
+            $body = $this->transForUser('admissions.rejection_email_body', [
+                'name' => $applicant->first_name,
+                'stage' => $stageLabel,
+                'institution' => optional($application->institution)->name,
+            ], $user);
+
+            Mail::raw($body, function ($message) use ($applicant, $subject, $pdfPath) {
+                $message->to($applicant->email)->subject($subject);
+                if ($pdfPath && Storage::disk('public')->exists($pdfPath)) {
+                    $message->attach(Storage::disk('public')->path($pdfPath));
+                }
+            });
+        } catch (\Exception $e) {
+            Log::warning('Rejection letter email failed: '.$e->getMessage());
+        }
+    }
+
+    protected function sendRejectionWhatsApp(Application $application, string $pdfPath, string $message)
+    {
+        if (! $this->whatsapp->isConfigured()) {
+            return;
+        }
+
+        try {
+            $applicant = $application->applicant;
+            $phone = $this->whatsapp->normalizePhoneNumber((string) $applicant->phone);
+            if (! $phone) {
+                return;
+            }
+
+            $this->whatsapp->sendTextMessage($phone, $message, 'rejection_letter');
+
+            if ($pdfPath && Storage::disk('public')->exists($pdfPath)) {
+                $publicUrl = Storage::disk('public')->url($pdfPath);
+                $caption = $this->transForUser('admissions.rejection_whatsapp_caption', [
+                    'number' => $application->application_number,
+                ], optional($applicant)->user);
+                $this->whatsapp->sendDocumentMessage($phone, $publicUrl, $caption, 'rejection_letter');
+            }
+        } catch (\Exception $e) {
+            Log::warning('Rejection letter WhatsApp failed: '.$e->getMessage());
+        }
+    }
+
     protected function sendAdmissionEmail(Application $application, $pdfPath)
     {
         try {
@@ -200,26 +288,74 @@ class NotificationService
             'enrolled' => 'notify_enrolled',
         ];
 
-        $application->loadMissing(['applicant.user']);
+        $headers = [
+            'submitted' => 'APPLICATION RECEIVED',
+            'application_fee_paid' => 'PAYMENT RECEIVED',
+            'application_fee_proof_submitted' => 'PAYMENT PROOF SUBMITTED',
+            'application_fee_proof_rejected' => 'PAYMENT PROOF REJECTED',
+            'registry_reviewed' => 'REGISTRY REVIEW COMPLETE',
+            'approved' => 'DEPARTMENT APPROVED',
+            'rejected' => 'APPLICATION UPDATE',
+            'admitted' => 'ADMISSION OFFER',
+            'accepted' => 'ADMISSION ACCEPTED',
+            'tuition_paid' => 'TUITION PAYMENT RECEIVED',
+            'enrolled' => 'ENROLLMENT COMPLETE',
+        ];
+
+        $application->loadMissing(['applicant.user', 'programme', 'institution']);
         $user = optional($application->applicant)->user;
-        $replace = array_merge(['number' => $application->application_number], $replace);
+        $replace = array_merge([
+            'number' => $application->application_number,
+            'name' => optional($application->applicant)->first_name ?: optional($user)->name,
+            'programme' => optional($application->programme)->name ?: '—',
+            'institution' => optional($application->institution)->name ?: '—',
+        ], $replace);
+
+        $header = $headers[$status] ?? 'APPLICATION UPDATE';
         $title = $this->transForUser('admissions.notify_status_title', [], $user);
-        $message = isset($keys[$status])
+        $body = isset($keys[$status])
             ? $this->transForUser('admissions.'.$keys[$status], $replace, $user)
             : $title;
+
+        $message = $this->formatStructuredMessage(
+            $header,
+            $this->transForUser('admissions.notify_greeting', ['name' => $replace['name']], $user),
+            [
+                $this->transForUser('admissions.notify_line_application', ['number' => $replace['number']], $user),
+                $this->transForUser('admissions.notify_line_programme', ['programme' => $replace['programme']], $user),
+                $body,
+            ],
+            optional($application->institution)->name
+        );
 
         if ($application->applicant->user_id) {
             $this->createInAppNotification(
                 $application->applicant->user_id,
                 $application->institution_id,
-                $title,
+                $header,
                 $message,
                 'admission'
             );
 
-            $this->sendStatusEmail($application, $title, $message);
+            $this->sendStatusEmail($application, $header, $message);
             $this->sendStatusWhatsApp($application, $message, $user);
         }
+    }
+
+    protected function formatStructuredMessage(string $header, string $greeting, array $lines, string $footer = ''): string
+    {
+        $parts = ["*{$header}*", str_repeat('─', 24), '', $greeting, ''];
+        foreach ($lines as $line) {
+            if ($line) {
+                $parts[] = "• {$line}";
+            }
+        }
+        if ($footer) {
+            $parts[] = '';
+            $parts[] = "_{$footer}_";
+        }
+
+        return implode("\n", $parts);
     }
 
     protected function sendStatusEmail(Application $application, $subject, $message)

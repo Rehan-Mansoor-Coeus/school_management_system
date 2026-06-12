@@ -1,6 +1,7 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/Login'
+import StudentSignupPage from './pages/StudentSignupPage'
 import ForgotPasswordPage from './pages/ForgotPassword'
 import LandingPage from './landing/LandingPage'
 import LandingShell from './landing/LandingShell'
@@ -9,6 +10,7 @@ import PublicInstitutionsPage from './landing/pages/PublicInstitutionsPage'
 import RequestInstitutionPage from './landing/pages/RequestInstitutionPage'
 import ContactPage from './landing/pages/ContactPage'
 import GeneralSettingsPage from './pages/GeneralSettingsPage'
+import SystemLayout from './components/system/SystemLayout'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
 import DashboardPage from './pages/Dashboard'
 import RolesAndPermissionsPage from './pages/RolesAndPermissions'
@@ -77,6 +79,7 @@ import OverdueBooks from './pages/library/OverdueBooks'
 import FinesManagement from './pages/library/FinesManagement'
 import FrequentlySignedBooks from './pages/library/FrequentlySignedBooks'
 import BorrowingHistory from './pages/library/BorrowingHistory'
+import StudentPendingBorrowPage from './pages/library/StudentPendingBorrowPage'
 import AddUserPage from './pages/people/AddUserPage'
 import PeopleEntityPage from './pages/people/PeopleEntityPage'
 import CustomersPage from './pages/people/CustomersPage'
@@ -139,14 +142,18 @@ export default function App(){
         </Route>
 
         <Route path="/admin" element={<LoginPage />} />
+        <Route path="/signup" element={<StudentSignupPage />} />
         <Route path="/login" element={<Navigate to="/admin" replace />} />
-        <Route path="/signup" element={<Navigate to="/admin" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/letters/verify/:id" element={<LetterVerifyPage />} />
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
-          <Route path="general-settings" element={<GeneralSettingsPage />} />
+          <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
+          <Route path="system" element={<SystemLayout />}>
+            <Route path="general-settings" element={<GeneralSettingsPage />} />
+            <Route index element={<Navigate to="general-settings" replace />} />
+          </Route>
           <Route path="institution-requests" element={<InstitutionRequestsPage />} />
           <Route path="users" element={<UsersLayout />}>
             <Route index element={<UsersIndexPage />} />
@@ -184,27 +191,29 @@ export default function App(){
             <Route path="academics/semesters" element={<AcademicSemestersPage />} />
             <Route path="academics/subjects" element={<AcademicsPage initialTab="subjects" />} />
             <Route path="academics/organization" element={<AcademicOrganizationPage />} />
-            <Route path="admissions" element={<AdmissionsLayout />}>
-              <Route index element={<AdmissionsOverviewPage />} />
-              <Route path="apply" element={<ApplicationPage />} />
-              <Route path="my-applications" element={<MyApplicationsPage />} />
-              <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
-              <Route path="applications" element={<AllApplicationsPage />} />
-              <Route path="applications/:id" element={<ApplicationDetailPage />} />
-              <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
-              <Route path="registry" element={<RegistryPage />} />
-              <Route path="department" element={<DepartmentPage />} />
-              <Route path="registrar" element={<RegistrarAdmissionsPage />} />
-              <Route path="finance" element={<FinancePage />} />
-              <Route path="courses" element={<CourseRegistrationPage />} />
-              <Route path="hod-courses" element={<HodCourseApprovalPage />} />
-            </Route>
-            <Route path="character-certificates" element={<CharacterCertificatesLayout />}>
-              <Route index element={<CharacterCertificatesIndexPage />} />
-              <Route path="create" element={<CharacterCertificatesStaffRoute><CreateCertificatePage /></CharacterCertificatesStaffRoute>} />
-              <Route path="my" element={<MyCertificatesPage />} />
-              <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
-            </Route>
+          </Route>
+
+          <Route path="admissions" element={<AdmissionsLayout />}>
+            <Route index element={<AdmissionsOverviewPage />} />
+            <Route path="apply" element={<ApplicationPage />} />
+            <Route path="my-applications" element={<MyApplicationsPage />} />
+            <Route path="my-applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="applications" element={<AllApplicationsPage />} />
+            <Route path="applications/:id" element={<ApplicationDetailPage />} />
+            <Route path="my-applications/:id/edit" element={<EditApplicationPage />} />
+            <Route path="registry" element={<RegistryPage />} />
+            <Route path="department" element={<DepartmentPage />} />
+            <Route path="registrar" element={<RegistrarAdmissionsPage />} />
+            <Route path="finance" element={<FinancePage />} />
+            <Route path="courses" element={<CourseRegistrationPage />} />
+            <Route path="hod-courses" element={<HodCourseApprovalPage />} />
+          </Route>
+
+          <Route path="character-certificates" element={<CharacterCertificatesLayout />}>
+            <Route index element={<CharacterCertificatesIndexPage />} />
+            <Route path="create" element={<CharacterCertificatesStaffRoute><CreateCertificatePage /></CharacterCertificatesStaffRoute>} />
+            <Route path="my" element={<MyCertificatesPage />} />
+            <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
           </Route>
 
           <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />
@@ -227,6 +236,7 @@ export default function App(){
             <Route path="fines" element={<FinesManagement />} />
             <Route path="frequently-signed" element={<FrequentlySignedBooks />} />
             <Route path="history" element={<BorrowingHistory />} />
+            <Route path="pending" element={<StudentPendingBorrowPage />} />
           </Route>
 
           <Route path="hostel" element={<HostelLayout />}>

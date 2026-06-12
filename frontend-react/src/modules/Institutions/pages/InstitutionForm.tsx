@@ -4,11 +4,14 @@ import { useToast } from '../../../components/ui/ToastProvider'
 import HasPermission from '../../../components/HasPermission'
 import { useAuth } from '../../../context/AuthContext'
 import type { Institution, InstitutionType } from '../types'
-import { institutionFileUrl } from '../utils'
+import { uploadInstitutionFile } from '../services/InstitutionsService'
+import BrandAssetUpload from '../components/BrandAssetUpload'
 import { useTranslation } from 'react-i18next'
 import FormSelect from '../../../components/ui/FormSelect'
+import SearchableSelect from '../../../components/ui/SearchableSelect'
 import UploadProgressBar from '../../../components/ui/UploadProgressBar'
 import { countryOptions, getSubdivisionConfig, getCityOptions, defaultCityForCountry, DEFAULT_COUNTRY } from '../../../config/locationData'
+import { timezoneOptions, defaultTimezoneForCountry } from '../../../config/timezoneData'
 import { useInstitutions } from '../hooks/useInstitutions'
 
 type Props = {
@@ -111,6 +114,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   const { hasPermission } = useAuth()
   const { t } = useTranslation()
   const { loading, fetchInstitution, createInstitution, updateInstitution } = useInstitutions()
+  const [uploadingBrand, setUploadingBrand] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -138,12 +142,12 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
   const [branding, setBranding] = useState<{
     logo: File | null
     letterhead: File | null
-    official_stamp: File | null
+    footer: File | null
     current: Partial<Institution>
   }>({
     logo: null,
     letterhead: null,
-    official_stamp: null,
+    footer: null,
     current: {},
   })
 
@@ -347,7 +351,7 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
     if (branding.logo) form.append('logo', branding.logo)
     if (branding.letterhead) form.append('letterhead', branding.letterhead)
-    if (branding.official_stamp) form.append('official_stamp', branding.official_stamp)
+    if (branding.footer) form.append('footer', branding.footer)
 
     return form
   }
@@ -359,11 +363,19 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     try {
       const payload = buildPayload()
       if (effectiveInstitutionId) {
-        await updateInstitution(effectiveInstitutionId, payload)
+        const data = await updateInstitution(effectiveInstitutionId, payload)
+        if (data?.institution) {
+          setBranding((current) => ({ ...current, current: data.institution, logo: null, letterhead: null, footer: null }))
+        }
       } else {
         const data = await createInstitution(payload)
         const newId = data?.institution?.id ?? data?.id
-        if (newId) setSavedInstitutionId(newId)
+        if (newId) {
+          setSavedInstitutionId(newId)
+          if (data?.institution) {
+            setBranding((current) => ({ ...current, current: data.institution, logo: null, letterhead: null, footer: null }))
+          }
+        }
       }
       ignoreNextDirty.current = true
       setDirty(false)
@@ -387,6 +399,33 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
     if (!ok) return
     pushToast(mode === 'create' || savedInstitutionId ? t('institutions.form.created', { defaultValue: 'Institution saved.' }) : t('institutions.form.updated'), 'success')
     onSaved()
+  }
+
+  const handleBrandFileChange = async (key: 'logo' | 'letterhead' | 'footer', file: File | null) => {
+    setBranding((c) => ({ ...c, [key]: file } as typeof branding))
+    if (!file || !effectiveInstitutionId) return
+
+    setUploadingBrand(key)
+    try {
+      const res = await uploadInstitutionFile(effectiveInstitutionId, key, file)
+      const url = res.data?.url as string | undefined
+      const path = res.data?.path as string | undefined
+      const cacheBustedUrl = url ? `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined
+      setBranding((c) => ({
+        ...c,
+        [key]: null,
+        current: {
+          ...c.current,
+          [key]: path || c.current[key],
+          [`${key}_url`]: cacheBustedUrl || c.current[`${key}_url` as keyof Institution],
+        },
+      }))
+      pushToast(`${key} uploaded.`, 'success')
+    } catch (error: any) {
+      pushToast(error?.response?.data?.message || `Unable to upload ${key}.`, 'error')
+    } finally {
+      setUploadingBrand(null)
+    }
   }
 
   const currentStepName = steps[step] || steps[0]
@@ -538,14 +577,20 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Country</label>
                   <div className="mt-2">
-                    <FormSelect
+                    <SearchableSelect
                       value={basic.country}
                       onChange={(value) => {
                         const city = defaultCityForCountry(value)
-                        setBasic((c) => ({ ...c, country: value, city: city || c.city }))
+                        const timezone = defaultTimezoneForCountry(value)
+                        setBasic((c) => ({
+                          ...c,
+                          country: value,
+                          city: city || c.city,
+                          timezone: c.timezone || timezone,
+                        }))
                       }}
                       options={countryOptions.map((c) => ({ value: c.name, label: c.name }))}
-                      placeholder="Select country"
+                      placeholder="Search country…"
                     />
                   </div>
                 </div>
@@ -579,12 +624,14 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Timezone</label>
-                  <input
-                    value={basic.timezone}
-                    onChange={(e) => setBasic((c) => ({ ...c, timezone: e.target.value }))}
-                    placeholder="e.g. Africa/Lagos"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-                  />
+                  <div className="mt-2">
+                    <SearchableSelect
+                      value={basic.timezone}
+                      onChange={(value) => setBasic((c) => ({ ...c, timezone: value }))}
+                      options={timezoneOptions}
+                      placeholder="Search timezone…"
+                    />
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -601,42 +648,39 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
 
             {step === 1 && (
               <div className="grid gap-4 md:grid-cols-2">
-                {(
-                  [
-                    { key: 'logo', label: 'Logo', accept: 'image/*', current: branding.current.logo },
-                    { key: 'letterhead', label: 'Letterhead (image/pdf)', accept: 'image/*,application/pdf', current: branding.current.letterhead },
-                    { key: 'official_stamp', label: 'Official stamp', accept: 'image/*', current: branding.current.official_stamp },
-                  ] as const
-                ).map((item) => (
-                  <div key={item.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-2 text-sm font-semibold text-slate-800">{item.label}</div>
-                    {institutionFileUrl(branding.current, item.key) && (
-                      <div className="mb-3">
-                        {item.current?.toString().toLowerCase().endsWith('.pdf') ? (
-                          <a
-                            href={institutionFileUrl(branding.current, item.key)!}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-blue-700 underline"
-                          >
-                            {t('institutions.form.fields.viewCurrent')}
-                          </a>
-                        ) : (
-                          <img src={institutionFileUrl(branding.current, item.key)!} alt={item.label} className="h-24 w-full rounded-xl object-cover ring-1 ring-slate-200" />
-                        )}
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept={item.accept}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null
-                        setBranding((c) => ({ ...c, [item.key]: file } as any))
-                      }}
-                      className="block w-full text-sm"
-                    />
-                  </div>
-                ))}
+                <BrandAssetUpload
+                  label="Header"
+                  description="Appears at the top of admission letters, rejection letters, and invoices."
+                  field="letterhead"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.letterhead}
+                  uploading={uploadingBrand === 'letterhead'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
+                  label="Footer"
+                  description="Appears at the bottom of admission letters, rejection letters, and invoices."
+                  field="footer"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.footer}
+                  uploading={uploadingBrand === 'footer'}
+                  onChange={handleBrandFileChange}
+                />
+                <BrandAssetUpload
+                  label="Logo"
+                  description="Displayed as a centered watermark on admission letters (and other branded PDFs). Also shown in the app sidebar and institution list."
+                  field="logo"
+                  accept="image/*"
+                  institution={branding.current}
+                  pendingFile={branding.logo}
+                  uploading={uploadingBrand === 'logo'}
+                  onChange={handleBrandFileChange}
+                />
+                <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+                  Use PNG or JPG images. After a database sync, re-upload branding files — file uploads are stored separately from the database.
+                </div>
               </div>
             )}
 

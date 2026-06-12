@@ -144,7 +144,7 @@ export default function InstitutionDetail({ institutionId, onClose, onEdit }: Pr
                 {(
                   [
                     { label: t('institutions.detail.letterhead'), field: 'letterhead' as const },
-                    { label: t('institutions.detail.stamp'), field: 'official_stamp' as const },
+                    { label: t('institutions.detail.footer'), field: 'footer' as const },
                   ] as const
                 ).map((item) => {
                   const url = institutionFileUrl(institution, item.field)

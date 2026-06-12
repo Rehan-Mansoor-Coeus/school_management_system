@@ -275,6 +275,24 @@ export async function rejectPaymentProof(paymentId: number, reviewNotes: string)
   return data;
 }
 
+export async function openPaymentInvoice(paymentId: number) {
+  const res = await api.get(`/admissions/payment/${paymentId}/invoice`, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data);
+  window.open(url, '_blank');
+}
+
+export async function downloadPaymentInvoice(paymentId: number, referenceNumber?: string) {
+  const res = await api.get(`/admissions/payment/${paymentId}/invoice`, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `invoice-${referenceNumber || paymentId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchRegistryPending() {
   const { data } = await api.get('/admissions/registry/pending');
   return data;

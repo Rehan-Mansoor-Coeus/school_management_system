@@ -17,6 +17,7 @@ class Institution extends Model
     protected $appends = [
         'logo_url',
         'letterhead_url',
+        'footer_url',
         'registrar_signature_url',
         'official_stamp_url',
     ];
@@ -36,6 +37,7 @@ class Institution extends Model
         'country',
         'logo',
         'letterhead',
+        'footer',
         'registrar_signature',
         'official_stamp',
         'currency',
@@ -86,17 +88,26 @@ class Institution extends Model
 
     public function getLogoUrlAttribute()
     {
-        return $this->publicFileUrl($this->logo);
+        return $this->publicFileUrl($this->logo ?: $this->attributes['logo_path'] ?? null);
     }
 
     public function getLetterheadUrlAttribute()
     {
-        return $this->publicFileUrl($this->letterhead);
+        return $this->publicFileUrl($this->letterhead ?: $this->attributes['letterhead_path'] ?? null);
     }
 
     public function getRegistrarSignatureUrlAttribute()
     {
-        return $this->publicFileUrl($this->registrar_signature);
+        $path = $this->registrar_signature ?: $this->attributes['registrar_signature_path'] ?? null;
+
+        return $this->publicFileUrl($path);
+    }
+
+    public function getFooterUrlAttribute()
+    {
+        $path = $this->footer ?: $this->official_stamp ?: $this->attributes['footer_path'] ?? null;
+
+        return $this->publicFileUrl($path);
     }
 
     public function getOfficialStampUrlAttribute()
@@ -114,6 +125,10 @@ class Institution extends Model
             return $path;
         }
 
-        return url(Storage::disk('public')->url($path));
+        if (! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return \App\Support\StorageUrl::public($path);
     }
 }

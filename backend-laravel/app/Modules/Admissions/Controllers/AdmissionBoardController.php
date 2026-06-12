@@ -108,7 +108,7 @@ class AdmissionBoardController extends Controller
                 $message = 'Application approved successfully.';
             } else {
                 $application->reject(auth()->id(), $request->rejection_reason);
-                $notificationService->sendApplicationStatusNotification($application, 'rejected');
+                $notificationService->sendRejectionLetter($application, 'board');
                 $message = 'Application rejected.';
             }
 

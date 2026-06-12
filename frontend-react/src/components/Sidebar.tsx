@@ -19,6 +19,7 @@ import {
   Package,
   Puzzle,
   ScrollText,
+  Server,
   Settings,
   Shield,
   UserCog,
@@ -30,6 +31,7 @@ import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useLettersI18n } from '../hooks/useLettersI18n'
 import { useAuth } from '../context/AuthContext'
 import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS } from '../utils/accessControl'
+import { publicFileUrl } from '../utils/publicFileUrl'
 
 type SidebarItem = {
   label: string
@@ -42,6 +44,10 @@ type ModuleItem = SidebarItem & { key: string }
 
 const navItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+]
+
+const systemItems: SidebarItem[] = [
+  { label: 'General Settings', path: '/system/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
 ]
 
 const accessItems: SidebarItem[] = [
@@ -58,7 +64,6 @@ const accessItems: SidebarItem[] = [
     permissions: ['view_roles', 'manage_roles', 'view_permissions'],
   },
   { label: 'Modules', path: '/modules', icon: Puzzle, permissions: ['manage_modules', 'modules.view'] },
-  { label: 'General Settings', path: '/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2, permissions: ['institutions.view', 'institutions.create'] },
   { label: 'Roles', path: '/roles', icon: UserCog, permissions: ['roles.view', 'view_roles', 'manage_roles', 'roles.manage'] },
   { label: 'Permissions', path: '/permissions', icon: KeyRound, permissions: ['permissions.view', 'view_permissions', 'manage_roles', 'permissions.manage'] },
@@ -137,12 +142,24 @@ export default function Sidebar() {
     permissions: ['view_library_menu', 'view_library_reports', 'borrow_books', 'approve_borrow_requests'],
   })
 
-  const showAcademics = ['institutions', 'departments', 'academics', 'admissions', 'character_certificates'].some((key) => canUseModule(key))
+  const showAcademics = ['institutions', 'departments', 'academics'].some((key) => canUseModule(key))
+
+  const showAdmissions = canUseModule('admissions') && canAccess({
+    permissions: ['admissions.view', 'admissions.apply', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.courses.register', 'admissions.hod.approve'],
+  })
+
+  const showCertificates = canUseModule('character_certificates') && canAccess({
+    permissions: ['character_certificates.view', 'character_certificates.manage', 'character_certificates.issue'],
+  })
 
   const visibleModuleItems = moduleItems.filter((item) => canUseModule(item.key))
   const showModulesSection = visibleModuleItems.length > 0
 
+  const visibleSystemItems = systemItems.filter((item) => canAccess({ permissions: item.permissions }))
+  const showSystemSection = visibleSystemItems.length > 0
+
   const [accessOpen, setAccessOpen] = useSidebarSection(false, ['/users', '/roles-permissions', '/roles', '/permissions', '/modules'])
+  const [systemOpen, setSystemOpen] = useSidebarSection(false, ['/system'])
   const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets'])
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
@@ -153,15 +170,15 @@ export default function Sidebar() {
   const employeePath = '/timesheets/fill'
   const adminPath = '/timesheets/admin/reports'
   const academicsPath = '/institutions'
-  const academicsActive = ['/institutions', '/departments', '/academics', '/admissions', '/character-certificates'].some((p) =>
-    location.pathname.startsWith(p)
-  )
+  const academicsActive = ['/institutions', '/departments', '/academics'].some((p) => location.pathname.startsWith(p))
+  const admissionsActive = location.pathname.startsWith('/admissions')
+  const certificatesActive = location.pathname.startsWith('/character-certificates')
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
       <div className="mb-6 shrink-0">
         {institution?.logo_url ? (
-          <img src={institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
+          <img src={publicFileUrl(institution.logo_url) || institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
         ) : null}
         <div className="text-2xl font-bold tracking-tight text-[#eab308]">{institutionName}</div>
         {institutionSubtitle ? <div className="text-sm text-blue-100">{institutionSubtitle}</div> : null}
@@ -284,10 +301,32 @@ export default function Sidebar() {
 
         {showAcademics && (
           <NavLink to={academicsPath} className={() => linkClass(academicsActive)}>
-            {({ isActive }) => (
+            {() => (
               <>
-                <GraduationCap className={iconClass(isActive)} aria-hidden="true" />
+                <GraduationCap className={iconClass(academicsActive)} aria-hidden="true" />
                 <span className="truncate">Academics</span>
+              </>
+            )}
+          </NavLink>
+        )}
+
+        {showAdmissions && (
+          <NavLink to="/admissions" className={() => linkClass(admissionsActive)}>
+            {() => (
+              <>
+                <GraduationCap className={iconClass(admissionsActive)} aria-hidden="true" />
+                <span className="truncate">Admissions</span>
+              </>
+            )}
+          </NavLink>
+        )}
+
+        {showCertificates && (
+          <NavLink to="/character-certificates" className={() => linkClass(certificatesActive)}>
+            {() => (
+              <>
+                <Award className={iconClass(certificatesActive)} aria-hidden="true" />
+                <span className="truncate">Certificates</span>
               </>
             )}
           </NavLink>
@@ -307,6 +346,25 @@ export default function Sidebar() {
               <span className={`transition ${modulesOpen ? 'rotate-180' : ''}`}>▾</span>
             </button>
             {modulesOpen && visibleModuleItems.map((item) => (
+              <SidebarLink key={item.path} item={item} nested />
+            ))}
+          </>
+        )}
+
+        {showSystemSection && (
+          <>
+            <button
+              type="button"
+              onClick={() => setSystemOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <Server className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                System
+              </span>
+              <span className={`transition ${systemOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {systemOpen && visibleSystemItems.map((item) => (
               <SidebarLink key={item.path} item={item} nested />
             ))}
           </>

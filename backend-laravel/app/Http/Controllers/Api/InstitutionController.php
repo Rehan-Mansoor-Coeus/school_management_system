@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Institution;
 use App\InstitutionSetting;
+use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -73,7 +74,6 @@ class InstitutionController extends Controller
 
     public function myInstitution(Request $request)
     {
-        return response()->json('dd');
         $user = $request->user();
 
         if (! $user || ! $user->institution_id) {
@@ -123,8 +123,8 @@ class InstitutionController extends Controller
 
             'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -187,8 +187,8 @@ class InstitutionController extends Controller
 
             'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -291,16 +291,16 @@ class InstitutionController extends Controller
         return $this->uploadFiles($request, $id, 'registrar_signature');
     }
 
-    public function uploadStamp(Request $request, $id)
+    public function uploadFooter(Request $request, $id)
     {
-        return $this->uploadFiles($request, $id, 'official_stamp');
+        return $this->uploadFiles($request, $id, 'footer');
     }
 
     public function uploadFiles(Request $request, $id, $type = null)
     {
         $institution = Institution::findOrFail($id);
 
-        $allowed = ['logo', 'letterhead', 'registrar_signature', 'official_stamp'];
+        $allowed = ['logo', 'letterhead', 'footer', 'registrar_signature'];
         if (! $type || ! in_array($type, $allowed, true)) {
             return response()->json(['message' => 'Invalid upload type.'], 422);
         }
@@ -308,8 +308,8 @@ class InstitutionController extends Controller
         $rules = [
             'logo' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
             'letterhead' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'official_stamp' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
         ];
 
         $validator = Validator::make($request->all(), [
@@ -321,34 +321,55 @@ class InstitutionController extends Controller
         }
 
         $file = $request->file('file');
-        $path = $file->storeAs("institutions/{$institution->id}", $type . '.' . $file->getClientOriginalExtension(), 'public');
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $newPath = "institutions/{$institution->id}/{$type}.{$extension}";
+        $oldPath = $institution->{$type};
 
-        $this->deleteOldPublicFile($institution->{$type});
+        // Delete previous file only when the stored path changes — never after storeAs,
+        // or re-uploading to the same path (e.g. logo.png) deletes the file just written.
+        if ($oldPath && $oldPath !== $newPath) {
+            $this->deleteOldPublicFile($oldPath);
+        }
+
+        $path = $file->storeAs("institutions/{$institution->id}", "{$type}.{$extension}", 'public');
+
         $institution->{$type} = $path;
         $institution->save();
 
         $institution = $institution->fresh();
         $urlKey = $type . '_url';
+        $path = $institution->{$type};
 
         return response()->json([
             'message' => 'File uploaded successfully.',
             'path' => $path,
-            'url' => $institution->{$urlKey},
+            'url' => LetterAssetHelper::url($path, $request) ?: $institution->{$urlKey},
         ]);
     }
 
     private function handleBrandUploads(Request $request, Institution $institution)
     {
-        foreach (['logo', 'letterhead', 'registrar_signature', 'official_stamp'] as $field) {
+        foreach (['logo', 'letterhead', 'footer', 'registrar_signature'] as $field) {
             if (! $request->hasFile($field)) {
                 continue;
             }
 
             $file = $request->file($field);
-            $path = $file->storeAs("institutions/{$institution->id}", $field . '.' . $file->getClientOriginalExtension(), 'public');
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $newPath = "institutions/{$institution->id}/{$field}.{$extension}";
+            $oldPath = $institution->{$field};
 
-            $this->deleteOldPublicFile($institution->{$field});
+            if ($oldPath && $oldPath !== $newPath) {
+                $this->deleteOldPublicFile($oldPath);
+            }
+
+            $path = $file->storeAs("institutions/{$institution->id}", "{$field}.{$extension}", 'public');
+
             $institution->{$field} = $path;
+            $legacyField = $field . '_path';
+            if (array_key_exists($legacyField, $institution->getAttributes())) {
+                $institution->{$legacyField} = $path;
+            }
         }
 
         $institution->save();

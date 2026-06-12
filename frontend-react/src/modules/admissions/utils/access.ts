@@ -17,6 +17,7 @@ const STAFF_VIEW_ROLES = [
   'admin',
   'institution-admin',
   'super-admin',
+  'system-super-admin',
 ] as const
 
 export function canViewApplicationDetails(

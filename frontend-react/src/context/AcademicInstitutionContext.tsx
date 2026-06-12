@@ -86,9 +86,13 @@ export function useAcademicInstitution() {
 
 export function useAcademicInstitutionParams() {
   const { institutionId, requiresSelection } = useAcademicInstitution()
+  const params = useMemo(
+    () => (institutionId ? { institution_id: institutionId } : undefined),
+    [institutionId],
+  )
   return {
     institutionId,
     requiresSelection,
-    params: institutionId ? { institution_id: institutionId } : undefined,
+    params,
   }
 }

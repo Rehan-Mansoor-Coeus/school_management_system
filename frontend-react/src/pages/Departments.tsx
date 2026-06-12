@@ -12,11 +12,17 @@ import {
 } from '../api/admin'
 import FormSelect from '../components/ui/FormSelect'
 import { useAcademicInstitutionParams } from '../context/AcademicInstitutionContext'
+import { suggestDepartmentCode } from '../utils/suggestDepartmentCode'
 
 interface Institution {
   id: number
   name: string
   code?: string
+}
+
+interface AcademicUnit {
+  id: number
+  name: string
 }
 
 interface Department {
@@ -26,11 +32,9 @@ interface Department {
   name: string
   code: string
   description?: string
-  phone?: string
-  email?: string
-  office_location?: string
   is_active: boolean
   institution?: Institution
+  academic_unit?: AcademicUnit | null
 }
 
 interface DepartmentFormState {
@@ -39,28 +43,23 @@ interface DepartmentFormState {
   name: string
   code: string
   description: string
-  phone: string
-  email: string
-  office_location: string
   is_active: boolean
 }
 
 export default function DepartmentsPage() {
-  const { user } = useAuth()
+  const { user, institution: authInstitution } = useAuth()
   const [loading, setLoading] = useState(false)
   const [departments, setDepartments] = useState<Department[]>([])
   const [institutions, setInstitutions] = useState<Institution[]>([])
-  const [academicUnits, setAcademicUnits] = useState<{ id: number; name: string }[]>([])
+  const [academicUnits, setAcademicUnits] = useState<AcademicUnit[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [activeDepartment, setActiveDepartment] = useState<Department | null>(null)
+  const [codeTouched, setCodeTouched] = useState(false)
   const [form, setForm] = useState<DepartmentFormState>({
     institution_id: user?.institution_id || undefined,
     name: '',
     code: '',
     description: '',
-    phone: '',
-    email: '',
-    office_location: '',
     is_active: true,
   })
   const [search, setSearch] = useState('')
@@ -69,9 +68,30 @@ export default function DepartmentsPage() {
 
   const hasAssignedInstitution = Boolean(user?.institution_id)
 
+  const selectedInstitution = useMemo(() => {
+    const id = form.institution_id || contextInstitutionId || user?.institution_id
+    const fromList = institutions.find((row) => row.id === id)
+    if (fromList) return fromList
+    if (hasAssignedInstitution && authInstitution && (authInstitution as Institution).id === id) {
+      return authInstitution as Institution
+    }
+    return null
+  }, [form.institution_id, contextInstitutionId, user?.institution_id, institutions, hasAssignedInstitution, authInstitution])
+
+  const selectedUnitName = useMemo(() => {
+    if (!form.academic_unit_id) return undefined
+    return academicUnits.find((unit) => unit.id === form.academic_unit_id)?.name
+  }, [form.academic_unit_id, academicUnits])
+
   useEffect(() => {
     loadData()
   }, [contextInstitutionId])
+
+  useEffect(() => {
+    if (!modalOpen || activeDepartment || codeTouched) return
+    const code = suggestDepartmentCode(selectedInstitution?.code, selectedUnitName, departments)
+    setForm((prev) => ({ ...prev, code }))
+  }, [modalOpen, activeDepartment, codeTouched, selectedInstitution?.code, selectedUnitName, departments])
 
   const loadData = async () => {
     if (requiresSelection && !contextInstitutionId) {
@@ -105,15 +125,13 @@ export default function DepartmentsPage() {
 
   const openCreateModal = () => {
     setActiveDepartment(null)
+    setCodeTouched(false)
     setForm({
       institution_id: user?.institution_id || contextInstitutionId || undefined,
-      academic_unit_id: undefined,
+      academic_unit_id: null,
       name: '',
-      code: '',
+      code: suggestDepartmentCode(selectedInstitution?.code, undefined, departments),
       description: '',
-      phone: '',
-      email: '',
-      office_location: '',
       is_active: true,
     })
     setModalOpen(true)
@@ -121,15 +139,13 @@ export default function DepartmentsPage() {
 
   const openEditModal = (department: Department) => {
     setActiveDepartment(department)
+    setCodeTouched(true)
     setForm({
       institution_id: department.institution_id,
-      academic_unit_id: department.academic_unit_id ?? undefined,
+      academic_unit_id: department.academic_unit_id ?? null,
       name: department.name,
       code: department.code,
       description: department.description || '',
-      phone: department.phone || '',
-      email: department.email || '',
-      office_location: department.office_location || '',
       is_active: department.is_active,
     })
     setModalOpen(true)
@@ -144,7 +160,14 @@ export default function DepartmentsPage() {
       return
     }
 
-    const payload = { ...form, institution_id }
+    const payload = {
+      institution_id,
+      academic_unit_id: form.academic_unit_id || null,
+      name: form.name,
+      code: form.code,
+      description: form.description,
+      is_active: form.is_active,
+    }
 
     try {
       if (activeDepartment) {
@@ -177,6 +200,11 @@ export default function DepartmentsPage() {
 
   const departmentCount = useMemo(() => departments.length, [departments])
 
+  const unitOptions = academicUnits.map((unit) => ({
+    value: String(unit.id),
+    label: unit.name,
+  }))
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -208,10 +236,10 @@ export default function DepartmentsPage() {
             <tr>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Name</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Code</th>
+              <th className="px-6 py-3 text-sm font-semibold text-slate-700">Academic unit</th>
               {!hasAssignedInstitution ? (
                 <th className="px-6 py-3 text-sm font-semibold text-slate-700">Institution</th>
               ) : null}
-              <th className="px-6 py-3 text-sm font-semibold text-slate-700">Contact</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Status</th>
               <th className="px-6 py-3 text-sm font-semibold text-slate-700">Actions</th>
             </tr>
@@ -219,13 +247,13 @@ export default function DepartmentsPage() {
           <tbody className="divide-y divide-slate-200">
             {loading ? (
               <tr>
-                <td colSpan={hasAssignedInstitution ? 5 : 6} className="px-6 py-10 text-center text-slate-500">
+                <td colSpan={hasAssignedInstitution ? 6 : 7} className="px-6 py-10 text-center text-slate-500">
                   Loading departments...
                 </td>
               </tr>
             ) : departments.length === 0 ? (
               <tr>
-                <td colSpan={hasAssignedInstitution ? 5 : 6} className="px-6 py-10 text-center text-slate-500">
+                <td colSpan={hasAssignedInstitution ? 6 : 7} className="px-6 py-10 text-center text-slate-500">
                   No departments found.
                 </td>
               </tr>
@@ -234,14 +262,14 @@ export default function DepartmentsPage() {
                 <tr key={department.id}>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{department.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{department.code}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {department.academic_unit?.name || '—'}
+                  </td>
                   {!hasAssignedInstitution ? (
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {department.institution?.name || '—'}
                     </td>
                   ) : null}
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {department.email || department.phone || '—'}
-                  </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {department.is_active ? 'Active' : 'Inactive'}
                   </td>
@@ -267,32 +295,32 @@ export default function DepartmentsPage() {
           {!hasAssignedInstitution ? (
             <div>
               <label className="block text-sm font-medium text-slate-700">Institution</label>
-              <select
-                value={form.institution_id ?? ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, institution_id: Number(event.target.value) || undefined }))}
+              <FormSelect
+                value={form.institution_id ? String(form.institution_id) : ''}
+                onChange={(value) => setForm((prev) => ({ ...prev, institution_id: value ? Number(value) : undefined }))}
+                options={institutions.map((institution) => ({
+                  value: String(institution.id),
+                  label: institution.code ? `${institution.name} (${institution.code})` : institution.name,
+                }))}
+                placeholder="Select institution"
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-              >
-                <option value="">Select institution</option>
-                {institutions.map((institution) => (
-                  <option key={institution.id} value={institution.id}>
-                    {institution.name} {institution.code ? `(${institution.code})` : ''}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           ) : null}
-          <FormSelect
-            label="Academic unit"
-            value={form.academic_unit_id ?? ''}
-            onChange={(value) => setForm((prev) => ({ ...prev, academic_unit_id: value ? Number(value) : undefined }))}
-            options={[
-              { value: '', label: 'Select academic unit (optional)' },
-              ...academicUnits
-                .filter((unit) => !form.institution_id || !('institution_id' in unit) || (unit as { institution_id?: number }).institution_id === form.institution_id)
-                .map((unit) => ({ value: unit.id, label: unit.name })),
-            ]}
-          />
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Academic unit</label>
+            <div className="mt-2">
+              <FormSelect
+                value={form.academic_unit_id ? String(form.academic_unit_id) : ''}
+                onChange={(value) => {
+                  setCodeTouched(false)
+                  setForm((prev) => ({ ...prev, academic_unit_id: value ? Number(value) : null }))
+                }}
+                options={unitOptions}
+                placeholder="Select academic unit (optional)"
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
@@ -307,11 +335,15 @@ export default function DepartmentsPage() {
             <label className="block text-sm font-medium text-slate-700">Code</label>
             <input
               value={form.code}
-              onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
+              onChange={(event) => {
+                setCodeTouched(true)
+                setForm((prev) => ({ ...prev, code: event.target.value }))
+              }}
               type="text"
               required
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
+            <p className="mt-1 text-xs text-slate-500">Auto-generated from institution/unit prefix; you can edit it.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Description</label>
@@ -320,35 +352,6 @@ export default function DepartmentsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
               rows={3}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Email</label>
-              <input
-                value={form.email}
-                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                type="email"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Phone</label>
-              <input
-                value={form.phone}
-                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                type="text"
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Office location</label>
-            <input
-              value={form.office_location}
-              onChange={(event) => setForm((prev) => ({ ...prev, office_location: event.target.value }))}
-              type="text"
-              className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
           </div>
           <div className="flex items-center gap-3">

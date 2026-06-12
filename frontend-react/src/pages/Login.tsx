@@ -67,6 +67,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const sessionExpired = searchParams.get('session') === 'expired'
+  const signupSuccess = searchParams.get('signup') === 'success'
   const { setAuth } = useAuth()
 
   async function submit(e: React.FormEvent) {
@@ -202,9 +203,21 @@ export default function LoginPage() {
                 Use your email, username, or phone number and password.
               </p>
 
+              {signupSuccess && (
+                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  Account created successfully. Sign in with your username or phone and password.
+                </div>
+              )}
+
               {sessionExpired && (
                 <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   Your session has expired. Please sign in again.
+                </div>
+              )}
+
+              {searchParams.get('reset') === 'success' && (
+                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  Password updated successfully. Sign in with your new password.
                 </div>
               )}
 
@@ -240,9 +253,16 @@ export default function LoginPage() {
 
               <div className="mt-4 text-sm">
                 <Link to="/forgot-password" className="font-medium text-[#1e3a5f] hover:underline">
-                  Forgot password?
+                  Forgot username or password?
                 </Link>
               </div>
+
+              <p className="mt-4 text-center text-sm text-slate-600">
+                New student?{' '}
+                <Link to="/signup" className="font-medium text-[#1e3a5f] hover:underline">
+                  Create an account
+                </Link>
+              </p>
 
               <button
                 type="submit"

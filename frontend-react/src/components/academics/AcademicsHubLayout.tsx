@@ -1,9 +1,7 @@
 import { Outlet } from 'react-router-dom'
-import { Building2, Network, BookOpen, Layers, GraduationCap, Award, School, Calendar, GitBranch } from 'lucide-react'
-import { useAdmissionsI18n } from '../../hooks/useAdmissionsI18n'
+import { Building2, Network, BookOpen, Layers, School, Calendar, GitBranch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { AcademicInstitutionProvider, useAcademicInstitution } from '../../context/AcademicInstitutionContext'
-import { characterCertificatesHomePath } from '../../utils/accessControl'
 import ColoredModuleTabsNav from '../ui/ColoredModuleTabsNav'
 import FormSelect from '../ui/FormSelect'
 import AcademicSetupProgress from './AcademicSetupProgress'
@@ -16,13 +14,10 @@ const tabDefs = [
   { label: 'Semesters', path: '/academics/semesters', key: 'academics', permissions: ['academics.semesters.view', 'academics.view', 'academics.manage'], icon: Calendar, color: 'cyan' as const },
   { label: 'Subjects', path: '/academics/subjects', key: 'academics', permissions: ['academics.subjects.view', 'academics.view', 'academics.manage'], icon: Layers, color: 'teal' as const },
   { label: 'Organization', path: '/academics/organization', key: 'academics', permissions: ['academics.organization.manage', 'academics.manage'], icon: GitBranch, color: 'amber' as const },
-  { labelKey: 'moduleTitle', path: '/admissions', key: 'admissions', permissions: ['admissions.view', 'admissions.apply', 'admissions.manage'], icon: GraduationCap, color: 'rose' as const },
-  { label: 'Character Certificates', path: '/character-certificates', key: 'character_certificates', permissions: ['character_certificates.view', 'character_certificates.manage'], icon: Award, color: 'orange' as const },
 ]
 
 function AcademicsHubContent() {
   const { canAccess, enabledModules } = useAuth()
-  const { t: tAdmissions } = useAdmissionsI18n()
   const { requiresSelection, institutionId, setInstitutionId, institutions, loadingInstitutions } = useAcademicInstitution()
   const safeModules = Array.isArray(enabledModules) ? enabledModules : []
 
@@ -30,9 +25,9 @@ function AcademicsHubContent() {
     .filter((tab) => safeModules.includes(tab.key))
     .filter((tab) => canAccess({ permissions: tab.permissions }))
     .map((tab) => ({
-      label: tab.labelKey ? tAdmissions(tab.labelKey) : tab.label!,
-      path: tab.key === 'character_certificates' ? characterCertificatesHomePath(canAccess) : tab.path,
-      end: tab.path === '/admissions' || tab.path === '/institutions',
+      label: tab.label,
+      path: tab.path,
+      end: tab.path === '/institutions',
       icon: tab.icon,
       color: tab.color,
     }))
@@ -41,7 +36,7 @@ function AcademicsHubContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Academics</h1>
-        <p className="mt-1 text-sm text-slate-500">Institutions, academic hierarchy, admissions, and related modules.</p>
+        <p className="mt-1 text-sm text-slate-500">Institutions, academic hierarchy, and related setup.</p>
       </div>
 
       <AcademicSetupProgress />

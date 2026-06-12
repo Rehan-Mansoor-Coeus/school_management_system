@@ -109,7 +109,7 @@ class AuthController extends Controller
             'institution_id' => 'required|integer|exists:institutions,id',
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username',
-            'email' => 'nullable|string|email|max:255|unique:users,email',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'phone_number' => 'required|string|max:50',
             'address' => 'nullable|string',
@@ -152,17 +152,38 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function requestPasswordResetOtp(Request $request)
+    public function requestForgotUsername(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'login' => 'required|string',
+            'phone_number' => 'required|string|max:50',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $result = $this->authOtp->requestPasswordResetOtp($request->login);
+        $result = $this->authOtp->requestForgotUsername($request->phone_number);
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
+    public function requestPasswordResetOtp(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'login' => 'nullable|string',
+            'phone_number' => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $identifier = trim((string) ($request->phone_number ?: $request->login ?: ''));
+        if ($identifier === '') {
+            return response()->json(['errors' => ['phone_number' => ['Phone number is required.']]], 422);
+        }
+
+        $result = $this->authOtp->requestPasswordResetOtp($identifier);
 
         return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
     }
@@ -170,7 +191,8 @@ class AuthController extends Controller
     public function verifyPasswordResetOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'login' => 'required|string',
+            'login' => 'nullable|string',
+            'phone_number' => 'nullable|string|max:50',
             'otp' => 'required|string|max:10',
         ]);
 
@@ -178,7 +200,12 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $result = $this->authOtp->verifyPasswordResetOtp($request->login, $request->otp);
+        $identifier = trim((string) ($request->phone_number ?: $request->login ?: ''));
+        if ($identifier === '') {
+            return response()->json(['errors' => ['phone_number' => ['Phone number is required.']]], 422);
+        }
+
+        $result = $this->authOtp->verifyPasswordResetOtp($identifier, $request->otp);
 
         return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
     }

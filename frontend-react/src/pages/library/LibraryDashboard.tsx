@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Book, BookCopy, CheckCircle2, Clock, AlarmClock, CircleDollarSign, Library as LibraryIcon, Flame } from 'lucide-react'
+import { BookOpenCheck, CalendarClock, BookCopy, CircleDollarSign, Library as LibraryIcon, Flame } from 'lucide-react'
 import { fetchLibraryDashboard } from '../../api/library'
 import { Card, PageHeader, Spinner, StatCard, EmptyState } from '../../components/library/LibraryUi'
+import { useAuth } from '../../context/AuthContext'
+import { isStudentLibraryUser } from '../../components/library/libraryMenuConfig'
 
 const BARS = ['#1e3a5f', '#2a4a73', '#3b82f6', '#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b']
 
 export default function LibraryDashboard() {
+  const { hasPermission } = useAuth()
+  const studentView = isStudentLibraryUser(hasPermission)
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any>(null)
 
@@ -20,6 +24,21 @@ export default function LibraryDashboard() {
   if (loading) return <Spinner />
 
   const stats = data || {}
+
+  if (studentView) {
+    return (
+      <div>
+        <PageHeader title="Library Dashboard" subtitle="Your borrowing overview" icon={LibraryIcon} />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatCard label="Total Books Borrowed" value={stats.total_borrowed ?? 0} icon={BookOpenCheck} tone="blue" />
+          <StatCard label="Book Due for Return" value={stats.due_for_return ?? 0} icon={CalendarClock} tone="orange" />
+          <StatCard label="Books in Keeping" value={stats.books_in_keeping ?? 0} icon={BookCopy} tone="violet" />
+          <StatCard label="Unpaid Fines" value={Number(stats.unpaid_fines ?? 0).toFixed(2)} icon={CircleDollarSign} tone="rose" />
+        </div>
+      </div>
+    )
+  }
+
   const categoryData = (stats.borrowed_by_category || []).map((row: any) => ({ name: row.category, count: Number(row.count) }))
 
   return (
@@ -27,12 +46,12 @@ export default function LibraryDashboard() {
       <PageHeader title="Library Dashboard" subtitle="Overview of your institution's library" icon={LibraryIcon} />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Total Books" value={stats.total_books ?? 0} icon={Book} tone="blue" />
+        <StatCard label="Total Books" value={stats.total_books ?? 0} icon={BookOpenCheck} tone="blue" />
         <StatCard label="Total Copies" value={stats.total_copies ?? 0} icon={BookCopy} tone="violet" />
-        <StatCard label="Available Copies" value={stats.available_copies ?? 0} icon={CheckCircle2} tone="green" />
+        <StatCard label="Available Copies" value={stats.available_copies ?? 0} icon={BookOpenCheck} tone="green" />
         <StatCard label="Borrowed" value={stats.borrowed_books ?? 0} icon={BookCopy} tone="violet" />
-        <StatCard label="Pending Requests" value={stats.pending_requests ?? 0} icon={Clock} tone="amber" />
-        <StatCard label="Overdue Books" value={stats.overdue_books ?? 0} icon={AlarmClock} tone="rose" />
+        <StatCard label="Pending Requests" value={stats.pending_requests ?? 0} icon={CalendarClock} tone="amber" />
+        <StatCard label="Overdue Books" value={stats.overdue_books ?? 0} icon={CalendarClock} tone="rose" />
         <StatCard label="Unpaid Fines" value={Number(stats.unpaid_fines ?? 0).toFixed(2)} icon={CircleDollarSign} tone="rose" />
       </div>
 

@@ -95,7 +95,7 @@ class DepartmentController extends Controller
             'is_active' => $request->filled('is_active') ? (bool) $request->is_active : true,
         ]);
 
-        return response()->json(['message' => 'Department created successfully.', 'department' => $department->load('institution')], 201);
+        return response()->json(['message' => 'Department created successfully.', 'department' => $department->load(['institution', 'academicUnit'])], 201);
     }
 
     public function update(Request $request, Department $department)

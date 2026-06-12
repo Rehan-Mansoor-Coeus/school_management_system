@@ -120,7 +120,8 @@ class PaymentService
                 $payment->markAsCompleted($paymentIntentId, $intent);
                 $application = Application::find($payment->application_id);
                 if ($application) {
-                    $this->applyPaymentToApplication($application, $payment->payment_type);
+                    $this->applyPaymentToApplication($application, $payment->payment_type, $payment);
+                    $application->syncPaymentRecordsFromFlags();
                 }
             }
 
@@ -224,7 +225,7 @@ class PaymentService
             $payment->markAsCompleted($payment->transaction_id, $status);
             $application = Application::find($payment->application_id);
             if ($application) {
-                $this->applyPaymentToApplication($application, $payment->payment_type);
+                $this->applyPaymentToApplication($application, $payment->payment_type, $payment);
             }
         } elseif (in_array($campayStatus, ['FAILED', 'CANCELLED'], true)) {
             $payment->markAsFailed($status);
@@ -402,7 +403,7 @@ class PaymentService
         $payment->markAsApproved($userId, $notes);
         $application = Application::find($payment->application_id);
         if ($application) {
-            $this->applyPaymentToApplication($application, $payment->payment_type);
+            $this->applyPaymentToApplication($application, $payment->payment_type, $payment);
         }
 
         return $payment->fresh(['application.applicant', 'application.programme', 'reviewer']);
@@ -525,7 +526,7 @@ class PaymentService
 
             $application = Application::find($payment->application_id);
             if ($application) {
-                $this->applyPaymentToApplication($application, $payment->payment_type);
+                $this->applyPaymentToApplication($application, $payment->payment_type, $payment);
             }
 
             return true;
@@ -536,7 +537,7 @@ class PaymentService
         return false;
     }
 
-    protected function applyPaymentToApplication(Application $application, $paymentType)
+    protected function applyPaymentToApplication(Application $application, $paymentType, ?ApplicationPayment $payment = null)
     {
         if ($paymentType === 'application_fee') {
             $application->update([
@@ -549,6 +550,43 @@ class PaymentService
         } elseif ($paymentType === 'tuition') {
             $application->markTuitionPaid();
             $notificationService = new NotificationService();
+
+            if ($payment && $this->isDigitalPaymentMethod($payment->payment_method)) {
+                $this->autoEnrollAfterDigitalTuition($application, $notificationService);
+            } else {
+                $notificationService->notifyFinanceOfficer($application);
+                $notificationService->sendApplicationStatusNotification($application, 'tuition_paid');
+            }
+        }
+    }
+
+    protected function isDigitalPaymentMethod(?string $method): bool
+    {
+        return in_array($method, ['stripe', 'campay', 'flutterwave', 'online'], true);
+    }
+
+    protected function autoEnrollAfterDigitalTuition(Application $application, NotificationService $notificationService): void
+    {
+        try {
+            $enrollmentService = new EnrollmentService();
+            $result = $enrollmentService->enrollFromApplication($application, null);
+            $student = $result['student'];
+            $plainPassword = $result['plain_password'];
+            $user = optional($student)->user;
+
+            if ($plainPassword && $user) {
+                (new \App\Services\UserAccountNotificationService())->notifyEnrollmentWithAccount(
+                    $user,
+                    $plainPassword,
+                    $student->registration_number
+                );
+            } else {
+                $notificationService->sendApplicationStatusNotification($application->fresh(), 'enrolled', [
+                    'reg' => optional($student)->registration_number,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Auto-enrollment after digital tuition failed: '.$e->getMessage());
             $notificationService->notifyFinanceOfficer($application);
             $notificationService->sendApplicationStatusNotification($application, 'tuition_paid');
         }
