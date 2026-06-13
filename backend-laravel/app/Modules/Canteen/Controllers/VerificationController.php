@@ -48,6 +48,10 @@ class VerificationController extends Controller
                     'id' => $wallet->id,
                     'wallet_number' => $wallet->wallet_number,
                     'balance' => $wallet->balance,
+                    'deposit_balance' => $wallet->deposit_balance ?? 0,
+                    'credit_limit' => $wallet->credit_limit ?? 0,
+                    'credit_used' => $wallet->credit_used ?? 0,
+                    'credit_available' => max(0, (float) ($wallet->credit_limit ?? 0) - (float) ($wallet->credit_used ?? 0)),
                     'qr_payload' => $result['qr_payload'],
                 ],
                 'subscription' => $subscription ? [

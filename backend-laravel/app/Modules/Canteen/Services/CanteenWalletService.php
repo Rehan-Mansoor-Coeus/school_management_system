@@ -26,6 +26,9 @@ class CanteenWalletService
             'balance' => 0,
             'total_credit' => 0,
             'total_spent' => 0,
+            'credit_limit' => 0,
+            'credit_used' => 0,
+            'deposit_balance' => 0,
             'is_active' => true,
         ]);
     }
@@ -48,6 +51,24 @@ class CanteenWalletService
         ]);
     }
 
+    public function creditDeposit(CanteenWallet $wallet, float $amount, string $source, ?string $notes = null): CanteenWalletTransaction
+    {
+        $wallet->deposit_balance = round((float) $wallet->deposit_balance + $amount, 2);
+        $wallet->total_credit = round((float) $wallet->total_credit + $amount, 2);
+        $wallet->save();
+
+        return CanteenWalletTransaction::create([
+            'institution_id' => $wallet->institution_id,
+            'wallet_id' => $wallet->id,
+            'type' => 'credit',
+            'amount' => $amount,
+            'balance_after' => (float) $wallet->balance + (float) $wallet->deposit_balance,
+            'source' => $source,
+            'notes' => $notes,
+            'created_by' => optional(auth()->user())->id,
+        ]);
+    }
+
     public function debit(CanteenWallet $wallet, float $amount, string $source, ?string $notes = null, ?int $userId = null): CanteenWalletTransaction
     {
         if ((float) $wallet->balance < $amount) {
@@ -67,6 +88,77 @@ class CanteenWalletService
             'source' => $source,
             'notes' => $notes,
             'created_by' => $userId ?: optional(auth()->user())->id,
+        ]);
+    }
+
+    public function debitDeposit(CanteenWallet $wallet, float $amount, string $source, ?string $notes = null): CanteenWalletTransaction
+    {
+        $available = (float) $wallet->deposit_balance + (float) $wallet->balance;
+        if ($available < $amount) {
+            throw new \RuntimeException(__('canteen.insufficient_deposit'));
+        }
+
+        $fromDeposit = min((float) $wallet->deposit_balance, $amount);
+        $fromBalance = round($amount - $fromDeposit, 2);
+
+        if ($fromDeposit > 0) {
+            $wallet->deposit_balance = round((float) $wallet->deposit_balance - $fromDeposit, 2);
+        }
+        if ($fromBalance > 0) {
+            $wallet->balance = round((float) $wallet->balance - $fromBalance, 2);
+        }
+        $wallet->total_spent = round((float) $wallet->total_spent + $amount, 2);
+        $wallet->save();
+
+        return CanteenWalletTransaction::create([
+            'institution_id' => $wallet->institution_id,
+            'wallet_id' => $wallet->id,
+            'type' => 'debit',
+            'amount' => $amount,
+            'balance_after' => (float) $wallet->balance + (float) $wallet->deposit_balance,
+            'source' => $source,
+            'notes' => $notes,
+            'created_by' => optional(auth()->user())->id,
+        ]);
+    }
+
+    public function chargeCredit(CanteenWallet $wallet, float $amount, string $source, ?string $notes = null): CanteenWalletTransaction
+    {
+        $limit = (float) $wallet->credit_limit;
+        $used = (float) $wallet->credit_used;
+        if ($limit <= 0 || ($used + $amount) > $limit) {
+            throw new \RuntimeException(__('canteen.insufficient_credit'));
+        }
+
+        $wallet->credit_used = round($used + $amount, 2);
+        $wallet->save();
+
+        return CanteenWalletTransaction::create([
+            'institution_id' => $wallet->institution_id,
+            'wallet_id' => $wallet->id,
+            'type' => 'debit',
+            'amount' => $amount,
+            'balance_after' => (float) $wallet->balance,
+            'source' => $source,
+            'notes' => $notes,
+            'created_by' => optional(auth()->user())->id,
+        ]);
+    }
+
+    public function recordPayLater(CanteenWallet $wallet, float $amount, string $source, ?string $notes = null): CanteenWalletTransaction
+    {
+        $wallet->credit_used = round((float) $wallet->credit_used + $amount, 2);
+        $wallet->save();
+
+        return CanteenWalletTransaction::create([
+            'institution_id' => $wallet->institution_id,
+            'wallet_id' => $wallet->id,
+            'type' => 'debit',
+            'amount' => $amount,
+            'balance_after' => (float) $wallet->balance,
+            'source' => $source,
+            'notes' => $notes,
+            'created_by' => optional(auth()->user())->id,
         ]);
     }
 

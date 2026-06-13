@@ -36,6 +36,8 @@ export default function CanteenOverviewPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Quick links</h2>
         <ul className="space-y-2 text-sm">
+          <li><Link className="text-[#1e3a5f] hover:underline" to="/canteen/pos">{t('pos')}</Link></li>
+          <li><Link className="text-[#1e3a5f] hover:underline" to="/canteen/sales">{t('salesRecords')}</Link></li>
           <li><Link className="text-[#1e3a5f] hover:underline" to="/canteen/verify">{t('verifyMeal')}</Link></li>
           <li><Link className="text-[#1e3a5f] hover:underline" to="/canteen/my-wallet">{t('myWallet')}</Link></li>
           <li><Link className="text-[#1e3a5f] hover:underline" to="/canteen/reports">{t('reports')}</Link></li>

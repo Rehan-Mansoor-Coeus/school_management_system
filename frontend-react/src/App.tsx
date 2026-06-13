@@ -106,6 +106,8 @@ import FeedingPlansPage from './modules/canteen/pages/FeedingPlansPage'
 import WalletsPage from './modules/canteen/pages/WalletsPage'
 import MyWalletPage from './modules/canteen/pages/MyWalletPage'
 import VerifyMealPage from './modules/canteen/pages/VerifyMealPage'
+import PosPage from './modules/canteen/pages/PosPage'
+import SalesPage from './modules/canteen/pages/SalesPage'
 import MealAttendancePage from './modules/canteen/pages/MealAttendancePage'
 import ReportsPage from './modules/canteen/pages/ReportsPage'
 import CharacterCertificatesLayout, {
@@ -256,6 +258,8 @@ export default function App(){
             <Route path="feeding-plans" element={<FeedingPlansPage />} />
             <Route path="wallets" element={<WalletsPage />} />
             <Route path="my-wallet" element={<MyWalletPage />} />
+            <Route path="pos" element={<PosPage />} />
+            <Route path="sales" element={<SalesPage />} />
             <Route path="verify" element={<VerifyMealPage />} />
             <Route path="attendance" element={<MealAttendancePage />} />
             <Route path="reports" element={<ReportsPage />} />

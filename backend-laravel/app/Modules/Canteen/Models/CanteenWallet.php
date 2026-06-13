@@ -13,13 +13,17 @@ class CanteenWallet extends Model
 
     protected $fillable = [
         'institution_id', 'student_id', 'wallet_number', 'balance',
-        'total_credit', 'total_spent', 'is_active',
+        'total_credit', 'total_spent', 'credit_limit', 'credit_used',
+        'deposit_balance', 'is_active',
     ];
 
     protected $casts = [
         'balance' => 'decimal:2',
         'total_credit' => 'decimal:2',
         'total_spent' => 'decimal:2',
+        'credit_limit' => 'decimal:2',
+        'credit_used' => 'decimal:2',
+        'deposit_balance' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

@@ -5,7 +5,9 @@ use App\Modules\Canteen\Controllers\AttendanceController;
 use App\Modules\Canteen\Controllers\DashboardController;
 use App\Modules\Canteen\Controllers\FeedingPlanController;
 use App\Modules\Canteen\Controllers\MealPlanController;
+use App\Modules\Canteen\Controllers\PosController;
 use App\Modules\Canteen\Controllers\ReportController;
+use App\Modules\Canteen\Controllers\SalesController;
 use App\Modules\Canteen\Controllers\StudentLookupController;
 use App\Modules\Canteen\Controllers\SubscriptionController;
 use App\Modules\Canteen\Controllers\VerificationController;
@@ -39,6 +41,16 @@ Route::prefix('canteen')->group(function () {
 
         Route::post('verify/lookup', [VerificationController::class, 'lookup'])->middleware('permission:canteen.verify|canteen.manage');
         Route::post('verify/serve', [VerificationController::class, 'serve'])->middleware('permission:canteen.verify|canteen.manage');
+
+        Route::get('pos/menu', [PosController::class, 'menu'])->middleware('permission:canteen.verify|canteen.manage');
+        Route::get('pos/payment-methods', [SalesController::class, 'paymentMethods'])->middleware('permission:canteen.verify|canteen.manage');
+        Route::post('pos/checkout', [PosController::class, 'checkout'])->middleware('permission:canteen.verify|canteen.manage');
+        Route::post('pos/orders/{orderId}/confirm', [PosController::class, 'confirmPayment'])->middleware('permission:canteen.verify|canteen.manage');
+
+        Route::get('sales', [SalesController::class, 'index'])->middleware('permission:canteen.view|canteen.manage|canteen.reports');
+        Route::get('sales/{orderId}', [SalesController::class, 'show'])->middleware('permission:canteen.view|canteen.manage|canteen.reports');
+        Route::get('sales/{orderId}/invoice', [SalesController::class, 'invoice'])->middleware('permission:canteen.view|canteen.manage|canteen.reports');
+        Route::get('sales/{orderId}/receipt', [SalesController::class, 'receipt'])->middleware('permission:canteen.verify|canteen.view|canteen.manage|canteen.reports');
 
         Route::get('attendance', [AttendanceController::class, 'index'])->middleware('permission:canteen.view|canteen.manage|canteen.reports');
         Route::post('attendance/{id}/void', [AttendanceController::class, 'void'])->middleware('permission:canteen.manage');

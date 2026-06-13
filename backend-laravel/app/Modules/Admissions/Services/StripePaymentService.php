@@ -14,6 +14,12 @@ class StripePaymentService
 
     protected $institutionId;
 
+    protected $lastError;
+
+    protected static $zeroDecimalCurrencies = [
+        'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
+    ];
+
     public function __construct(?int $institutionId = null)
     {
         $this->institutionId = $institutionId;
@@ -43,16 +49,32 @@ class StripePaymentService
         return $this->publicKey;
     }
 
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    public function amountInMinorUnits(float $amount, string $currency): int
+    {
+        $currency = strtolower($currency);
+        if (in_array($currency, self::$zeroDecimalCurrencies, true)) {
+            return max(1, (int) round($amount));
+        }
+
+        return max(1, (int) round($amount * 100));
+    }
+
     public function createPaymentIntent(float $amount, string $currency, array $metadata = []): ?array
     {
+        $this->lastError = null;
+
         if (! $this->isConfigured()) {
+            $this->lastError = 'Stripe keys are not configured.';
+
             return null;
         }
 
-        $minorUnits = (int) round($amount * 100);
-        if ($minorUnits < 1) {
-            $minorUnits = 1;
-        }
+        $minorUnits = $this->amountInMinorUnits($amount, $currency);
 
         try {
             $response = HttpClient::postForm(
@@ -66,6 +88,8 @@ class StripePaymentService
             );
 
             if (! $response->successful()) {
+                $body = $response->json();
+                $this->lastError = $body['error']['message'] ?? $response->body();
                 Log::warning('Stripe PaymentIntent failed', ['body' => $response->body()]);
 
                 return null;
@@ -73,6 +97,7 @@ class StripePaymentService
 
             return $response->json();
         } catch (\Exception $e) {
+            $this->lastError = $e->getMessage();
             Log::warning('Stripe PaymentIntent exception: '.$e->getMessage());
 
             return null;

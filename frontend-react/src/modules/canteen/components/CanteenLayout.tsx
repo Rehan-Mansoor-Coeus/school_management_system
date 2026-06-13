@@ -8,6 +8,8 @@ const linkDefs = [
   { path: '/canteen/feeding-plans', labelKey: 'feedingPlans', permissions: ['canteen.manage'] },
   { path: '/canteen/wallets', labelKey: 'wallets', permissions: ['canteen.manage'] },
   { path: '/canteen/my-wallet', labelKey: 'myWallet', permissions: ['canteen.view'] },
+  { path: '/canteen/pos', labelKey: 'pos', permissions: ['canteen.verify', 'canteen.manage'] },
+  { path: '/canteen/sales', labelKey: 'salesRecords', permissions: ['canteen.view', 'canteen.manage', 'canteen.reports'] },
   { path: '/canteen/verify', labelKey: 'verifyMeal', permissions: ['canteen.verify', 'canteen.manage'] },
   { path: '/canteen/attendance', labelKey: 'attendance', permissions: ['canteen.view', 'canteen.manage', 'canteen.reports'] },
   { path: '/canteen/reports', labelKey: 'reports', permissions: ['canteen.reports', 'canteen.manage'] },

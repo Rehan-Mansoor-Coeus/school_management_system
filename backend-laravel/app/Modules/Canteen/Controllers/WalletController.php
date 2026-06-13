@@ -68,15 +68,21 @@ class WalletController extends Controller
         $data = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string|max:500',
+            'target' => 'nullable|in:wallet,deposit',
+            'credit_limit' => 'nullable|numeric|min:0',
         ]);
 
         $wallet = CanteenWallet::where('institution_id', $this->institutionId())->findOrFail($walletId);
-        $transaction = $this->walletService->credit(
-            $wallet,
-            (float) $data['amount'],
-            'wallet_topup',
-            $data['notes'] ?? null
-        );
+
+        if (array_key_exists('credit_limit', $data)) {
+            $wallet->credit_limit = (float) $data['credit_limit'];
+            $wallet->save();
+        }
+
+        $target = $data['target'] ?? 'wallet';
+        $transaction = $target === 'deposit'
+            ? $this->walletService->creditDeposit($wallet, (float) $data['amount'], 'deposit_topup', $data['notes'] ?? null)
+            : $this->walletService->credit($wallet, (float) $data['amount'], 'wallet_topup', $data['notes'] ?? null);
 
         return response()->json([
             'success' => true,

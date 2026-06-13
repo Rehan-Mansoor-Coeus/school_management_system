@@ -32,6 +32,46 @@ export const voidMealAttendance = (id: number) => api.post(`/canteen/attendance/
 export const fetchCanteenReport = (params?: { date_from?: string; date_to?: string }) =>
   api.get('/canteen/reports/summary', { params })
 
+export const fetchPosMenu = () => api.get('/canteen/pos/menu')
+export const fetchPosPaymentMethods = () => api.get('/canteen/pos/payment-methods')
+export const posCheckout = (payload: Record<string, unknown>) => api.post('/canteen/pos/checkout', payload)
+export const confirmPosPayment = (orderId: number, payload: Record<string, unknown>) =>
+  api.post(`/canteen/pos/orders/${orderId}/confirm`, payload)
+
+export const fetchCanteenSales = (params?: Record<string, string | number | undefined>) =>
+  api.get('/canteen/sales', { params })
+
+export const fetchCanteenSale = (orderId: number) => api.get(`/canteen/sales/${orderId}`)
+
+export async function downloadCanteenInvoice(orderId: number, filename?: string) {
+  const res = await api.get(`/canteen/sales/${orderId}/invoice`, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${filename || `canteen-invoice-${orderId}`}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+export async function printCanteenReceipt(orderId: number) {
+  const res = await api.get(`/canteen/sales/${orderId}/receipt`, {
+    responseType: 'text',
+    headers: { Accept: 'text/html' },
+  })
+
+  const printWindow = window.open('', '_blank', 'width=420,height=720')
+  if (!printWindow) {
+    throw new Error('Pop-up blocked. Allow pop-ups to print receipts.')
+  }
+
+  printWindow.document.open()
+  printWindow.document.write(res.data)
+  printWindow.document.close()
+  printWindow.focus()
+}
+
 export function formatCanteenError(error: unknown, fallback: string): string {
   const payload = (error as { response?: { data?: { message?: string } } })?.response?.data
   return payload?.message || fallback
