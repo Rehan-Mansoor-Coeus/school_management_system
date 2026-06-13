@@ -13,8 +13,8 @@ class CanteenMealAttendance extends Model
 
     protected $fillable = [
         'institution_id', 'student_id', 'meal_id', 'subscription_id',
-        'wallet_transaction_id', 'served_at', 'verification_method',
-        'verified_by', 'amount_charged', 'payment_source', 'status', 'notes',
+        'wallet_transaction_id', 'order_id', 'served_at', 'verification_method',
+        'verified_by', 'amount_charged', 'payment_source', 'pos_payment_method', 'status', 'notes',
     ];
 
     protected $casts = [
@@ -45,6 +45,11 @@ class CanteenMealAttendance extends Model
     public function walletTransaction()
     {
         return $this->belongsTo(CanteenWalletTransaction::class, 'wallet_transaction_id');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(CanteenOrder::class, 'order_id');
     }
 
     public function verifier()
