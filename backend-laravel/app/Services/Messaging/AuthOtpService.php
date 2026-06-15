@@ -286,25 +286,7 @@ class AuthOtpService
 
     public function findUserByPhone(string $phone): ?User
     {
-        $phone = trim($phone);
-        if ($phone === '') {
-            return null;
-        }
-
-        $normalized = $this->whatsapp->normalizePhoneNumber($phone);
-        $query = User::query();
-        if ($normalized) {
-            $query->where(function ($q) use ($phone, $normalized) {
-                $q->where('phone_number', $normalized)
-                    ->orWhere('phone_number', $phone)
-                    ->orWhere('additional_phone_number', $normalized)
-                    ->orWhere('additional_phone_number', $phone);
-            });
-        } else {
-            $query->where('phone_number', $phone)->orWhere('additional_phone_number', $phone);
-        }
-
-        return $query->first();
+        return $this->resolveUserForPhoneLookup($phone);
     }
 
     public function findUserByLogin(string $login): ?User
@@ -323,20 +305,44 @@ class AuthOtpService
             return $user;
         }
 
-        $normalized = $this->whatsapp->normalizePhoneNumber($login);
-        $query = User::query();
-        if ($normalized) {
-            $query->where(function ($q) use ($login, $normalized) {
-                $q->where('phone_number', $normalized)
-                    ->orWhere('phone_number', $login)
-                    ->orWhere('additional_phone_number', $normalized)
-                    ->orWhere('additional_phone_number', $login);
-            });
-        } else {
-            $query->where('phone_number', $login)->orWhere('additional_phone_number', $login);
+        return $this->resolveUserForPhoneLookup($login);
+    }
+
+    /**
+     * When the same phone exists on a staff/admin account and a student record,
+     * prefer the login account so staff are not signed in as students.
+     */
+    protected function resolveUserForPhoneLookup(string $phone): ?User
+    {
+        $phone = trim($phone);
+        if ($phone === '') {
+            return null;
         }
 
-        return $query->first();
+        $query = $this->phoneMatchQuery(User::query(), $phone);
+        $loginAccount = (clone $query)->loginAccounts()->orderBy('id')->first();
+        if ($loginAccount) {
+            return $loginAccount;
+        }
+
+        return $query->orderBy('id')->first();
+    }
+
+    protected function phoneMatchQuery($query, string $phone)
+    {
+        $normalized = $this->whatsapp->normalizePhoneNumber($phone);
+        if ($normalized) {
+            return $query->where(function ($q) use ($phone, $normalized) {
+                $q->where('phone_number', $normalized)
+                    ->orWhere('phone_number', $phone)
+                    ->orWhere('additional_phone_number', $normalized)
+                    ->orWhere('additional_phone_number', $phone);
+            });
+        }
+
+        return $query->where(function ($q) use ($phone) {
+            $q->where('phone_number', $phone)->orWhere('additional_phone_number', $phone);
+        });
     }
 
     protected function resolveUserPhone(User $user): ?string

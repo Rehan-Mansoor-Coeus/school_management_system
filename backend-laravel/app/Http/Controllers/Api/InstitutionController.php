@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Institution;
 use App\InstitutionSetting;
+use App\Services\InstitutionModuleService;
 use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -147,6 +148,8 @@ class InstitutionController extends Controller
         ]);
 
         InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], $settingsPayload);
+
+        app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
 
         return response()->json(['message' => 'Institution created successfully.', 'institution' => $institution->load('settings')], 201);
     }

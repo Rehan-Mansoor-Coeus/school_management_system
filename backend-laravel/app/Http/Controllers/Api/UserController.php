@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Role;
 use App\User;
+use App\Support\PhoneNumberGuard;
 use App\Services\UserAccountNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -47,6 +48,13 @@ class UserController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $phoneErrors = PhoneNumberGuard::validationErrors($request->only([
+            'phone_number', 'additional_phone_number',
+        ]));
+        if ($phoneErrors !== []) {
+            return response()->json(['errors' => $phoneErrors], 422);
         }
 
         $institutionId = $this->resolveTargetInstitutionId($request);
@@ -102,6 +110,13 @@ class UserController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $phoneErrors = PhoneNumberGuard::validationErrors($request->only([
+            'phone_number', 'additional_phone_number',
+        ]), $user->id);
+        if ($phoneErrors !== []) {
+            return response()->json(['errors' => $phoneErrors], 422);
         }
 
         $user->update([

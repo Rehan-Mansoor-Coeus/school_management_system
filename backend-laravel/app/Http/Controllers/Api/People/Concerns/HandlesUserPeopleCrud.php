@@ -80,6 +80,13 @@ trait HandlesUserPeopleCrud
             return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed.'], 422);
         }
 
+        $phoneErrors = \App\Support\PhoneNumberGuard::validationErrors($request->only([
+            'phone_number', 'additional_phone_number',
+        ]));
+        if ($phoneErrors !== []) {
+            return response()->json(['errors' => $phoneErrors, 'message' => 'Validation failed.'], 422);
+        }
+
         $data = $validator->validated();
         $status = $request->get('status', 'active');
         $plainPassword = null;
@@ -137,6 +144,13 @@ trait HandlesUserPeopleCrud
         $validator = Validator::make($request->all(), $this->rules(true));
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors(), 'message' => 'Validation failed.'], 422);
+        }
+
+        $phoneErrors = \App\Support\PhoneNumberGuard::validationErrors($request->only([
+            'phone_number', 'additional_phone_number',
+        ]), $user->id);
+        if ($phoneErrors !== []) {
+            return response()->json(['errors' => $phoneErrors, 'message' => 'Validation failed.'], 422);
         }
 
         $data = $validator->validated();

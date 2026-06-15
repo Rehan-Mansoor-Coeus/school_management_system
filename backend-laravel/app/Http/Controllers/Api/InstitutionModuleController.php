@@ -19,7 +19,7 @@ class InstitutionModuleController extends Controller
                 $join->on('institution_modules.module_id', '=', 'modules.id')
                     ->where('institution_modules.institution_id', '=', $institution->id);
             })
-            ->addSelect(DB::raw('COALESCE(institution_modules.enabled, 0) as enabled'))
+            ->addSelect(DB::raw('COALESCE(institution_modules.enabled, false) as enabled'))
             ->orderBy('modules.sort_order')
             ->orderBy('modules.name')
             ->get();
