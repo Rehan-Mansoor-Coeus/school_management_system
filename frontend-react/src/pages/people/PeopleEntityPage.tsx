@@ -149,8 +149,8 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
                   </FormField>
                 </>
               )}
-              <FormField label="Phone number" required>
-                <input className={formInputClass} value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} required />
+              <FormField label="Phone number">
+                <input className={formInputClass} value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} />
               </FormField>
               <FormField label="Additional phone">
                 <input className={formInputClass} value={form.additional_phone_number} onChange={e => setForm({ ...form, additional_phone_number: e.target.value })} />

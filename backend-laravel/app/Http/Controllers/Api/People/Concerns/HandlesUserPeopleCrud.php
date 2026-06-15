@@ -95,7 +95,7 @@ trait HandlesUserPeopleCrud
         $user->institution_id = $this->institutionId($request);
         $user->name = $this->resolvePersonName($data['name'] ?? null, $request);
         $user->email = $data['email'] ?? null;
-        $user->phone_number = $data['phone_number'];
+        $user->phone_number = $this->normalizePhone($data['phone_number'] ?? null);
         $user->additional_phone_number = $data['additional_phone_number'] ?? null;
         $user->address = $data['address'] ?? null;
         $user->status = $status;
@@ -158,7 +158,7 @@ trait HandlesUserPeopleCrud
 
         $user->name = $this->resolvePersonName($data['name'] ?? null, $request, $user);
         $user->email = $data['email'] ?? null;
-        $user->phone_number = $data['phone_number'];
+        $user->phone_number = $this->normalizePhone($data['phone_number'] ?? null);
         $user->additional_phone_number = $data['additional_phone_number'] ?? null;
         $user->address = $data['address'] ?? null;
         $user->status = $status;
@@ -218,7 +218,7 @@ trait HandlesUserPeopleCrud
             'username' => $usernameRule,
             'email' => $emailRule,
             'password' => 'nullable|string|min:8',
-            'phone_number' => 'required|string|max:50',
+            'phone_number' => 'nullable|string|max:50',
             'additional_phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
@@ -239,18 +239,26 @@ trait HandlesUserPeopleCrud
             return trim((string) $request->username);
         }
 
-        if ($user?->username) {
+        if ($user && $user->username) {
             return $user->username;
         }
 
         foreach (['email', 'phone_number'] as $field) {
-            $value = trim((string) ($request->get($field) ?: $user?->{$field}));
+            $fromUser = $user ? $user->{$field} : null;
+            $value = trim((string) ($request->get($field) ?: $fromUser));
             if ($value !== '') {
                 return $value;
             }
         }
 
         return 'User';
+    }
+
+    protected function normalizePhone(?string $phone): ?string
+    {
+        $phone = trim((string) $phone);
+
+        return $phone === '' ? null : $phone;
     }
 
     /**

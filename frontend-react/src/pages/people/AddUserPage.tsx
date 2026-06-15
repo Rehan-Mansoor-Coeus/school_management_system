@@ -67,7 +67,7 @@ export default function AddUserPage() {
               {roleOptions.map(role => <option key={role.id} value={role.id}>{role.label}</option>)}
             </select>
           </div>
-          <div><FieldLabel required>Phone Number</FieldLabel><TextInput value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} required /></div>
+          <div><FieldLabel>Phone Number</FieldLabel><TextInput value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} /></div>
           <div><FieldLabel>Additional Phone Number</FieldLabel><TextInput value={form.additional_phone_number} onChange={e => setForm({ ...form, additional_phone_number: e.target.value })} /></div>
           <div className="md:col-span-2"><FieldLabel>Address</FieldLabel><TextInput value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
           <div>

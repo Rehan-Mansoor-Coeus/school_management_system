@@ -113,7 +113,7 @@ trait HandlesPeopleCrud
         $rules = [
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
-            'phone_number' => 'required|string|max:50',
+            'phone_number' => 'nullable|string|max:50',
             'additional_phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
@@ -138,6 +138,12 @@ trait HandlesPeopleCrud
             $data['name'] = trim((string) ($data['email'] ?? $data['phone_number'] ?? 'User'));
         } else {
             $data['name'] = trim((string) $data['name']);
+        }
+
+        if (! isset($data['phone_number']) || trim((string) $data['phone_number']) === '') {
+            $data['phone_number'] = null;
+        } else {
+            $data['phone_number'] = trim((string) $data['phone_number']);
         }
 
         if ($this->supportsRoles()) {
