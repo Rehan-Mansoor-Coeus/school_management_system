@@ -111,7 +111,7 @@ trait HandlesPeopleCrud
     protected function rules($updating = false): array
     {
         $rules = [
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone_number' => 'required|string|max:50',
             'additional_phone_number' => 'nullable|string|max:50',
@@ -134,6 +134,12 @@ trait HandlesPeopleCrud
 
     protected function preparePayload(array $data, Request $request): array
     {
+        if (! isset($data['name']) || trim((string) $data['name']) === '') {
+            $data['name'] = trim((string) ($data['email'] ?? $data['phone_number'] ?? 'User'));
+        } else {
+            $data['name'] = trim((string) $data['name']);
+        }
+
         if ($this->supportsRoles()) {
             $data['role_ids'] = collect($request->get('roles', []))
                 ->filter()

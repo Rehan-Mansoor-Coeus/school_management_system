@@ -93,7 +93,7 @@ trait HandlesUserPeopleCrud
 
         $user = new User();
         $user->institution_id = $this->institutionId($request);
-        $user->name = $data['name'];
+        $user->name = $this->resolvePersonName($data['name'] ?? null, $request);
         $user->email = $data['email'] ?? null;
         $user->phone_number = $data['phone_number'];
         $user->additional_phone_number = $data['additional_phone_number'] ?? null;
@@ -156,7 +156,7 @@ trait HandlesUserPeopleCrud
         $data = $validator->validated();
         $status = $request->get('status', $user->status ?: 'active');
 
-        $user->name = $data['name'];
+        $user->name = $this->resolvePersonName($data['name'] ?? null, $request, $user);
         $user->email = $data['email'] ?? null;
         $user->phone_number = $data['phone_number'];
         $user->additional_phone_number = $data['additional_phone_number'] ?? null;
@@ -214,7 +214,7 @@ trait HandlesUserPeopleCrud
         }
 
         return [
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'username' => $usernameRule,
             'email' => $emailRule,
             'password' => 'nullable|string|min:8',
@@ -225,6 +225,32 @@ trait HandlesUserPeopleCrud
             'roles' => 'nullable|array',
             'roles.*' => 'integer|exists:roles,id',
         ];
+    }
+
+    /** Use a display name when the field is left blank (DB column is non-null). */
+    protected function resolvePersonName(?string $name, Request $request, ?User $user = null): string
+    {
+        $normalized = trim((string) $name);
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        if ($request->filled('username')) {
+            return trim((string) $request->username);
+        }
+
+        if ($user?->username) {
+            return $user->username;
+        }
+
+        foreach (['email', 'phone_number'] as $field) {
+            $value = trim((string) ($request->get($field) ?: $user?->{$field}));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return 'User';
     }
 
     /**

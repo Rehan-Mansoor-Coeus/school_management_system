@@ -34,7 +34,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'institution_id' => ($isPlatformSuperAdmin ? 'required' : 'nullable').'|integer|exists:institutions,id',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
@@ -61,7 +61,7 @@ class UserController extends Controller
 
         $user = User::create([
             'institution_id' => $institutionId,
-            'name' => $request->name,
+            'name' => trim((string) $request->name) !== '' ? trim((string) $request->name) : ($request->username ?: 'User'),
             'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
@@ -96,7 +96,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'institution_id' => ($isPlatformSuperAdmin ? 'required' : 'nullable').'|integer|exists:institutions,id',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'username' => 'nullable|string|max:255|unique:users,username,'.$user->id,
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'password' => 'nullable|string|min:8',
@@ -123,7 +123,7 @@ class UserController extends Controller
             'institution_id' => $isPlatformSuperAdmin
                 ? (int) $request->institution_id
                 : ($request->institution_id ?: $user->institution_id),
-            'name' => $request->name,
+            'name' => trim((string) $request->name) !== '' ? trim((string) $request->name) : ($request->username ?: 'User'),
             'username' => $request->username,
             'email' => $request->email,
             'password' => $request->filled('password') ? Hash::make($request->password) : $user->password,

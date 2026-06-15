@@ -351,14 +351,13 @@ export default function UsersPage() {
     </div>
 
     <div className="grid gap-4 md:grid-cols-2">
-      <FormField label="Name" required>
+      <FormField label="Name">
         <input
           value={form.name}
           onChange={(e) =>
             setForm((prev) => ({ ...prev, name: e.target.value }))
           }
           type="text"
-          required
           className={formInputClass}
         />
       </FormField>

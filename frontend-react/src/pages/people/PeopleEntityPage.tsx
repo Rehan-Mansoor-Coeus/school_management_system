@@ -133,8 +133,8 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
 
           <div className="space-y-6 p-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Name" required>
-                <input className={formInputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+              <FormField label="Name">
+                <input className={formInputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </FormField>
               <FormField label="Email">
                 <input type="email" className={formInputClass} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
