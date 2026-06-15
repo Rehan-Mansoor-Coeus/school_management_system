@@ -39,6 +39,7 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'admissions', 'name' => 'Admissions', 'sort_order' => 100],
             ['key' => 'academics', 'name' => 'Academics', 'sort_order' => 110],
             ['key' => 'attendance', 'name' => 'Attendance', 'sort_order' => 120],
+            ['key' => 'tasks', 'name' => 'Task Manager', 'sort_order' => 125],
             ['key' => 'results', 'name' => 'Results', 'sort_order' => 130],
             ['key' => 'fees', 'name' => 'Fees & Payments', 'sort_order' => 140],
             ['key' => 'hr', 'name' => 'HR & Payroll', 'sort_order' => 150],
@@ -162,6 +163,12 @@ class RolePermissionSeeder extends Seeder
             'fees.manage',
             'hr.view',
             'hr.manage',
+            'hr.payroll.approve',
+            'hr.finance',
+            'tasks.view',
+            'tasks.create',
+            'tasks.manage',
+            'tasks.assign',
             'assets.view',
             'assets.manage',
             'library.view',
@@ -354,7 +361,7 @@ class RolePermissionSeeder extends Seeder
             $adminTimesheetPermissions,
             $legacyTimesheetPermissions,
             $lettersPermissions,
-            ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.hod.approve', 'canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.finance_clear', 'character_certificates.library_clear', 'character_certificates.issue', 'hostel.view', 'hostel.manage', 'hostel.allocate', 'hostel.payments', 'hostel.maintenance', 'hostel.clearance']
+            ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.hod.approve', 'canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.finance_clear', 'character_certificates.library_clear', 'character_certificates.issue', 'hostel.view', 'hostel.manage', 'hostel.allocate', 'hostel.payments', 'hostel.maintenance', 'hostel.clearance', 'hr.view', 'hr.manage', 'hr.payroll.approve', 'hr.finance', 'tasks.view', 'tasks.create', 'tasks.manage', 'tasks.assign', 'attendance.view', 'attendance.manage']
         );
 
         $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, [
@@ -390,6 +397,16 @@ class RolePermissionSeeder extends Seeder
             'timesheets.approve_timesheets',
             'timesheets.reject_timesheets',
             'timesheets.view_timesheet_reports',
+            'hr.view',
+            'hr.manage',
+            'hr.payroll.approve',
+            'hr.finance',
+            'tasks.view',
+            'tasks.create',
+            'tasks.manage',
+            'tasks.assign',
+            'attendance.view',
+            'attendance.manage',
         ]);
 
         $superAdmin->syncPermissions($allPermissions);
@@ -404,6 +421,9 @@ class RolePermissionSeeder extends Seeder
             'timesheets.view_teacher_schedules',
             'timesheets.submit_teaching_timesheets',
             'timesheets.view_own',
+            'tasks.view',
+            'tasks.assign',
+            'attendance.view',
         ]));
 
         $studentRole->syncPermissions([
@@ -425,7 +445,18 @@ class RolePermissionSeeder extends Seeder
         $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review']));
         $registrarRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registrar.admit', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.issue']));
         $hodAdmissionRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.department.review', 'admissions.hod.approve', 'admissions.courses.register']));
-        $financeOfficerRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.finance.verify', 'fees.view', 'fees.manage', 'character_certificates.view', 'character_certificates.finance_clear', 'hostel.view', 'hostel.payments']));
+        $financeOfficerRole->syncPermissions(array_merge($admissionsStaffPermissions, [
+            'admissions.finance.verify',
+            'fees.view',
+            'fees.manage',
+            'character_certificates.view',
+            'character_certificates.finance_clear',
+            'hostel.view',
+            'hostel.payments',
+            'hr.view',
+            'hr.finance',
+            'tasks.view',
+        ]));
 
         $timesheetSupervisorRole->syncPermissions(array_merge($adminTimesheetPermissions, [
             'request_timesheet_correction',
@@ -447,6 +478,15 @@ class RolePermissionSeeder extends Seeder
             'timesheets.submit_staff_timesheets',
             'timesheets.approve_timesheets',
             'timesheets.view_timesheet_reports',
+            'hr.view',
+            'hr.manage',
+            'hr.payroll.approve',
+            'tasks.view',
+            'tasks.create',
+            'tasks.manage',
+            'tasks.assign',
+            'attendance.view',
+            'attendance.manage',
         ]));
 
         $staffRole->syncPermissions(array_merge($employeePermissions, [
@@ -457,6 +497,9 @@ class RolePermissionSeeder extends Seeder
             'timesheets.submit_staff_timesheets',
             'canteen.verify',
             'canteen.view',
+            'tasks.view',
+            'tasks.assign',
+            'attendance.view',
         ]));
 
         $hodRole->syncPermissions([

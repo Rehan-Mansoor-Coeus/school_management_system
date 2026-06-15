@@ -299,7 +299,10 @@ Route::middleware('auth:api')->group(function () {
     require base_path('app/Modules/Admissions/Routes/api.php');
     require base_path('app/Modules/Canteen/Routes/api.php');
     require base_path('app/Modules/CharacterCertificates/Routes/api.php');
+    require base_path('app/Modules/Hr/Routes/api.php');
     require base_path('app/Modules/Hostel/Routes/api.php');
+    require base_path('app/Modules/Tasks/Routes/api.php');
+    require base_path('app/Modules/Attendance/Routes/api.php');
 
     Route::prefix('library')->group(function () {
         // Dashboard

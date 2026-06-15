@@ -127,6 +127,32 @@ export const permissionMatrixSections: MatrixSection[] = [
       row('mod_canteen', 'Canteen', ['canteen.view'], ['canteen.manage', 'canteen.verify'], ['canteen.manage']),
     ],
   },
+  {
+    id: 'tasks',
+    label: 'Task Manager',
+    rows: [
+      row('tsk_dashboard', 'Task Dashboard', ['tasks.view'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_list', 'All Tasks', ['tasks.view'], ['tasks.create', 'tasks.manage'], ['tasks.manage']),
+      row('tsk_create', 'Create Task', ['tasks.create', 'tasks.manage'], ['tasks.create', 'tasks.manage'], ['tasks.manage']),
+      row('tsk_scheduled', 'Scheduled Tasks', ['tasks.view', 'tasks.manage'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_settings', 'Task Settings', ['tasks.manage'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_my', 'My Tasks', ['tasks.view', 'tasks.assign'], ['tasks.assign'], ['tasks.manage']),
+      row('tsk_pending', 'Pending Acceptances', ['tasks.view', 'tasks.assign'], ['tasks.assign'], ['tasks.manage']),
+    ],
+  },
+  {
+    id: 'hr_payroll',
+    label: 'HR & Payroll',
+    rows: [
+      row('hr_staff', 'Staff', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_jobs', 'Job Payroll', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_monthly', 'Monthly Payroll', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_approvals', 'Payroll Approvals', ['hr.view', 'hr.payroll.approve'], ['hr.payroll.approve', 'hr.manage'], ['hr.manage']),
+      row('hr_finance', 'Finance Payments', ['hr.view', 'hr.finance'], ['hr.finance', 'hr.manage'], ['hr.manage']),
+      row('hr_payslips', 'Payslips', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_letters', 'HR Letters', ['hr.view'], ['hr.manage'], ['hr.manage']),
+    ],
+  },
 ]
 
 export function allMatrixPermissionNames(): string[] {

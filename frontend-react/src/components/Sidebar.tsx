@@ -6,7 +6,7 @@ import {
   BarChart3,
   Bell,
   Building2,
-  ClipboardCheck,
+  CheckSquare,
   Clock,
   CreditCard,
   GraduationCap,
@@ -70,7 +70,7 @@ const accessItems: SidebarItem[] = [
 ]
 
 const moduleItems: ModuleItem[] = [
-  { key: 'attendance', label: 'Attendance', path: '/attendance', icon: ClipboardCheck },
+  { key: 'attendance', label: 'Attendance', path: '/attendance', icon: Clock },
   { key: 'results', label: 'Results', path: '/results', icon: Award },
   { key: 'fees', label: 'Fees & Payments', path: '/fees', icon: Wallet },
   { key: 'hr', label: 'HR & Payroll', path: '/hr', icon: CreditCard },
@@ -131,7 +131,10 @@ export default function Sidebar() {
   const showTimesheetAdmin = safeEnabledModules.includes('timesheets') && canAccess({
     permissions: ['view_timesheet_reports', 'view_all_timesheets', 'manage_timesheet_categories', 'timesheets.report', 'timesheets.manage', 'timesheets.review'],
   })
-  const showOperations = showTimesheetEmployee || showTimesheetAdmin
+  const showTaskManager = safeEnabledModules.includes('tasks') && canAccess({
+    permissions: ['tasks.view', 'tasks.create', 'tasks.assign', 'tasks.manage'],
+  })
+  const showOperations = showTimesheetEmployee || showTimesheetAdmin || showTaskManager
 
   const canViewLetters = hasPermission('view_letters_menu') || hasPermission('create_letters')
   const canViewAnnouncements = hasPermission('view_announcements') || hasPermission('create_announcements')
@@ -159,7 +162,7 @@ export default function Sidebar() {
 
   const [accessOpen, setAccessOpen] = useSidebarSection(false, ['/users', '/roles-permissions', '/roles', '/permissions', '/modules'])
   const [systemOpen, setSystemOpen] = useSidebarSection(false, ['/system'])
-  const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets'])
+  const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets', '/tasks'])
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
 
@@ -228,6 +231,16 @@ export default function Sidebar() {
                       <>
                         <Clock className={iconClass(isActive)} aria-hidden="true" />
                         <span className="truncate">{t('timesheetsEmployee')}</span>
+                      </>
+                    )}
+                  </NavLink>
+                )}
+                {showTaskManager && (
+                  <NavLink to="/tasks" className={({ isActive }) => linkClass(isActive, true)}>
+                    {({ isActive }) => (
+                      <>
+                        <CheckSquare className={iconClass(isActive)} aria-hidden="true" />
+                        <span className="truncate">Task Manager</span>
                       </>
                     )}
                   </NavLink>

@@ -128,6 +128,34 @@ import ClearancePage from './modules/hostel/pages/ClearancePage'
 import MaintenancePage from './modules/hostel/pages/MaintenancePage'
 import MyHostelPage from './modules/hostel/pages/MyHostelPage'
 import UsersLayout, { UsersIndexPage } from './components/users/UsersLayout'
+import HrLayout from './modules/hr/components/HrLayout'
+import HrOverviewPage from './modules/hr/pages/HrOverviewPage'
+import HrStaffPage from './modules/hr/pages/HrStaffPage'
+import HrCategoriesPage from './modules/hr/pages/HrCategoriesPage'
+import HrJobsPage from './modules/hr/pages/HrJobsPage'
+import HrJobDetailPage from './modules/hr/pages/HrJobDetailPage'
+import HrMonthlyPayrollPage from './modules/hr/pages/HrMonthlyPayrollPage'
+import HrAllowancesPage from './modules/hr/pages/HrAllowancesPage'
+import HrDeductionsPage from './modules/hr/pages/HrDeductionsPage'
+import HrAdvancesPage from './modules/hr/pages/HrAdvancesPage'
+import HrPayslipsPage from './modules/hr/pages/HrPayslipsPage'
+import HrApprovalsPage from './modules/hr/pages/HrApprovalsPage'
+import HrFinancePage from './modules/hr/pages/HrFinancePage'
+import HrReportsPage from './modules/hr/pages/HrReportsPage'
+import HrPayrollDetailPage from './modules/hr/pages/HrPayrollDetailPage'
+import HrLettersPage from './modules/hr/pages/HrLettersPage'
+import TasksLayout from './modules/tasks/components/TasksLayout'
+import TaskDashboardPage from './modules/tasks/pages/TaskDashboardPage'
+import TaskListPage from './modules/tasks/pages/TaskListPage'
+import CreateTaskPage from './modules/tasks/pages/CreateTaskPage'
+import ScheduledTasksPage from './modules/tasks/pages/ScheduledTasksPage'
+import TaskSettingsPage from './modules/tasks/pages/TaskSettingsPage'
+import MyTasksPage from './modules/tasks/pages/MyTasksPage'
+import PendingAcceptancesPage from './modules/tasks/pages/PendingAcceptancesPage'
+import AttendancePage from './modules/attendance/pages/AttendancePage'
+import AttendanceReportPage from './modules/attendance/pages/AttendanceReportPage'
+import TaskInvitePage from './pages/TaskInvitePage'
+import VerifyPayslipPage from './pages/VerifyPayslipPage'
 
 export default function App(){
   return (
@@ -148,6 +176,8 @@ export default function App(){
         <Route path="/login" element={<Navigate to="/admin" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/letters/verify/:id" element={<LetterVerifyPage />} />
+        <Route path="/verify/payslip/:code" element={<VerifyPayslipPage />} />
+        <Route path="/task-invite/:token" element={<TaskInvitePage />} />
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
@@ -218,11 +248,37 @@ export default function App(){
             <Route path=":id" element={<CharacterCertificatesStaffRoute><CertificateDetailPage /></CharacterCertificatesStaffRoute>} />
           </Route>
 
-          <Route path="attendance" element={<PlaceholderModulePage title="Attendance" />} />
+          <Route path="attendance" element={<AttendancePage />} />
+          <Route path="attendance/report" element={<AttendanceReportPage />} />
           <Route path="results" element={<PlaceholderModulePage title="Results" />} />
           <Route path="fees" element={<FeesDashboardPage />} />
-          <Route path="hr" element={<PlaceholderModulePage title="HR & Payroll" />} />
+          <Route path="hr" element={<HrLayout />}>
+            <Route index element={<HrOverviewPage />} />
+            <Route path="staff" element={<HrStaffPage />} />
+            <Route path="categories" element={<HrCategoriesPage />} />
+            <Route path="jobs" element={<HrJobsPage />} />
+            <Route path="jobs/:id" element={<HrJobDetailPage />} />
+            <Route path="monthly-payroll" element={<HrMonthlyPayrollPage />} />
+            <Route path="allowances" element={<HrAllowancesPage />} />
+            <Route path="deductions" element={<HrDeductionsPage />} />
+            <Route path="advances" element={<HrAdvancesPage />} />
+            <Route path="payslips" element={<HrPayslipsPage />} />
+            <Route path="approvals" element={<HrApprovalsPage />} />
+            <Route path="finance" element={<HrFinancePage />} />
+            <Route path="reports" element={<HrReportsPage />} />
+            <Route path="letters" element={<HrLettersPage />} />
+            <Route path="payroll-runs/:id" element={<HrPayrollDetailPage />} />
+          </Route>
           <Route path="assets" element={<PlaceholderModulePage title="Assets" />} />
+          <Route path="tasks" element={<TasksLayout />}>
+            <Route index element={<TaskDashboardPage />} />
+            <Route path="all" element={<TaskListPage />} />
+            <Route path="create" element={<CreateTaskPage />} />
+            <Route path="scheduled" element={<ScheduledTasksPage />} />
+            <Route path="settings" element={<TaskSettingsPage />} />
+            <Route path="my" element={<MyTasksPage />} />
+            <Route path="pending" element={<PendingAcceptancesPage />} />
+          </Route>
 
           <Route path="library" element={<LibraryLayout />}>
             <Route index element={<LibraryDashboard />} />
