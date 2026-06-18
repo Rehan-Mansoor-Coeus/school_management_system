@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import Modal from '../../components/ui/Modal'
 import FormSelect from '../../components/ui/FormSelect'
 import { useToast } from '../../components/ui/ToastProvider'
-import { useAcademicInstitutionParams } from '../../context/AcademicInstitutionContext'
+import { useAuth } from '../../context/AuthContext'
+import { useAcademicInstitution, useAcademicInstitutionParams } from '../../context/AcademicInstitutionContext'
 import { createAcademicUnit, deleteAcademicUnit, fetchAcademicUnits, updateAcademicUnit } from '../../api/admin'
 
 const UNIT_TYPES = [
@@ -21,16 +22,38 @@ type Unit = {
   unit_type: string
   description?: string
   is_active: boolean
+  institution_id?: number
+}
+
+type UnitForm = {
+  institution_id?: number
+  name: string
+  unit_type: string
+  description: string
+  is_active: boolean
 }
 
 export default function AcademicUnitsPage() {
   const { pushToast } = useToast()
+  const { user, institution: authInstitution } = useAuth()
   const { institutionId, requiresSelection, params } = useAcademicInstitutionParams()
+  const { institutions, loadingInstitutions } = useAcademicInstitution()
   const [rows, setRows] = useState<Unit[]>([])
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState<Unit | null>(null)
-  const [form, setForm] = useState({ name: '', unit_type: 'school', description: '', is_active: true })
+  const [form, setForm] = useState<UnitForm>({
+    institution_id: institutionId || user?.institution_id || undefined,
+    name: '',
+    unit_type: 'school',
+    description: '',
+    is_active: true,
+  })
+
+  const showInstitutionPicker = requiresSelection || institutions.length > 1
+  const selectedInstitutionLabel = institutions.find((i) => i.id === (form.institution_id || institutionId))?.name
+    || authInstitution?.name
+    || '—'
 
   const load = async () => {
     if (requiresSelection && !institutionId) {
@@ -51,24 +74,40 @@ export default function AcademicUnitsPage() {
 
   const openCreate = () => {
     setActive(null)
-    setForm({ name: '', unit_type: 'school', description: '', is_active: true })
+    setForm({
+      institution_id: institutionId || user?.institution_id || undefined,
+      name: '',
+      unit_type: 'school',
+      description: '',
+      is_active: true,
+    })
     setOpen(true)
   }
 
   const openEdit = (row: Unit) => {
     setActive(row)
-    setForm({ name: row.name, unit_type: row.unit_type, description: row.description || '', is_active: row.is_active })
+    setForm({
+      institution_id: row.institution_id || institutionId || user?.institution_id || undefined,
+      name: row.name,
+      unit_type: row.unit_type,
+      description: row.description || '',
+      is_active: row.is_active,
+    })
     setOpen(true)
   }
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (requiresSelection && !institutionId) {
+    const targetInstitutionId = form.institution_id || institutionId || user?.institution_id
+    if (!targetInstitutionId) {
       pushToast('Select an institution first.', 'error')
       return
     }
     try {
-      const payload = { ...form, ...(params || {}) }
+      const payload = {
+        ...form,
+        institution_id: targetInstitutionId,
+      }
       if (active) {
         await updateAcademicUnit(active.id, payload)
         pushToast('Academic unit updated.')
@@ -108,6 +147,7 @@ export default function AcademicUnitsPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Type</th>
+              {showInstitutionPicker && <th className="px-4 py-3">Institution</th>}
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
@@ -117,6 +157,9 @@ export default function AcademicUnitsPage() {
               <tr key={row.id} className="border-t border-slate-100">
                 <td className="px-4 py-3 font-medium">{row.name}</td>
                 <td className="px-4 py-3 capitalize">{row.unit_type.replace('_', ' ')}</td>
+                {showInstitutionPicker && (
+                  <td className="px-4 py-3 text-slate-600">{selectedInstitutionLabel}</td>
+                )}
                 <td className="px-4 py-3">{row.is_active ? 'Active' : 'Inactive'}</td>
                 <td className="px-4 py-3">
                   <button type="button" className="mr-2 text-blue-600" onClick={() => openEdit(row)}>Edit</button>
@@ -141,6 +184,26 @@ export default function AcademicUnitsPage() {
       {open && (
         <Modal title={active ? 'Edit Academic Unit' : 'Add Academic Unit'} open onClose={() => setOpen(false)}>
           <form onSubmit={save} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Institution</label>
+              {showInstitutionPicker ? (
+                <div className="mt-1">
+                  <FormSelect
+                    value={form.institution_id ? String(form.institution_id) : ''}
+                    onChange={(value) => setForm({ ...form, institution_id: value ? Number(value) : undefined })}
+                    options={institutions.map((inst) => ({
+                      value: String(inst.id),
+                      label: inst.code ? `${inst.name} (${inst.code})` : inst.name,
+                    }))}
+                    placeholder={loadingInstitutions ? 'Loading institutions…' : 'Select institution'}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Academic units belong to an institution, like departments belong to a unit.</p>
+                </div>
+              ) : (
+                <p className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{selectedInstitutionLabel}</p>
+              )}
+            </div>
             <div>
               <label className="text-sm font-medium">Unit name</label>
               <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-2" />

@@ -49,8 +49,6 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
   }, [assignedId, requiresSelection])
 
   useEffect(() => {
-    if (!requiresSelection) return
-
     setLoadingInstitutions(true)
     fetchInstitutions({ per_page: 500 })
       .then((res) => {
@@ -59,9 +57,6 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
         setInstitutions(list)
         if (list.length > 0) {
           const validIds = list.map((r) => r.id)
-          // If nothing is selected, or the current/home institution no longer
-          // exists (e.g. it was deleted), fall back to a valid institution so
-          // the academics screens don't break.
           if (!institutionId || !validIds.includes(institutionId)) {
             const firstId = assignedId && validIds.includes(assignedId) ? assignedId : list[0].id
             setInstitutionIdState(firstId)
@@ -72,7 +67,7 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
       .catch(() => setInstitutions([]))
       .finally(() => setLoadingInstitutions(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiresSelection])
+  }, [assignedId])
 
   const setInstitutionId = (id: number | null) => {
     setInstitutionIdState(id)

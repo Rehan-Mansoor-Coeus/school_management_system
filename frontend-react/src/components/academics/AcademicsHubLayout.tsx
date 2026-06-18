@@ -41,7 +41,7 @@ function AcademicsHubContent() {
 
       <AcademicSetupProgress />
 
-      {requiresSelection && (
+      {institutions.length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <label className="mb-2 block text-sm font-medium text-slate-700">Working institution</label>
           <FormSelect
@@ -54,7 +54,7 @@ function AcademicsHubContent() {
             placeholder={loadingInstitutions ? 'Loading institutions…' : 'Select institution'}
           />
           <p className="mt-2 text-xs text-slate-500">
-            Academic units, departments, programs, and related data are scoped to the selected institution.
+            Academic units, departments, programs, and organization are scoped to the selected institution.
           </p>
         </div>
       )}
