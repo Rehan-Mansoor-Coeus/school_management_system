@@ -194,11 +194,67 @@ trait HandlesUserPeopleCrud
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $user->status = 'inactive';
-        $user->is_active = false;
-        $user->save();
+        $this->hardDeleteUser($user);
 
-        return response()->json(['message' => 'Record deactivated.']);
+        return response()->json(['message' => 'Record deleted.']);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        if (! $this->hasAnyPermission($request, $this->deletePermissions())) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['message' => 'No records selected.'], 422);
+        }
+
+        $users = $this->baseQuery($this->institutionId($request))->whereIn('id', $ids)->get();
+
+        $deleted = 0;
+        foreach ($users as $user) {
+            $this->hardDeleteUser($user);
+            $deleted++;
+        }
+
+        return response()->json(['message' => "{$deleted} record(s) deleted.", 'deleted' => $deleted]);
+    }
+
+    /**
+     * Permanently remove a user and the records that belong to it so nothing is
+     * left behind in the database (no soft-deleted ghost rows).
+     */
+    protected function hardDeleteUser(User $user): void
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+            // Drop role / permission pivots.
+            $user->roles()->detach();
+            $user->permissions()->detach();
+
+            // Remove the student profile (and its dependent rows) if present.
+            if (\Illuminate\Support\Facades\Schema::hasTable('students')) {
+                \App\Student::where('user_id', $user->id)->get()->each(function ($student) {
+                    if (method_exists($student, 'forceDelete')) {
+                        $student->forceDelete();
+                    } else {
+                        $student->delete();
+                    }
+                });
+            }
+
+            // Bypass soft deletes so the row is physically removed.
+            if (method_exists($user, 'forceDelete')) {
+                $user->forceDelete();
+            } else {
+                $user->delete();
+            }
+        });
     }
 
     protected function rules($updating = false): array

@@ -26,5 +26,8 @@ export const updatePerson = (entity: PeopleEntity, id: number, payload: Partial<
 export const deletePerson = (entity: PeopleEntity, id: number) =>
   api.delete(`/people/${entity}/${id}`)
 
+export const bulkDeletePeople = (entity: PeopleEntity, ids: number[]) =>
+  api.post(`/people/${entity}/bulk-delete`, { ids })
+
 export const searchPeopleRecipients = (query: string, source: string) =>
   api.get('/people/recipients/search', { params: { query, source } })

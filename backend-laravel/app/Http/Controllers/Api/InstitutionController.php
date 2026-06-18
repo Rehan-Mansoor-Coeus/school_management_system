@@ -8,6 +8,8 @@ use App\InstitutionSetting;
 use App\Services\InstitutionModuleService;
 use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -220,10 +222,72 @@ class InstitutionController extends Controller
 
     public function destroy($id)
     {
-        $institution = Institution::findOrFail($id);
-        $institution->delete();
+        $institution = Institution::withTrashed()->findOrFail($id);
+        $institutionId = $institution->id;
 
-        return response()->json(['message' => 'Institution deleted successfully.']);
+        try {
+            DB::transaction(function () use ($institution, $institutionId) {
+                // Hard-delete every user belonging to the institution, removing
+                // role/permission pivots and student profiles so nothing lingers.
+                \App\User::withTrashed()->where('institution_id', $institutionId)->get()->each(function ($user) {
+                    $user->roles()->detach();
+                    $user->permissions()->detach();
+                    if (Schema::hasTable('students')) {
+                        \App\Student::withTrashed()->where('user_id', $user->id)->forceDelete();
+                    }
+                    $user->forceDelete();
+                });
+
+                if (Schema::hasTable('students')) {
+                    \App\Student::withTrashed()->where('institution_id', $institutionId)->forceDelete();
+                }
+
+                // Academic data (children before parents to satisfy FKs).
+                if (Schema::hasTable('program_subjects')) {
+                    \App\ProgramSubject::where('institution_id', $institutionId)->forceDelete();
+                }
+
+                \App\Programme::where('institution_id', $institutionId)->get()->each(function ($programme) {
+                    if (Schema::hasTable('programme_semester_subjects')) {
+                        DB::table('programme_semester_subjects')
+                            ->whereIn('programme_semester_id', \App\ProgrammeSemester::where('programme_id', $programme->id)->pluck('id'))
+                            ->delete();
+                    }
+                    \App\ProgrammeSemester::where('programme_id', $programme->id)->forceDelete();
+                    if (class_exists(\App\ProgrammeLevel::class)) {
+                        \App\ProgrammeLevel::where('programme_id', $programme->id)->forceDelete();
+                    }
+                    if (Schema::hasTable('programme_required_documents')) {
+                        DB::table('programme_required_documents')->where('programme_id', $programme->id)->delete();
+                    }
+                    if (Schema::hasTable('admission_agreements')) {
+                        DB::table('admission_agreements')->where('programme_id', $programme->id)->delete();
+                    }
+                    $programme->forceDelete();
+                });
+
+                \App\Subject::where('institution_id', $institutionId)->forceDelete();
+                \App\Department::where('institution_id', $institutionId)->forceDelete();
+                \App\AcademicUnit::where('institution_id', $institutionId)->forceDelete();
+                if (class_exists(\App\AcademicYear::class)) {
+                    \App\AcademicYear::where('institution_id', $institutionId)->forceDelete();
+                }
+
+                DB::table('institution_modules')->where('institution_id', $institutionId)->delete();
+                if (Schema::hasTable('institution_settings')) {
+                    DB::table('institution_settings')->where('institution_id', $institutionId)->delete();
+                }
+
+                $institution->forceDelete();
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Unable to fully delete institution. It still has linked records.',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Institution deleted permanently.']);
     }
 
     public function getSettings($id)

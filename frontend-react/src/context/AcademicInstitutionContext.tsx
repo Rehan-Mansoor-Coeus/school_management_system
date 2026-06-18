@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useAuth } from './AuthContext'
+import { resolveUserRoles } from '../utils/accessControl'
 import { fetchInstitutions } from '../api/admin'
 
 type InstitutionOption = { id: number; name: string; code?: string }
@@ -19,23 +20,33 @@ const STORAGE_KEY = 'academic_selected_institution_id'
 export function AcademicInstitutionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   const assignedId = user?.institution_id ?? null
-  const requiresSelection = !assignedId
+  const roles = resolveUserRoles(user)
+  const isPlatformAdmin = roles.includes('super-admin') || roles.includes('system-super-admin')
+  // Platform super-admins manage every institution, so they always pick a
+  // working institution even though they may have a home institution_id.
+  const requiresSelection = !assignedId || isPlatformAdmin
 
-  const [institutionId, setInstitutionIdState] = useState<number | null>(assignedId)
+  const [institutionId, setInstitutionIdState] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY)
+    if (stored) return Number(stored) || assignedId
+    return assignedId
+  })
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([])
   const [loadingInstitutions, setLoadingInstitutions] = useState(false)
 
   useEffect(() => {
-    if (assignedId) {
+    if (!requiresSelection && assignedId) {
       setInstitutionIdState(assignedId)
       return
     }
 
     const stored = sessionStorage.getItem(STORAGE_KEY)
     if (stored) {
-      setInstitutionIdState(Number(stored) || null)
+      setInstitutionIdState(Number(stored) || assignedId)
+    } else if (assignedId) {
+      setInstitutionIdState(assignedId)
     }
-  }, [assignedId])
+  }, [assignedId, requiresSelection])
 
   useEffect(() => {
     if (!requiresSelection) return
@@ -46,7 +57,7 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
         const rows = res.data?.data || res.data || []
         setInstitutions(Array.isArray(rows) ? rows : [])
         if (!institutionId && rows.length > 0) {
-          const firstId = rows[0].id
+          const firstId = assignedId || rows[0].id
           setInstitutionIdState(firstId)
           sessionStorage.setItem(STORAGE_KEY, String(firstId))
         }

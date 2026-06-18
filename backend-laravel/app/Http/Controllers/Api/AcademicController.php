@@ -14,6 +14,7 @@ use App\ProgrammeSemester;
 use App\ProgrammeSemesterSubject;
 use App\Subject;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesScopedInstitution;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -21,13 +22,11 @@ use Illuminate\Validation\Rule;
 
 class AcademicController extends Controller
 {
+    use ResolvesScopedInstitution;
+
     protected function getInstitutionId(Request $request)
     {
-        if ($request->filled('institution_id')) {
-            return (int) $request->input('institution_id');
-        }
-
-        return optional($request->user())->institution_id;
+        return $this->scopedInstitutionId($request);
     }
 
     protected function ensureInstitutionId(Request $request)
@@ -64,7 +63,7 @@ class AcademicController extends Controller
 
     public function showProgram(Request $request, Programme $programme)
     {
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
@@ -150,7 +149,7 @@ class AcademicController extends Controller
 
     public function updateProgram(Request $request, Programme $programme)
     {
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
@@ -244,7 +243,7 @@ class AcademicController extends Controller
 
     public function destroyProgram(Request $request, Programme $programme)
     {
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
@@ -307,7 +306,7 @@ class AcademicController extends Controller
 
     public function updateSubject(Request $request, Subject $subject)
     {
-        if ($subject->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $subject->institution_id)) {
             return response()->json(['message' => 'Subject not found.'], 404);
         }
 
@@ -343,7 +342,7 @@ class AcademicController extends Controller
 
     public function deleteSubject(Request $request, Subject $subject)
     {
-        if ($subject->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $subject->institution_id)) {
             return response()->json(['message' => 'Subject not found.'], 404);
         }
 
@@ -355,7 +354,7 @@ class AcademicController extends Controller
     public function updateSemester(Request $request, ProgrammeSemester $semester)
     {
         $programme = $semester->programme;
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Semester not found.'], 404);
         }
 
@@ -392,7 +391,7 @@ class AcademicController extends Controller
 
     public function assignSubject(Request $request, Programme $programme)
     {
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
@@ -424,7 +423,7 @@ class AcademicController extends Controller
     public function updateSemesterSubject(Request $request, ProgrammeSemesterSubject $assignment)
     {
         $programme = $assignment->semester->programme;
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Assignment not found.'], 404);
         }
 
@@ -450,7 +449,7 @@ class AcademicController extends Controller
     public function deleteSemesterSubject(Request $request, ProgrammeSemesterSubject $assignment)
     {
         $programme = $assignment->semester->programme;
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Assignment not found.'], 404);
         }
 
@@ -461,7 +460,7 @@ class AcademicController extends Controller
 
     public function storeLevel(Request $request, Programme $programme)
     {
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Program not found.'], 404);
         }
 
@@ -490,7 +489,7 @@ class AcademicController extends Controller
     public function updateLevel(Request $request, ProgrammeLevel $level)
     {
         $programme = $level->programme;
-        if ($programme->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programme->institution_id)) {
             return response()->json(['message' => 'Level not found.'], 404);
         }
 
@@ -700,7 +699,7 @@ class AcademicController extends Controller
 
     public function updateProgramSubject(Request $request, ProgramSubject $programSubject)
     {
-        if ($programSubject->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programSubject->institution_id)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -713,7 +712,7 @@ class AcademicController extends Controller
 
     public function destroyProgramSubject(Request $request, ProgramSubject $programSubject)
     {
-        if ($programSubject->institution_id !== $this->ensureInstitutionId($request)) {
+        if (! $this->canManageInstitution($request, $programSubject->institution_id)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 

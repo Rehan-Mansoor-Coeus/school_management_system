@@ -4,15 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\AcademicUnit;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesScopedInstitution;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class AcademicUnitController extends Controller
 {
+    use ResolvesScopedInstitution;
+
     protected function institutionId(Request $request)
     {
-        $id = optional($request->user())->institution_id ?: $request->input('institution_id');
+        $id = $this->scopedInstitutionId($request);
         if (! $id) {
             abort(422, 'Institution is required.');
         }
@@ -67,7 +70,7 @@ class AcademicUnitController extends Controller
 
     public function update(Request $request, AcademicUnit $academicUnit)
     {
-        if ($academicUnit->institution_id !== $this->institutionId($request)) {
+        if (! $this->canManageInstitution($request, $academicUnit->institution_id)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -94,7 +97,7 @@ class AcademicUnitController extends Controller
 
     public function destroy(Request $request, AcademicUnit $academicUnit)
     {
-        if ($academicUnit->institution_id !== $this->institutionId($request)) {
+        if (! $this->canManageInstitution($request, $academicUnit->institution_id)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 

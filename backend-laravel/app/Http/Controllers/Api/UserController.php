@@ -148,9 +148,18 @@ class UserController extends Controller
     {
         $this->authorizeUserAccess($request, $user);
 
-        $user->delete();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+            $user->roles()->detach();
+            $user->permissions()->detach();
 
-        return response()->json(['message' => 'User deleted successfully.']);
+            if (\Illuminate\Support\Facades\Schema::hasTable('students')) {
+                \App\Student::withTrashed()->where('user_id', $user->id)->forceDelete();
+            }
+
+            $user->forceDelete();
+        });
+
+        return response()->json(['message' => 'User deleted permanently.']);
     }
 
     public function assignRoles(Request $request, User $user)

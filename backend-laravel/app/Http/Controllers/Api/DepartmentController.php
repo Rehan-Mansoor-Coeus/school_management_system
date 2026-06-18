@@ -4,38 +4,32 @@ namespace App\Http\Controllers\Api;
 
 use App\Department;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesScopedInstitution;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
+    use ResolvesScopedInstitution;
+
     protected function resolveInstitutionId(Request $request)
     {
-        if ($request->user() && $request->user()->institution_id) {
-            return $request->user()->institution_id;
-        }
-
-        return $request->input('institution_id');
+        return $this->scopedInstitutionId($request);
     }
 
     protected function authorizeDepartment(Department $department, Request $request)
     {
-        if ($request->user() && $request->user()->institution_id) {
-            return (int) $department->institution_id === (int) $request->user()->institution_id;
-        }
-
-        return true;
+        return $this->canManageInstitution($request, $department->institution_id);
     }
 
     public function index(Request $request)
     {
         $query = Department::with(['institution', 'academicUnit']);
 
-        if ($request->user() && $request->user()->institution_id) {
-            $query->where('institution_id', $request->user()->institution_id);
-        } elseif ($request->filled('institution_id')) {
-            $query->where('institution_id', $request->institution_id);
+        $institutionId = $this->scopedInstitutionId($request);
+        if ($institutionId) {
+            $query->where('institution_id', $institutionId);
         }
 
         if ($request->filled('search')) {

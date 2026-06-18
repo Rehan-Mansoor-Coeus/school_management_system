@@ -7,6 +7,8 @@ import {
   createProgramSubject,
   deleteProgramSubject,
   fetchOrganizationTree,
+  updateDepartment,
+  updateProgram,
 } from '../../api/admin'
 
 type TreeProgram = {
@@ -26,7 +28,33 @@ type TreeUnit = {
   departments?: Array<{ id: number; name: string; programmes?: TreeProgram[] }>
 }
 
-type ProgramOption = { id: number; name: string; code: string; department?: { name: string } }
+type ProgramOption = {
+  id: number
+  name: string
+  code: string
+  department_id?: number | null
+  academic_unit_id?: number | null
+  duration_years?: number
+  duration_value?: number
+  duration_unit?: string
+  level?: string
+  semester_count?: number
+  tuition_fee?: number
+  application_fee?: number
+  is_active?: boolean
+  department?: { name: string }
+}
+type DepartmentRow = {
+  id: number
+  name: string
+  code: string
+  institution_id?: number
+  academic_unit_id?: number | null
+  description?: string | null
+  is_active?: boolean
+  academic_unit?: { id: number; name: string } | null
+}
+type UnitOption = { id: number; name: string }
 type SubjectOption = { id: number; name: string; code?: string }
 type ProgramLink = {
   id: number
@@ -44,9 +72,12 @@ export default function AcademicOrganizationPage() {
   const [units, setUnits] = useState<TreeUnit[]>([])
   const [unassignedDepartments, setUnassignedDepartments] = useState<Array<{ id: number; name: string; programmes?: TreeProgram[] }>>([])
   const [programmes, setProgrammes] = useState<ProgramOption[]>([])
+  const [departmentsFlat, setDepartmentsFlat] = useState<DepartmentRow[]>([])
+  const [academicUnits, setAcademicUnits] = useState<UnitOption[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [programLinks, setProgramLinks] = useState<ProgramLink[]>([])
   const [loading, setLoading] = useState(false)
+  const [savingOrg, setSavingOrg] = useState(false)
 
   const [selectedProgramId, setSelectedProgramId] = useState('')
   const [pendingSubjects, setPendingSubjects] = useState<SearchableMultiSelectOption[]>([])
@@ -59,6 +90,8 @@ export default function AcademicOrganizationPage() {
       setUnits([])
       setUnassignedDepartments([])
       setProgrammes([])
+      setDepartmentsFlat([])
+      setAcademicUnits([])
       setSubjects([])
       setProgramLinks([])
       return
@@ -74,6 +107,8 @@ export default function AcademicOrganizationPage() {
         setUnits(res.data.academic_units || [])
         setUnassignedDepartments(res.data.unassigned_departments || [])
         setProgrammes(res.data.programmes || [])
+        setDepartmentsFlat(res.data.departments || [])
+        setAcademicUnits((res.data.academic_units || []).map((u: TreeUnit) => ({ id: u.id, name: u.name })))
         setSubjects(res.data.subjects || [])
         setProgramLinks(res.data.program_links || [])
       })
@@ -120,8 +155,64 @@ export default function AcademicOrganizationPage() {
     setUnits(res.data.academic_units || [])
     setUnassignedDepartments(res.data.unassigned_departments || [])
     setProgrammes(res.data.programmes || [])
+    setDepartmentsFlat(res.data.departments || [])
+    setAcademicUnits((res.data.academic_units || []).map((u: TreeUnit) => ({ id: u.id, name: u.name })))
     setSubjects(res.data.subjects || [])
     setProgramLinks(res.data.program_links || [])
+  }
+
+  const reassignDepartmentUnit = async (dept: DepartmentRow, academicUnitId: number | null) => {
+    setSavingOrg(true)
+    try {
+      await updateDepartment(dept.id, {
+        ...params,
+        institution_id: dept.institution_id ?? institution?.id,
+        name: dept.name,
+        code: dept.code,
+        description: dept.description ?? '',
+        is_active: dept.is_active ?? true,
+        academic_unit_id: academicUnitId,
+      })
+      pushToast('Department moved.')
+      await reload()
+    } catch (e: any) {
+      const msg = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join(' ')
+        : e?.response?.data?.message
+      pushToast(msg || 'Failed to move department', 'error')
+    } finally {
+      setSavingOrg(false)
+    }
+  }
+
+  const reassignProgrammeDepartment = async (prog: ProgramOption, departmentId: number) => {
+    setSavingOrg(true)
+    try {
+      await updateProgram(prog.id, {
+        ...params,
+        name: prog.name,
+        code: prog.code,
+        description: '',
+        duration_years: prog.duration_years || 1,
+        duration_value: prog.duration_value,
+        duration_unit: prog.duration_unit,
+        level: prog.level || 'degree',
+        semester_count: prog.semester_count || 1,
+        tuition_fee: prog.tuition_fee,
+        application_fee: prog.application_fee,
+        is_active: prog.is_active ?? true,
+        department_id: departmentId,
+      })
+      pushToast('Programme moved.')
+      await reload()
+    } catch (e: any) {
+      const msg = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join(' ')
+        : e?.response?.data?.message
+      pushToast(msg || 'Failed to move programme', 'error')
+    } finally {
+      setSavingOrg(false)
+    }
   }
 
   const assignPending = async () => {
@@ -257,6 +348,84 @@ export default function AcademicOrganizationPage() {
             </div>
           </>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <h3 className="text-lg font-semibold text-slate-900">Organize departments → academic units</h3>
+        <p className="text-xs text-slate-500">Assign each department to an academic unit (faculty / school). Academic units belong to the selected institution.</p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Department</th>
+                <th className="px-4 py-2">Academic unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {departmentsFlat.length === 0 ? (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No departments yet.</td></tr>
+              ) : (
+                departmentsFlat.map((dept) => (
+                  <tr key={dept.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium text-slate-900">{dept.name} <span className="text-xs text-slate-400">({dept.code})</span></td>
+                    <td className="px-4 py-2">
+                      <select
+                        disabled={savingOrg}
+                        value={dept.academic_unit_id ? String(dept.academic_unit_id) : ''}
+                        onChange={(e) => reassignDepartmentUnit(dept, e.target.value ? Number(e.target.value) : null)}
+                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                      >
+                        <option value="">— No academic unit —</option>
+                        {academicUnits.map((u) => (
+                          <option key={u.id} value={String(u.id)}>{u.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <h3 className="text-lg font-semibold text-slate-900">Organize programmes → departments</h3>
+        <p className="text-xs text-slate-500">Assign each programme to a department so it shows up for applicants under the right structure.</p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Programme</th>
+                <th className="px-4 py-2">Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {programmes.length === 0 ? (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No programmes yet.</td></tr>
+              ) : (
+                programmes.map((prog) => (
+                  <tr key={prog.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium text-slate-900">{prog.name} <span className="text-xs text-slate-400">({prog.code})</span></td>
+                    <td className="px-4 py-2">
+                      <select
+                        disabled={savingOrg}
+                        value={prog.department_id ? String(prog.department_id) : ''}
+                        onChange={(e) => e.target.value && reassignProgrammeDepartment(prog, Number(e.target.value))}
+                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                      >
+                        <option value="">— Select department —</option>
+                        {departmentsFlat.map((d) => (
+                          <option key={d.id} value={String(d.id)}>{d.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

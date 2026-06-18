@@ -66,7 +66,9 @@ export default function DepartmentsPage() {
   const { pushToast } = useToast()
   const { institutionId: contextInstitutionId, requiresSelection, params: institutionParams } = useAcademicInstitutionParams()
 
-  const hasAssignedInstitution = Boolean(user?.institution_id)
+  // When a working institution must be picked (platform admins, or users with
+  // no home institution), show the institution selector and column.
+  const hasAssignedInstitution = !requiresSelection
 
   const selectedInstitution = useMemo(() => {
     const id = form.institution_id || contextInstitutionId || user?.institution_id
@@ -127,7 +129,7 @@ export default function DepartmentsPage() {
     setActiveDepartment(null)
     setCodeTouched(false)
     setForm({
-      institution_id: user?.institution_id || contextInstitutionId || undefined,
+      institution_id: contextInstitutionId || user?.institution_id || undefined,
       academic_unit_id: null,
       name: '',
       code: suggestDepartmentCode(selectedInstitution?.code, undefined, departments),

@@ -102,10 +102,39 @@ trait HandlesPeopleCrud
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $record->status = 'inactive';
-        $record->save();
+        $record->delete();
 
-        return response()->json(['message' => 'Record deactivated.']);
+        return response()->json(['message' => 'Record deleted.']);
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        if (! $this->hasAnyPermission($request, $this->deletePermissions())) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['message' => 'No records selected.'], 422);
+        }
+
+        $records = $this->modelClass()::query()
+            ->where('institution_id', $this->institutionId($request))
+            ->whereIn('id', $ids)
+            ->get();
+
+        $deleted = 0;
+        foreach ($records as $record) {
+            $record->delete();
+            $deleted++;
+        }
+
+        return response()->json(['message' => "{$deleted} record(s) deleted.", 'deleted' => $deleted]);
     }
 
     protected function rules($updating = false): array

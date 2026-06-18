@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom'
 import { GraduationCap, User } from 'lucide-react'
-import { createPerson, deletePerson, fetchPeople, type PeopleEntity, type PeopleRecord, updatePerson } from '../../api/people'
+import { bulkDeletePeople, createPerson, deletePerson, fetchPeople, type PeopleEntity, type PeopleRecord, updatePerson } from '../../api/people'
 import { fetchRoles } from '../../api/admin'
 import { PrimaryButton, SecondaryButton } from '../../components/letters/LettersUi'
 import { FormField, formInputClass } from '../../components/ui/FormField'
@@ -37,6 +37,8 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
   const [roles, setRoles] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState<PeopleRecord | null>(null)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [form, setForm] = useState({
     name: '', username: '', email: '', password: '', phone_number: '', additional_phone_number: '', address: '', status: 'active', roles: [] as number[],
   })
@@ -51,6 +53,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
     try {
       const res = await fetchPeople(typedEntity, { search })
       setItems(res.data?.data || res.data || [])
+      setSelectedIds([])
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load records', 'error')
     } finally {
@@ -75,6 +78,13 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
 
   const title = useMemo(() => (isForm ? (editing ? `Edit ${meta.singular}` : `Add ${meta.singular}`) : `${meta.plural} List`), [isForm, editing, meta])
 
+  // Editing happens inline (the URL stays on the list path), so clearing the
+  // `editing` state — not just navigating — is what returns us to the list.
+  function goToList() {
+    setEditing(null)
+    if (isAddRoute) navigate(meta.listPath)
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault()
     try {
@@ -88,17 +98,44 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
         await createPerson(typedEntity, payload)
         pushToast(`${meta.singular} created.`)
       }
-      navigate(meta.listPath)
+      goToList()
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Unable to save record', 'error')
     }
   }
 
-  async function deactivate(record: PeopleRecord) {
-    if (!window.confirm(`Deactivate ${record.name}?`)) return
-    await deletePerson(typedEntity, record.id)
-    pushToast(`${meta.singular} deactivated.`)
-    load()
+  async function remove(record: PeopleRecord) {
+    if (!window.confirm(`Permanently delete ${record.name}? This cannot be undone.`)) return
+    try {
+      await deletePerson(typedEntity, record.id)
+      pushToast(`${meta.singular} deleted.`)
+      load()
+    } catch (error: any) {
+      pushToast(error?.response?.data?.message || 'Unable to delete record', 'error')
+    }
+  }
+
+  async function bulkDelete() {
+    if (!selectedIds.length) return
+    if (!window.confirm(`Permanently delete ${selectedIds.length} ${meta.plural.toLowerCase()}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try {
+      await bulkDeletePeople(typedEntity, selectedIds)
+      pushToast(`${selectedIds.length} ${meta.plural.toLowerCase()} deleted.`)
+      load()
+    } catch (error: any) {
+      pushToast(error?.response?.data?.message || 'Unable to delete records', 'error')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (prev.length === items.length ? [] : items.map((i) => i.id)))
   }
 
   function roleLabels(record: PeopleRecord) {
@@ -115,7 +152,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
             <h1 className="text-3xl font-bold text-[#1e3a5f]">{title}</h1>
             <p className="text-sm text-slate-500">Fields marked * are required.</p>
           </div>
-          <SecondaryButton onClick={() => navigate(meta.listPath)}>Back to list</SecondaryButton>
+          <SecondaryButton onClick={goToList}>Back to list</SecondaryButton>
         </div>
 
         <form onSubmit={save} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -206,7 +243,7 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
 
             <div className="flex gap-3 border-t border-slate-100 pt-4">
               <PrimaryButton type="submit">Save</PrimaryButton>
-              <SecondaryButton type="button" onClick={() => navigate(meta.listPath)}>Cancel</SecondaryButton>
+              <SecondaryButton type="button" onClick={goToList}>Cancel</SecondaryButton>
             </div>
           </div>
         </form>
@@ -214,9 +251,21 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
     )
   }
 
+  const allSelected = items.length > 0 && selectedIds.length === items.length
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {selectedIds.length > 0 ? (
+          <button
+            type="button"
+            onClick={bulkDelete}
+            disabled={bulkDeleting}
+            className="inline-flex rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+          >
+            {bulkDeleting ? 'Deleting…' : `Delete selected (${selectedIds.length})`}
+          </button>
+        ) : <span />}
         <Link to={meta.addPath} className="inline-flex rounded-xl bg-[#1e3a5f] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a]">+ Add {meta.singular}</Link>
       </div>
 
@@ -228,6 +277,9 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b text-left text-slate-500">
+                <th className="py-3 pr-4">
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" />
+                </th>
                 <th className="py-3 pr-4">Name</th>
                 <th className="py-3 pr-4">Email</th>
                 <th className="py-3 pr-4">Phone</th>
@@ -237,8 +289,11 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={meta.supportsRoles ? 6 : 5} className="py-8 text-center text-slate-500">Loading...</td></tr> : items.map(item => (
+              {loading ? <tr><td colSpan={meta.supportsRoles ? 7 : 6} className="py-8 text-center text-slate-500">Loading...</td></tr> : items.map(item => (
                 <tr key={item.id} className="border-b">
+                  <td className="py-3 pr-4">
+                    <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name}`} />
+                  </td>
                   <td className="py-3 pr-4 font-semibold">{item.name}</td>
                   <td className="py-3 pr-4">{item.email || '—'}</td>
                   <td className="py-3 pr-4">{item.phone_number}</td>
@@ -259,11 +314,11 @@ export default function PeopleEntityPage({ fixedEntity }: PeopleEntityPageProps 
                         roles: item.role_ids || item.roles || [],
                       })
                     }}>Edit</button>
-                    <button className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200" onClick={() => deactivate(item)}>Deactivate</button>
+                    <button className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200" onClick={() => remove(item)}>Delete</button>
                   </td>
                 </tr>
               ))}
-              {!loading && !items.length && <tr><td colSpan={meta.supportsRoles ? 6 : 5} className="py-8 text-center text-slate-500">No records found.</td></tr>}
+              {!loading && !items.length && <tr><td colSpan={meta.supportsRoles ? 7 : 6} className="py-8 text-center text-slate-500">No records found.</td></tr>}
             </tbody>
           </table>
         </div>
