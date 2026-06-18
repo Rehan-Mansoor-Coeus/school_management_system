@@ -10,8 +10,7 @@ export default function SubmitWeeklyTimesheetPage() {
   const loadTimesheet = async () => {
     if (!weekStartDate) return
     try {
-      const res = await createOrGetWeeklyTimesheet(weekStartDate)
-      setTimesheet(res.data)
+      setTimesheet(await createOrGetWeeklyTimesheet(weekStartDate))
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Unable to load timesheet', 'error')
     }

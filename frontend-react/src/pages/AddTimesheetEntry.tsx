@@ -11,15 +11,15 @@ export default function AddTimesheetEntryPage() {
 
   useEffect(() => {
     fetchTimesheetActivities()
-      .then((res) => setActivities(res.data))
+      .then(setActivities)
       .catch(() => pushToast('Unable to load activities', 'error'))
   }, [])
 
   const prepareWeek = async () => {
     if (!weekStartDate) return
     try {
-      const res = await createOrGetWeeklyTimesheet(weekStartDate)
-      setTimesheetId(res.data.id)
+      const timesheet = await createOrGetWeeklyTimesheet(weekStartDate)
+      setTimesheetId(timesheet.id)
       pushToast('Week selected. Add your entries.')
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Unable to open weekly timesheet', 'error')

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createTimesheetActivity, deleteTimesheetActivity, fetchTimesheetActivities, fetchTimesheetCategories, updateTimesheetActivity } from '../api/timesheets'
+import { createTimesheetActivity, deleteTimesheetActivity, fetchTimesheetActivities, fetchTimesheetCategories, formatTimesheetError, updateTimesheetActivity } from '../api/timesheets'
 import { FieldLabel, PrimaryButton, SelectInput, TextArea, TextInput, TimesheetCard, TimesheetPageHeader } from '../components/timesheets/TimesheetUi'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 
@@ -17,11 +17,11 @@ export default function TimesheetActivitiesPage() {
       fetchTimesheetActivities(filterCategory ? { category_id: filterCategory } : undefined),
       fetchTimesheetCategories(),
     ])
-    setActivities(acts.data || [])
-    setCategories(cats.data || [])
+    setActivities(acts)
+    setCategories(cats)
   }
 
-  useEffect(() => { load().catch(() => setError('Failed to load activities')) }, [filterCategory])
+  useEffect(() => { load().catch((err) => setError(formatTimesheetError(err, 'Failed to load activities'))) }, [filterCategory])
 
   async function save(e: React.FormEvent) {
     e.preventDefault()

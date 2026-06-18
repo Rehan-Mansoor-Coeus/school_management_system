@@ -11,7 +11,7 @@ export default function TimesheetDashboardPage() {
 
   useEffect(() => {
     fetchTimesheetDashboard()
-      .then((res) => setData(res.data))
+      .then((data) => setData(data))
       .catch((error: any) => pushToast(error?.response?.data?.message || 'Failed to load dashboard', 'error'))
   }, [])
 

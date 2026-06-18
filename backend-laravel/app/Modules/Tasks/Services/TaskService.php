@@ -9,6 +9,7 @@ use App\Modules\Tasks\Models\TaskCc;
 use App\Modules\Tasks\Models\TaskNotificationQueue;
 use App\Modules\Tasks\Models\TaskReminder;
 use App\Modules\Tasks\Models\TaskUpdate;
+use App\Services\AuditLogger;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -35,6 +36,10 @@ class TaskService
 
         if (! empty($filters['search'])) {
             $query->where('title', 'like', '%'.$filters['search'].'%');
+        }
+
+        if (! empty($filters['schedule_later']) && filter_var($filters['schedule_later'], FILTER_VALIDATE_BOOLEAN)) {
+            $query->where('is_scheduled', true);
         }
 
         return $query->latest()->paginate((int) ($filters['per_page'] ?? 20));
@@ -80,6 +85,16 @@ class TaskService
                 }
             }
 
+            AuditLogger::log(
+                $institutionId,
+                'task.created',
+                Task::class,
+                $task->id,
+                $creatorId,
+                null,
+                ['title' => $task->title, 'status' => $task->status]
+            );
+
             return $task->fresh(['category', 'assignments.user', 'attachments', 'reminders']);
         });
     }
@@ -122,12 +137,32 @@ class TaskService
                 $this->queueNotifications($task->id, $assignments, $scheduleTimes);
             }
 
+            AuditLogger::log(
+                (int) $task->institution_id,
+                'task.updated',
+                Task::class,
+                $task->id,
+                (int) auth()->id(),
+                null,
+                ['title' => $task->title, 'status' => $task->status]
+            );
+
             return $task->fresh(['category', 'assignments.user', 'attachments', 'reminders']);
         });
     }
 
     public function deleteTask(Task $task): void
     {
+        AuditLogger::log(
+            (int) $task->institution_id,
+            'task.deleted',
+            Task::class,
+            $task->id,
+            (int) auth()->id(),
+            ['title' => $task->title],
+            null
+        );
+
         $task->delete();
     }
 

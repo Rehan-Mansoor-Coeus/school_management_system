@@ -20,9 +20,9 @@ export default function TeacherScheduleAssignmentPage() {
 
   const load = async () => {
     const [refsRes, shiftRes, scheduleRes] = await Promise.all([fetchTimesheetReferences(), fetchShiftTypes(), fetchTeacherSchedules()])
-    setRefs(refsRes.data || {})
-    setShiftTypes(shiftRes.data || [])
-    setRows(scheduleRes.data || [])
+    setRefs(refsRes || {})
+    setShiftTypes(shiftRes || [])
+    setRows(scheduleRes || [])
   }
 
   useEffect(() => { load().catch(() => pushToast('Failed to load teacher scheduling data', 'error')) }, [])

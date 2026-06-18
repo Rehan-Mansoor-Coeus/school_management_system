@@ -3,3 +3,9 @@
 @tailwind utilities;
 
 body { @apply bg-gray-50 text-gray-900; }
+
+@layer components {
+  .ttinput {
+    @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500;
+  }
+}

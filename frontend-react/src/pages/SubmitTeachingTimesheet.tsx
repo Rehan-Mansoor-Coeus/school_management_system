@@ -18,7 +18,7 @@ export default function SubmitTeachingTimesheetPage() {
 
   useEffect(() => {
     fetchMyTeachingSchedules()
-      .then((res) => setSchedules(res.data || []))
+      .then(setSchedules)
       .catch(() => pushToast('Failed to load schedules', 'error'))
   }, [])
 

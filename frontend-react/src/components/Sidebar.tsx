@@ -5,10 +5,17 @@ import {
   Award,
   BarChart3,
   Bell,
+  BookOpen,
   Building2,
+  CalendarClock,
+  CalendarDays,
   CheckSquare,
+  ClipboardList,
   Clock,
   CreditCard,
+  DoorOpen,
+  FileStack,
+  FileText,
   GraduationCap,
   Home,
   KeyRound,
@@ -26,6 +33,7 @@ import {
   Users,
   UtensilsCrossed,
   Wallet,
+  Wand2,
 } from 'lucide-react'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useLettersI18n } from '../hooks/useLettersI18n'
@@ -81,6 +89,10 @@ const moduleItems: ModuleItem[] = [
   { key: 'audit', label: 'Audit Logs', path: '/audit', icon: ScrollText },
 ]
 
+const reportItems: SidebarItem[] = [
+  { label: 'Student Report', path: '/reports/students', icon: GraduationCap, permissions: ['reports.view', 'reports.students.view', 'reports.manage', 'admissions.view', 'admissions.manage'] },
+]
+
 function linkClass(isActive: boolean, nested = false) {
   return [
     'flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition',
@@ -134,6 +146,28 @@ export default function Sidebar() {
   const showTaskManager = safeEnabledModules.includes('tasks') && canAccess({
     permissions: ['tasks.view', 'tasks.create', 'tasks.assign', 'tasks.manage'],
   })
+  const visibleReportItems = reportItems.filter((item) => canAccess({ permissions: item.permissions }))
+  const showReports = safeEnabledModules.includes('reports') && visibleReportItems.length > 0
+  const showContracts = safeEnabledModules.includes('contracts') && canAccess({
+    permissions: ['contracts.view', 'contracts.manage', 'contracts.generate', 'contracts.templates.manage'],
+  })
+  const showDocumentWorkflow = safeEnabledModules.includes('document_workflow') && canAccess({
+    permissions: ['documents.view', 'documents.manage', 'documents.generate', 'documents.types.view', 'documents.templates.manage'],
+  })
+  const timetableNavItems = [
+    { to: '/timetable/courses', label: 'Course Management', icon: BookOpen, permissions: ['timetable.courses.view', 'timetable.view', 'timetable.manage'] },
+    { to: '/timetable/assignments', label: 'Course Assignment', icon: FileStack, permissions: ['timetable.assignments.view', 'timetable.view', 'timetable.manage'] },
+    { to: '/timetable/workload', label: 'Teacher Workload', icon: BarChart3, permissions: ['timetable.workload.view', 'timetable.view', 'timetable.manage'] },
+    { to: '/timetable/availability', label: 'Teacher Availability', icon: CalendarClock, permissions: ['timetable.availability.view', 'timetable.manage'] },
+    { to: '/timetable/schedule', label: 'Timetable', icon: CalendarDays, permissions: ['timetable.view', 'timetable.manage'] },
+    { to: '/timetable/generate', label: 'Auto Generate', icon: Wand2, permissions: ['timetable.generate', 'timetable.manage'] },
+    { to: '/timetable/classrooms', label: 'Classrooms', icon: DoorOpen, permissions: ['timetable.classrooms.view', 'timetable.manage'] },
+    { to: '/timetable/lessons', label: 'Lesson Logging', icon: ClipboardList, permissions: ['timetable.lessons.log', 'timetable.lessons.view', 'timetable.manage'] },
+    { to: '/timetable/my', label: 'My Timetable', icon: CalendarDays, permissions: ['timetable.student.view'] },
+    { to: '/timetable/reports', label: 'Reports', icon: BarChart3, permissions: ['timetable.reports.view', 'timetable.view', 'timetable.manage'] },
+    { to: '/timetable/settings', label: 'Settings', icon: Settings, permissions: ['timetable.settings.manage', 'timetable.manage'] },
+  ].filter((item) => canAccess({ permissions: item.permissions }))
+  const showTimetable = safeEnabledModules.includes('timetable') && timetableNavItems.length > 0
   const showOperations = showTimesheetEmployee || showTimesheetAdmin || showTaskManager
 
   const canViewLetters = hasPermission('view_letters_menu') || hasPermission('create_letters')
@@ -163,6 +197,10 @@ export default function Sidebar() {
   const [accessOpen, setAccessOpen] = useSidebarSection(false, ['/users', '/roles-permissions', '/roles', '/permissions', '/modules'])
   const [systemOpen, setSystemOpen] = useSidebarSection(false, ['/system'])
   const [operationsOpen, setOperationsOpen] = useSidebarSection(false, ['/timesheets', '/tasks'])
+  const [reportsOpen, setReportsOpen] = useSidebarSection(false, ['/reports'])
+  const [contractsOpen, setContractsOpen] = useSidebarSection(false, ['/contracts'])
+  const [documentWorkflowOpen, setDocumentWorkflowOpen] = useSidebarSection(false, ['/document-workflow'])
+  const [timetableOpen, setTimetableOpen] = useSidebarSection(false, ['/timetable'])
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
 
@@ -260,6 +298,124 @@ export default function Sidebar() {
           </>
         )}
 
+        {showReports && (
+          <>
+            <button
+              type="button"
+              onClick={() => setReportsOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <BarChart3 className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Reports
+              </span>
+              <span className={`transition ${reportsOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {reportsOpen && (
+              <div className="space-y-1">
+                {visibleReportItems.map((item) => (
+                  <SidebarLink key={item.path} item={item} nested />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {showContracts && (
+          <>
+            <button
+              type="button"
+              onClick={() => setContractsOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <FileStack className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Contract Management
+              </span>
+              <span className={`transition ${contractsOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {contractsOpen && (
+              <div className="space-y-1">
+                <NavLink to="/contracts" end className={({ isActive }) => linkClass(isActive, true)}>
+                  {({ isActive }) => (
+                    <>
+                      <BarChart3 className={iconClass(isActive)} aria-hidden="true" />
+                      <span className="truncate">Dashboard</span>
+                    </>
+                  )}
+                </NavLink>
+                <NavLink to="/contracts/list" className={({ isActive }) => linkClass(isActive, true)}>
+                  {({ isActive }) => (
+                    <>
+                      <FileStack className={iconClass(isActive)} aria-hidden="true" />
+                      <span className="truncate">All Contracts</span>
+                    </>
+                  )}
+                </NavLink>
+                <NavLink to="/contracts/templates" className={({ isActive }) => linkClass(isActive, true)}>
+                  {({ isActive }) => (
+                    <>
+                      <FileText className={iconClass(isActive)} aria-hidden="true" />
+                      <span className="truncate">Templates</span>
+                    </>
+                  )}
+                </NavLink>
+                <NavLink to="/contracts/generate" className={({ isActive }) => linkClass(isActive, true)}>
+                  {({ isActive }) => (
+                    <>
+                      <FileStack className={iconClass(isActive)} aria-hidden="true" />
+                      <span className="truncate">Generate</span>
+                    </>
+                  )}
+                </NavLink>
+              </div>
+            )}
+          </>
+        )}
+
+        {showDocumentWorkflow && (
+          <>
+            <button
+              type="button"
+              onClick={() => setDocumentWorkflowOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <ScrollText className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Document Workflow
+              </span>
+              <span className={`transition ${documentWorkflowOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {documentWorkflowOpen && (
+              <div className="space-y-1">
+                {[
+                  { to: '/document-workflow', label: 'Dashboard', icon: BarChart3, end: true },
+                  { to: '/document-workflow/templates', label: 'Templates', icon: FileText },
+                  { to: '/document-workflow/generate', label: 'Generate Document', icon: FileStack },
+                  { to: '/document-workflow/pending-signatures', label: 'Pending Signatures', icon: FileText },
+                  { to: '/document-workflow/pending-approvals', label: 'Pending Approvals', icon: FileText },
+                  { to: '/document-workflow/completed', label: 'Completed Documents', icon: FileText },
+                  { to: '/document-workflow/expired', label: 'Expired Documents', icon: ScrollText },
+                  { to: '/document-workflow/types', label: 'Document Types', icon: Puzzle },
+                  { to: '/document-workflow/settings', label: 'Settings', icon: Settings },
+                ].map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => linkClass(isActive, true)}>
+                      {({ isActive }) => (
+                        <>
+                          <Icon className={iconClass(isActive)} aria-hidden="true" />
+                          <span className="truncate">{item.label}</span>
+                        </>
+                      )}
+                    </NavLink>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+
         {showLettersModule && (
           <>
             <button
@@ -295,6 +451,39 @@ export default function Sidebar() {
                     )}
                   </NavLink>
                 )}
+              </div>
+            )}
+          </>
+        )}
+
+        {showTimetable && (
+          <>
+            <button
+              type="button"
+              onClick={() => setTimetableOpen((v) => !v)}
+              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
+            >
+              <span className="flex items-center gap-2.5">
+                <CalendarDays className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
+                Timetable &amp; Courses
+              </span>
+              <span className={`transition ${timetableOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {timetableOpen && (
+              <div className="space-y-1">
+                {timetableNavItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <NavLink key={item.to} to={item.to} className={({ isActive }) => linkClass(isActive, true)}>
+                      {({ isActive }) => (
+                        <>
+                          <Icon className={iconClass(isActive)} aria-hidden="true" />
+                          <span className="truncate">{item.label}</span>
+                        </>
+                      )}
+                    </NavLink>
+                  )
+                })}
               </div>
             )}
           </>

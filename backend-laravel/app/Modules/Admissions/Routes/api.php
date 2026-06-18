@@ -14,6 +14,7 @@ use App\Modules\Admissions\Controllers\StudentDashboardController;
 use App\Modules\Admissions\Controllers\CourseRegistrationController;
 use App\Modules\Admissions\Controllers\DocumentReviewController;
 use App\Modules\Admissions\Controllers\AdmissionAgreementController;
+use App\Modules\Admissions\Controllers\NotificationController;
 
 Route::prefix('admissions')->group(function () {
     Route::post('payment/webhook', [PaymentController::class, 'webhook']);

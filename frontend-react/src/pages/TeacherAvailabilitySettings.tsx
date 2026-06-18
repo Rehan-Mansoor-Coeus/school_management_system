@@ -10,8 +10,8 @@ export default function TeacherAvailabilitySettingsPage() {
 
   const load = async () => {
     const [refs, avail] = await Promise.all([fetchTimesheetReferences(), fetchTeacherAvailabilities()])
-    setTeachers(refs.data.teachers || [])
-    setRows(avail.data || [])
+    setTeachers((refs as any)?.teachers || [])
+    setRows(avail || [])
   }
 
   useEffect(() => { load().catch(() => pushToast('Failed to load teacher availability', 'error')) }, [])

@@ -4,6 +4,7 @@ namespace App\Modules\Hr\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Hr\Concerns\ResolvesInstitution;
+use App\Support\SqlDialect;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -22,12 +23,13 @@ class ReportController extends Controller
         $institutionId = $this->institutionId();
         $month = $request->get('month');
 
+        $monthExpr = SqlDialect::yearMonth('created_at');
         $byMonthQuery = \App\Modules\Hr\Models\HrPayrollRun::where('institution_id', $institutionId)
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period, SUM(total_net) as total_net, SUM(total_gross) as total_gross")
-            ->groupBy('period')
-            ->orderBy('period', 'desc');
+            ->selectRaw("{$monthExpr} as period, SUM(total_net) as total_net, SUM(total_gross) as total_gross")
+            ->groupByRaw($monthExpr)
+            ->orderByRaw("{$monthExpr} desc");
         if ($month) {
-            $byMonthQuery->whereRaw("DATE_FORMAT(created_at, '%Y-%m') = ?", [$month]);
+            $byMonthQuery->whereRaw("{$monthExpr} = ?", [$month]);
         }
 
         $data = [

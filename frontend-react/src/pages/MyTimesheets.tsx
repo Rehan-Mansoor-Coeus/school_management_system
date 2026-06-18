@@ -11,8 +11,7 @@ export default function MyTimesheetsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const res = await fetchMyTimesheets()
-      setTimesheets(res.data?.data || [])
+      setTimesheets(await fetchMyTimesheets())
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load timesheets', 'error')
     } finally {

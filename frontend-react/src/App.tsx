@@ -27,6 +27,7 @@ import AcademicUnitsPage from './pages/academics/AcademicUnitsPage'
 import AcademicSemestersPage from './pages/academics/AcademicSemestersPage'
 import AcademicOrganizationPage from './pages/academics/AcademicOrganizationPage'
 import PlaceholderModulePage from './pages/PlaceholderModule'
+import AuditLogsPage from './pages/AuditLogsPage'
 import FeesDashboardPage from './modules/fees/pages/FeesDashboardPage'
 import TimesheetCategoriesPage from './pages/TimesheetCategories'
 import TimesheetActivitiesPage from './pages/TimesheetActivities'
@@ -35,6 +36,8 @@ import WorkingWeekPage from './pages/WorkingWeek'
 import TimesheetManageAllPage from './pages/TimesheetManageAll'
 import TimesheetReportPage from './pages/TimesheetReport'
 import OvertimeReportPage from './pages/OvertimeReport'
+import ReportsLayout from './modules/reports/components/ReportsLayout'
+import StudentReportPage from './modules/reports/pages/StudentReportPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import MainLayout from './components/MainLayout'
 import { ToastProvider } from './components/ui/ToastProvider'
@@ -155,6 +158,40 @@ import PendingAcceptancesPage from './modules/tasks/pages/PendingAcceptancesPage
 import AttendancePage from './modules/attendance/pages/AttendancePage'
 import AttendanceReportPage from './modules/attendance/pages/AttendanceReportPage'
 import TaskInvitePage from './pages/TaskInvitePage'
+import ContractSignPage from './pages/ContractSignPage'
+import DocumentVerifyPage from './pages/DocumentVerifyPage'
+import DocumentWorkflowLayout from './modules/documentWorkflow/components/DocumentWorkflowLayout'
+import TimetableLayout from './modules/timetable/components/TimetableLayout'
+import CoursesPage from './modules/timetable/pages/CoursesPage'
+import CourseAssignmentsPage from './modules/timetable/pages/CourseAssignmentsPage'
+import WorkloadPage from './modules/timetable/pages/WorkloadPage'
+import AvailabilityPage from './modules/timetable/pages/AvailabilityPage'
+import SchedulePage from './modules/timetable/pages/SchedulePage'
+import GeneratePage from './modules/timetable/pages/GeneratePage'
+import ClassroomsPage from './modules/timetable/pages/ClassroomsPage'
+import LessonLogPage from './modules/timetable/pages/LessonLogPage'
+import StudentTimetablePage from './modules/timetable/pages/StudentTimetablePage'
+import TimetableReportsPage from './modules/timetable/pages/ReportsPage'
+import TimetableSettingsPage from './modules/timetable/pages/TimetableSettingsPage'
+import DocumentDashboardPage from './modules/documentWorkflow/pages/DocumentDashboardPage'
+import DocumentTemplatesPage from './modules/documentWorkflow/pages/DocumentTemplatesPage'
+import DocumentTypesPage from './modules/documentWorkflow/pages/DocumentTypesPage'
+import GenerateDocumentPage from './modules/documentWorkflow/pages/GenerateDocumentPage'
+import DocumentDetailPage from './modules/documentWorkflow/pages/DocumentDetailPage'
+import DocumentSettingsPage from './modules/documentWorkflow/pages/DocumentSettingsPage'
+import {
+  AllDocumentsPage,
+  CompletedDocumentsPage,
+  ExpiredDocumentsPage,
+  PendingApprovalsPage,
+  PendingSignaturesPage,
+} from './modules/documentWorkflow/pages/DocumentStatusPages'
+import ContractsLayout from './modules/contracts/components/ContractsLayout'
+import ContractDashboardPage from './modules/contracts/pages/ContractDashboardPage'
+import ContractsListPage from './modules/contracts/pages/ContractsListPage'
+import ContractTemplatesPage from './modules/contracts/pages/ContractTemplatesPage'
+import GenerateContractPage from './modules/contracts/pages/GenerateContractPage'
+import ContractDetailPage from './modules/contracts/pages/ContractDetailPage'
 import VerifyPayslipPage from './pages/VerifyPayslipPage'
 
 export default function App(){
@@ -178,6 +215,8 @@ export default function App(){
         <Route path="/letters/verify/:id" element={<LetterVerifyPage />} />
         <Route path="/verify/payslip/:code" element={<VerifyPayslipPage />} />
         <Route path="/task-invite/:token" element={<TaskInvitePage />} />
+        <Route path="/contract-sign/:token" element={<ContractSignPage />} />
+        <Route path="/document-verify/:code" element={<DocumentVerifyPage />} />
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
@@ -321,7 +360,49 @@ export default function App(){
             <Route path="reports" element={<ReportsPage />} />
           </Route>
           <Route path="notifications" element={<PlaceholderModulePage title="Notifications" />} />
-          <Route path="audit" element={<PlaceholderModulePage title="Audit Logs" />} />
+          <Route path="audit" element={<AuditLogsPage />} />
+
+          <Route path="reports" element={<ReportsLayout />}>
+            <Route index element={<Navigate to="/reports/students" replace />} />
+            <Route path="students" element={<StudentReportPage />} />
+          </Route>
+
+          <Route path="contracts" element={<ContractsLayout />}>
+            <Route index element={<ContractDashboardPage />} />
+            <Route path="list" element={<ContractsListPage />} />
+            <Route path="list/:id" element={<ContractDetailPage />} />
+            <Route path="templates" element={<ContractTemplatesPage />} />
+            <Route path="generate" element={<GenerateContractPage />} />
+          </Route>
+
+          <Route path="document-workflow" element={<DocumentWorkflowLayout />}>
+            <Route index element={<DocumentDashboardPage />} />
+            <Route path="documents" element={<AllDocumentsPage />} />
+            <Route path="documents/:id" element={<DocumentDetailPage />} />
+            <Route path="templates" element={<DocumentTemplatesPage />} />
+            <Route path="generate" element={<GenerateDocumentPage />} />
+            <Route path="pending-signatures" element={<PendingSignaturesPage />} />
+            <Route path="pending-approvals" element={<PendingApprovalsPage />} />
+            <Route path="completed" element={<CompletedDocumentsPage />} />
+            <Route path="expired" element={<ExpiredDocumentsPage />} />
+            <Route path="types" element={<DocumentTypesPage />} />
+            <Route path="settings" element={<DocumentSettingsPage />} />
+          </Route>
+
+          <Route path="timetable" element={<TimetableLayout />}>
+            <Route index element={<Navigate to="/timetable/courses" replace />} />
+            <Route path="courses" element={<CoursesPage />} />
+            <Route path="assignments" element={<CourseAssignmentsPage />} />
+            <Route path="workload" element={<WorkloadPage />} />
+            <Route path="availability" element={<AvailabilityPage />} />
+            <Route path="schedule" element={<SchedulePage />} />
+            <Route path="generate" element={<GeneratePage />} />
+            <Route path="classrooms" element={<ClassroomsPage />} />
+            <Route path="lessons" element={<LessonLogPage />} />
+            <Route path="my" element={<StudentTimetablePage />} />
+            <Route path="reports" element={<TimetableReportsPage />} />
+            <Route path="settings" element={<TimetableSettingsPage />} />
+          </Route>
 
           <Route element={<TimesheetEmployeeLayout />}>
             <Route path="timesheets/activities/create" element={<TimesheetActivitiesPage />} />

@@ -15,7 +15,7 @@ export default function MyStaffTimesheetPage() {
   const { pushToast } = useToast()
 
   useEffect(() => {
-    fetchTimesheetActivities().then((res) => setActivities(res.data || [])).catch(() => pushToast('Failed to load activities', 'error'))
+    fetchTimesheetActivities().then(setActivities).catch(() => pushToast('Failed to load activities', 'error'))
   }, [])
 
   const save = async (event: FormEvent) => {

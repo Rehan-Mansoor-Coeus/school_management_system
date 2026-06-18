@@ -12,9 +12,18 @@ function unwrapData<T>(payload: ApiEnvelope<T>): T {
   return payload.data
 }
 
+function unwrapPaginatedList(payload: unknown): any[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object') {
+    const body = payload as Record<string, unknown>
+    if (Array.isArray(body.data)) return body.data
+  }
+  return []
+}
+
 export async function fetchTasks(params?: TaskQueryParams) {
-  const { data } = await api.get<ApiEnvelope<any[]>>('/tasks', { params })
-  return unwrapData(data)
+  const { data } = await api.get<ApiEnvelope<unknown>>('/tasks', { params })
+  return unwrapPaginatedList(unwrapData(data))
 }
 
 export async function fetchTask(id: number) {
@@ -38,8 +47,8 @@ export async function deleteTask(id: number) {
 }
 
 export async function fetchMyTasks(params?: TaskQueryParams) {
-  const { data } = await api.get<ApiEnvelope<any[]>>('/tasks/my/list', { params })
-  return unwrapData(data)
+  const { data } = await api.get<ApiEnvelope<unknown>>('/tasks/my/list', { params })
+  return unwrapPaginatedList(unwrapData(data))
 }
 
 export async function fetchPendingTaskAcceptances() {

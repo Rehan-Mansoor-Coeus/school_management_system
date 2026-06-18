@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchWorkingWeek, saveWorkingWeek } from '../api/timesheets'
+import { fetchWorkingWeek, formatTimesheetError, saveWorkingWeek } from '../api/timesheets'
 import { FieldLabel, PrimaryButton, TextInput, TimesheetCard, TimesheetPageHeader } from '../components/timesheets/TimesheetUi'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 
@@ -31,8 +31,8 @@ export default function WorkingWeekPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchWorkingWeek().then(res => {
-      const loaded = (res.data.days || []).map((d: any) => ({
+    fetchWorkingWeek().then(({ days, summary }) => {
+      const loaded = days.map((d: any) => ({
         day_of_week: d.day_of_week,
         is_working_day: !!d.is_working_day,
         start_time: (d.start_time || '09:00:00').slice(0, 5),
@@ -40,9 +40,9 @@ export default function WorkingWeekPage() {
         break_minutes: d.break_minutes ?? 60,
       }))
       setDays(loaded)
-      setSummary(res.data.summary || {})
+      setSummary(summary || {})
       if (loaded[0]) setLunchBreak(loaded[0].break_minutes || 60)
-    }).catch(() => setError('Failed to load working week'))
+    }).catch((err) => setError(formatTimesheetError(err, 'Failed to load working week')))
   }, [])
 
   const computedSummary = useMemo(() => {
@@ -68,8 +68,8 @@ export default function WorkingWeekPage() {
           break_minutes: lunchBreak,
         })),
       }
-      const res = await saveWorkingWeek(payload)
-      setSummary(res.data.summary || computedSummary)
+      const result = await saveWorkingWeek(payload)
+      setSummary(result.summary || computedSummary)
       setMessage(t('saveChanges') + ' ✓')
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Save failed')

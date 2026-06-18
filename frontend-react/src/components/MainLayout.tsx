@@ -40,7 +40,7 @@ export default function MainLayout() {
     }
     clearStoredSession()
     clearAuth()
-    navigate('/admin')
+    navigate('/')
     pushToast('Logged out successfully.', 'info')
   }
 

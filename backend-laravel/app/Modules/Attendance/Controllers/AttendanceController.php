@@ -144,16 +144,19 @@ class AttendanceController extends Controller
         $institutionId = $this->institutionId();
         $month = $request->input('month', now()->format('Y-m'));
 
+        $monthExpr = \App\Support\SqlDialect::yearMonth('ar.clock_in_at');
+        $minuteDiff = \App\Support\SqlDialect::minuteDiff('ar.clock_in_at', 'ar.clock_out_at');
+
         $summary = DB::table('attendance_records as ar')
             ->join('users as u', 'u.id', '=', 'ar.user_id')
             ->where('ar.institution_id', $institutionId)
-            ->whereRaw("DATE_FORMAT(ar.clock_in_at, '%Y-%m') = ?", [$month])
+            ->whereRaw("{$monthExpr} = ?", [$month])
             ->groupBy('ar.user_id', 'u.name')
             ->select(
                 'ar.user_id',
                 'u.name as user_name',
                 DB::raw('COUNT(*) as attendance_days'),
-                DB::raw('SUM(CASE WHEN ar.clock_out_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, ar.clock_in_at, ar.clock_out_at) ELSE 0 END) as total_minutes')
+                DB::raw("SUM(CASE WHEN ar.clock_out_at IS NOT NULL THEN {$minuteDiff} ELSE 0 END) as total_minutes")
             )
             ->get();
 

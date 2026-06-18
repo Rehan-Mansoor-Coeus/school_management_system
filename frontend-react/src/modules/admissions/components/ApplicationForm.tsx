@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useApplicationForm } from '../hooks/useApplicationForm';
 import ProgrammeDocumentUploadList, {
@@ -42,6 +43,7 @@ interface AcademicYear {
 export const ApplicationForm: React.FC = () => {
   const { t } = useAdmissionsI18n();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const { step, loading, error, applicant, applicationNumber, uploadProgress, submitApplicantInfo, submitApplication, reset, loadExistingApplicant, setStep } =
     useApplicationForm();
 
@@ -93,6 +95,14 @@ export const ApplicationForm: React.FC = () => {
     loadReferenceData();
     loadExistingApplicant();
   }, [loadExistingApplicant]);
+
+  useEffect(() => {
+    const programmeId = searchParams.get('programme');
+    if (programmeId && programmes.some((programme) => String(programme.id) === programmeId)) {
+      setSelectedProgramme(programmeId);
+      setStep(2);
+    }
+  }, [searchParams, programmes, setStep]);
 
   useEffect(() => {
     if (!user || applicant) {

@@ -1,0 +1,3 @@
+name,code,department_code,duration_years,application_fee,tuition_fee,is_active
+Bachelor of Computer Science,BCS,CS,3,10000,500000,true
+Bachelor of Mathematics,BMATH,MATH,3,10000,450000,true

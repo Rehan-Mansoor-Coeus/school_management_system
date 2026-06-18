@@ -18,8 +18,8 @@ export default function CourseContactHourPlanningPage() {
 
   const load = async () => {
     const [refsRes, plansRes] = await Promise.all([fetchTimesheetReferences(), fetchCoursePlans()])
-    setRefs(refsRes.data || {})
-    setRows(plansRes.data || [])
+    setRefs(refsRes || {})
+    setRows(plansRes || [])
   }
 
   useEffect(() => { load().catch(() => pushToast('Failed to load course planning data', 'error')) }, [])

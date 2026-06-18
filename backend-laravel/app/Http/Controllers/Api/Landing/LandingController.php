@@ -7,6 +7,7 @@ use App\Institution;
 use App\InstitutionRegistrationRequest;
 use App\GeneralSetting;
 use App\Programme;
+use App\ProgramSubject;
 use App\Subject;
 use App\SupportTicket;
 use Illuminate\Http\Request;
@@ -82,6 +83,50 @@ class LandingController extends Controller
             'programmes' => $programmes,
             'courses' => $subjects,
             'admission_requirements' => $this->resolveAdmissionRequirements($institution),
+        ]);
+    }
+
+    public function programmeCourses($institutionId, $programmeId)
+    {
+        $institution = Institution::query()->where('is_active', true)->findOrFail($institutionId);
+        $programme = Programme::query()
+            ->where('institution_id', $institution->id)
+            ->where('is_active', true)
+            ->findOrFail($programmeId);
+
+        $courses = ProgramSubject::query()
+            ->with(['subject:id,name,code,description', 'semester:id,semester_number,level_number'])
+            ->where('institution_id', $institution->id)
+            ->where('programme_id', $programme->id)
+            ->where('is_active', true)
+            ->orderBy('programme_semester_id')
+            ->get()
+            ->map(function (ProgramSubject $link) {
+                return [
+                    'id' => $link->subject->id ?? $link->id,
+                    'name' => optional($link->subject)->name,
+                    'code' => optional($link->subject)->code,
+                    'description' => optional($link->subject)->description,
+                    'is_required' => (bool) $link->is_required,
+                    'semester' => $link->semester ? [
+                        'id' => $link->semester->id,
+                        'semester_number' => $link->semester->semester_number,
+                        'level_number' => $link->semester->level_number,
+                    ] : null,
+                ];
+            })
+            ->filter(fn ($row) => ! empty($row['name']))
+            ->values();
+
+        return response()->json([
+            'programme' => [
+                'id' => $programme->id,
+                'name' => $programme->name,
+                'code' => $programme->code,
+                'level' => $programme->level,
+                'description' => $programme->description,
+            ],
+            'courses' => $courses,
         ]);
     }
 

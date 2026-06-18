@@ -8,7 +8,7 @@ export default function MyTeachingSchedulePage() {
 
   useEffect(() => {
     fetchMyTeachingSchedules()
-      .then((res) => setRows(res.data || []))
+      .then(setRows)
       .catch((error: any) => pushToast(error?.response?.data?.message || 'Failed to load schedule', 'error'))
   }, [])
 

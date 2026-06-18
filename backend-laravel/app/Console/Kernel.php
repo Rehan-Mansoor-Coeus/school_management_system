@@ -31,6 +31,9 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             app(\App\Services\Fees\FeeReminderProcessor::class)->processDue();
         })->everyMinute();
+        $schedule->call(function () {
+            app(\App\Modules\Contracts\Services\DocumentExpiryProcessor::class)->processDue();
+        })->dailyAt('07:00');
     }
 
     /**

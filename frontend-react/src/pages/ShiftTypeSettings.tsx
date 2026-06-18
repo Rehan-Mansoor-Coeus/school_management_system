@@ -8,8 +8,7 @@ export default function ShiftTypeSettingsPage() {
   const { pushToast } = useToast()
 
   const load = async () => {
-    const res = await fetchShiftTypes()
-    setRows(res.data || [])
+    setRows(await fetchShiftTypes())
   }
 
   useEffect(() => { load().catch(() => pushToast('Failed to load shift types', 'error')) }, [])

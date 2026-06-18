@@ -14,11 +14,11 @@ export default function TimesheetReportsPage() {
     if (!from || !to) return
     try {
       if (reportType === 'weekly_monthly') {
-        const res = await fetchTimesheetReports({ range, from, to })
-        setRows(res.data.rows || [])
+        const result = await fetchTimesheetReports({ range, from, to })
+        setRows(result.rows)
       } else {
-        const res = await fetchExtendedReports(reportType)
-        setRows(res.data.rows || [])
+        const result = await fetchExtendedReports(reportType)
+        setRows(result.rows)
       }
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load report', 'error')

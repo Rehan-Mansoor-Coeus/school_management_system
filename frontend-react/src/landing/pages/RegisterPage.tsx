@@ -1,18 +1,31 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Building2, Search, GraduationCap, BookOpen, CheckCircle2 } from 'lucide-react'
-import { fetchPublicInstitution, fetchPublicInstitutions, type PublicInstitutionSummary } from '../../api/landing'
+import { Building2, Search, GraduationCap, BookOpen, CheckCircle2, ChevronRight } from 'lucide-react'
+import { fetchPublicInstitution, fetchPublicInstitutions, fetchPublicProgrammeCourses, type PublicInstitutionSummary } from '../../api/landing'
 import { LandingPageHeader } from '../LandingShell'
 import { formInputClass } from '../../components/ui/FormField'
+
+type ProgrammeCourse = {
+  id: number
+  name: string
+  code?: string
+  description?: string
+  is_required?: boolean
+  semester?: { semester_number?: number; level_number?: number } | null
+}
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams()
   const preselected = searchParams.get('institution')
+  const preselectedProgramme = searchParams.get('programme')
   const [search, setSearch] = useState('')
   const [institutions, setInstitutions] = useState<PublicInstitutionSummary[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(preselected ? Number(preselected) : null)
   const [detail, setDetail] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [expandedProgrammeId, setExpandedProgrammeId] = useState<number | null>(preselectedProgramme ? Number(preselectedProgramme) : null)
+  const [programmeCourses, setProgrammeCourses] = useState<ProgrammeCourse[]>([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -28,6 +41,21 @@ export default function RegisterPage() {
     }
     fetchPublicInstitution(selectedId).then((res) => setDetail(res.data)).catch(() => setDetail(null))
   }, [selectedId])
+
+  useEffect(() => {
+    if (!selectedId || !expandedProgrammeId) {
+      setProgrammeCourses([])
+      return
+    }
+    setCoursesLoading(true)
+    fetchPublicProgrammeCourses(selectedId, expandedProgrammeId)
+      .then((res) => setProgrammeCourses(res.data?.courses || []))
+      .catch(() => setProgrammeCourses([]))
+      .finally(() => setCoursesLoading(false))
+  }, [selectedId, expandedProgrammeId])
+
+  const applyUrl = (programmeId: number) =>
+    `/admin?redirect=${encodeURIComponent(`/admissions/apply?programme=${programmeId}`)}`
 
   return (
     <div>
@@ -53,7 +81,10 @@ export default function RegisterPage() {
               <button
                 key={inst.id}
                 type="button"
-                onClick={() => setSelectedId(inst.id)}
+                onClick={() => {
+                  setSelectedId(inst.id)
+                  setExpandedProgrammeId(null)
+                }}
                 className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
                   selectedId === inst.id ? 'border-[#1e3a5f] bg-[#1e3a5f]/5' : 'border-transparent hover:bg-slate-50'
                 }`}
@@ -107,19 +138,57 @@ export default function RegisterPage() {
 
               <div>
                 <h3 className="mb-2 flex items-center gap-2 font-semibold text-slate-900"><GraduationCap className="h-4 w-4" /> Available Programmes</h3>
+                <p className="mb-3 text-sm text-slate-500">Click a programme to view its courses and apply.</p>
                 <ul className="space-y-2">
-                  {(detail.programmes || []).slice(0, 8).map((p: any) => (
-                    <li key={p.id} className="rounded-xl border border-slate-100 px-3 py-2 text-sm">
-                      <span className="font-medium">{p.name}</span>
-                      {p.code ? <span className="text-slate-500"> · {p.code}</span> : null}
-                    </li>
-                  ))}
+                  {(detail.programmes || []).map((p: any) => {
+                    const isExpanded = expandedProgrammeId === p.id
+                    return (
+                      <li key={p.id} className="overflow-hidden rounded-xl border border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedProgrammeId(isExpanded ? null : p.id)}
+                          className={`flex w-full items-center justify-between px-3 py-3 text-left text-sm transition hover:bg-slate-50 ${
+                            isExpanded ? 'bg-[#1e3a5f]/5' : ''
+                          }`}
+                        >
+                          <span>
+                            <span className="font-medium text-[#1e3a5f]">{p.name}</span>
+                            {p.code ? <span className="text-slate-500"> · {p.code}</span> : null}
+                          </span>
+                          <ChevronRight className={`h-4 w-4 text-slate-400 transition ${isExpanded ? 'rotate-90' : ''}`} />
+                        </button>
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 bg-slate-50 px-3 py-3">
+                            {coursesLoading ? (
+                              <p className="text-sm text-slate-500">Loading courses…</p>
+                            ) : programmeCourses.length ? (
+                              <div className="mb-3 flex flex-wrap gap-2">
+                                {programmeCourses.map((course) => (
+                                  <span key={course.id} className="rounded-full bg-white px-3 py-1 text-xs text-slate-700 shadow-sm">
+                                    {course.name}{course.code ? ` (${course.code})` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mb-3 text-sm text-slate-500">No courses listed for this programme yet.</p>
+                            )}
+                            <Link
+                              to={applyUrl(p.id)}
+                              className="inline-flex items-center rounded-lg bg-[#1e3a5f] px-4 py-2 text-xs font-semibold text-white hover:bg-[#162d4a]"
+                            >
+                              Apply for {p.name}
+                            </Link>
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
                   {!detail.programmes?.length && <li className="text-sm text-slate-500">Contact the institution for programme details.</li>}
                 </ul>
               </div>
 
               <div>
-                <h3 className="mb-2 flex items-center gap-2 font-semibold text-slate-900"><BookOpen className="h-4 w-4" /> Courses</h3>
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-slate-900"><BookOpen className="h-4 w-4" /> All Institution Courses</h3>
                 <div className="flex flex-wrap gap-2">
                   {(detail.courses || []).slice(0, 12).map((c: any) => (
                     <span key={c.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">{c.name}</span>
@@ -140,7 +209,7 @@ export default function RegisterPage() {
               </div>
 
               <Link
-                to={`/admin?redirect=${encodeURIComponent('/admissions/apply')}`}
+                to={expandedProgrammeId ? applyUrl(expandedProgrammeId) : `/admin?redirect=${encodeURIComponent('/admissions/apply')}`}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-[#1e3a5f] px-5 py-3 text-sm font-semibold text-white hover:bg-[#162d4a] sm:w-auto"
               >
                 Sign in to Apply

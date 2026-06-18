@@ -15,14 +15,14 @@ export default function OvertimeReportPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchUsers().then(r => setUsers(r.data?.data || r.data || [])).catch(() => {})
+    fetchUsers().then(setUsers).catch(() => {})
   }, [])
 
   async function generate() {
     setError('')
     try {
-      const res = await fetchOvertimeReport(filters)
-      setReports(res.data.reports || [])
+      const result = await fetchOvertimeReport(filters)
+      setReports(result.reports)
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Report failed')
     }

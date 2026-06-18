@@ -6,7 +6,7 @@ import ColoredModuleTabsNav from '../ui/ColoredModuleTabsNav'
 
 const adminTabs = [
   { labelKey: 'timeSheetReport', path: '/timesheets/admin/reports', permissions: ['view_timesheet_reports', 'timesheets.report', 'timesheets.view_timesheet_reports'], icon: BarChart3, color: 'blue' as const },
-  { labelKey: 'overtimeReport', path: '/timesheets/admin/overtime-report', permissions: ['view_overtime_reports', 'view_timesheet_reports', 'timesheets.report'], icon: Timer, color: 'orange' as const },
+  { labelKey: 'overtimeReport', path: '/timesheets/admin/overtime-report', permissions: ['view_overtime_reports', 'export_overtime_reports'], icon: Timer, color: 'orange' as const },
   { labelKey: 'manageAll', path: '/timesheets/admin/manage-all', permissions: ['view_all_timesheets', 'timesheets.manage', 'timesheets.review'], icon: FolderKanban, color: 'indigo' as const },
   { labelKey: 'categories', path: '/timesheets/admin/categories', permissions: ['manage_timesheet_categories', 'timesheets.manage'], icon: Tags, color: 'emerald' as const },
 ]

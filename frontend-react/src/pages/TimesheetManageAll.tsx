@@ -12,14 +12,14 @@ export default function TimesheetManageAllPage() {
   const [error, setError] = useState('')
 
   async function load() {
-    const res = await fetchManageAllEntries(filters)
-    setEntries(res.data.entries?.data || res.data.entries || [])
-    setTotalHours(res.data.total_hours || 0)
+    const result = await fetchManageAllEntries(filters)
+    setEntries(result.entries)
+    setTotalHours(result.total_hours)
   }
 
   useEffect(() => {
-    fetchUsers().then(r => setUsers(r.data?.data || r.data || [])).catch(() => {})
-    load().catch(() => setError('Failed to load entries'))
+    fetchUsers().then(setUsers).catch(() => {})
+    load().catch((err) => setError(err?.response?.data?.message || 'Failed to load entries'))
   }, [filters.user_id, filters.month])
 
   function exportCsv() {

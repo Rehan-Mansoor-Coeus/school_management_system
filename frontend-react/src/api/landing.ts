@@ -40,6 +40,12 @@ export function fetchPublicInstitution(id: number) {
   return api.get<PublicInstitutionDetail>(`/public/institutions/${id}`)
 }
 
+export function fetchPublicProgrammeCourses(institutionId: number, programmeId: number) {
+  return api.get<{ programme: { id: number; name: string; code?: string; level?: string; description?: string }; courses: Array<{ id: number; name: string; code?: string; description?: string; is_required?: boolean; semester?: { semester_number?: number; level_number?: number } | null }> }>(
+    `/public/institutions/${institutionId}/programmes/${programmeId}/courses`,
+  )
+}
+
 export function submitInstitutionRequest(payload: Record<string, unknown>) {
   return api.post('/public/institution-requests', payload)
 }

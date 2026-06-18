@@ -11,9 +11,9 @@ export default function TimesheetApprovalsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await fetchEntryApprovals()
-      setTeachingItems(res.data?.teaching || [])
-      setStaffItems(res.data?.staff || [])
+      const result = await fetchEntryApprovals()
+      setTeachingItems(result.teaching)
+      setStaffItems(result.staff)
     } catch (error: any) {
       pushToast(error?.response?.data?.message || 'Failed to load approvals', 'error')
     } finally {

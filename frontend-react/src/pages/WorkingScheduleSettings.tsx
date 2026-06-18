@@ -18,8 +18,8 @@ export default function WorkingScheduleSettingsPage() {
   const load = async () => {
     try {
       const [usersRes, schedulesRes] = await Promise.all([fetchUsers(), fetchWorkingSchedules()])
-      setUsers(usersRes.data || [])
-      setSchedules(schedulesRes.data || [])
+      setUsers(usersRes || [])
+      setSchedules(schedulesRes || [])
     } catch {
       pushToast('Unable to load working schedules', 'error')
     }

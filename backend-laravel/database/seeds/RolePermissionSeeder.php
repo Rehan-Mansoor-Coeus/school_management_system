@@ -38,8 +38,12 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'letters', 'name' => 'Letters & Announcements', 'sort_order' => 55],
             ['key' => 'admissions', 'name' => 'Admissions', 'sort_order' => 100],
             ['key' => 'academics', 'name' => 'Academics', 'sort_order' => 110],
+            ['key' => 'timetable', 'name' => 'Timetable & Courses', 'sort_order' => 115],
             ['key' => 'attendance', 'name' => 'Attendance', 'sort_order' => 120],
             ['key' => 'tasks', 'name' => 'Task Manager', 'sort_order' => 125],
+            ['key' => 'reports', 'name' => 'Reports', 'sort_order' => 128],
+            ['key' => 'contracts', 'name' => 'Contract Management', 'sort_order' => 129],
+            ['key' => 'document_workflow', 'name' => 'Document Workflow', 'sort_order' => 127],
             ['key' => 'results', 'name' => 'Results', 'sort_order' => 130],
             ['key' => 'fees', 'name' => 'Fees & Payments', 'sort_order' => 140],
             ['key' => 'hr', 'name' => 'HR & Payroll', 'sort_order' => 150],
@@ -82,6 +86,7 @@ class RolePermissionSeeder extends Seeder
         $registrarRole = Role::firstOrCreate(['name' => 'registrar'], ['guard_name' => 'api']);
         $hodAdmissionRole = Role::firstOrCreate(['name' => 'hod'], ['guard_name' => 'api']);
         $financeOfficerRole = Role::firstOrCreate(['name' => 'finance-officer'], ['guard_name' => 'api']);
+        $deanRole = Role::firstOrCreate(['name' => 'dean'], ['guard_name' => 'api']);
 
         $accessPermissions = [
             'users.view',
@@ -192,6 +197,37 @@ class RolePermissionSeeder extends Seeder
             'notifications.manage',
             'audit.view',
             'audit.manage',
+            'reports.view',
+            'reports.students.view',
+            'reports.students.export',
+            'reports.manage',
+            'contracts.view',
+            'contracts.create',
+            'contracts.generate',
+            'contracts.send',
+            'contracts.sign',
+            'contracts.approve',
+            'contracts.reject',
+            'contracts.renew',
+            'contracts.download',
+            'contracts.templates.manage',
+            'contracts.manage',
+            'documents.view',
+            'documents.create',
+            'documents.edit',
+            'documents.delete',
+            'documents.generate',
+            'documents.send',
+            'documents.sign',
+            'documents.approve',
+            'documents.reject',
+            'documents.renew',
+            'documents.download',
+            'documents.templates.manage',
+            'documents.types.view',
+            'documents.types.manage',
+            'documents.settings.manage',
+            'documents.manage',
         ];
 
         $legacyTimesheetPermissions = [
@@ -247,6 +283,7 @@ class RolePermissionSeeder extends Seeder
             'view_all_timesheets',
             'view_overtime_reports',
             'export_timesheet_reports',
+            'export_overtime_reports',
         ];
 
         $lettersPermissions = [
@@ -299,7 +336,31 @@ class RolePermissionSeeder extends Seeder
             'delete_students',
         ];
 
-        $allPermissions = array_values(array_unique(array_merge($accessPermissions, $legacyTimesheetPermissions, $timesheetPermissions, $lettersPermissions)));
+        $timetablePermissions = [
+            'timetable.view',
+            'timetable.create',
+            'timetable.edit',
+            'timetable.delete',
+            'timetable.manage',
+            'timetable.courses.view',
+            'timetable.courses.manage',
+            'timetable.assignments.view',
+            'timetable.assignments.manage',
+            'timetable.classrooms.view',
+            'timetable.classrooms.manage',
+            'timetable.availability.view',
+            'timetable.availability.manage',
+            'timetable.workload.view',
+            'timetable.generate',
+            'timetable.approve',
+            'timetable.lessons.view',
+            'timetable.lessons.log',
+            'timetable.reports.view',
+            'timetable.settings.manage',
+            'timetable.student.view',
+        ];
+
+        $allPermissions = array_values(array_unique(array_merge($accessPermissions, $legacyTimesheetPermissions, $timesheetPermissions, $lettersPermissions, $timetablePermissions)));
         sort($allPermissions);
 
         foreach ($allPermissions as $permissionName) {
@@ -331,6 +392,7 @@ class RolePermissionSeeder extends Seeder
             'view_timesheet_reports',
             'view_overtime_reports',
             'export_timesheet_reports',
+            'export_overtime_reports',
         ]);
 
         $fullAccessControl = [
@@ -361,10 +423,11 @@ class RolePermissionSeeder extends Seeder
             $adminTimesheetPermissions,
             $legacyTimesheetPermissions,
             $lettersPermissions,
-            ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.hod.approve', 'canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.finance_clear', 'character_certificates.library_clear', 'character_certificates.issue', 'hostel.view', 'hostel.manage', 'hostel.allocate', 'hostel.payments', 'hostel.maintenance', 'hostel.clearance', 'hr.view', 'hr.manage', 'hr.payroll.approve', 'hr.finance', 'tasks.view', 'tasks.create', 'tasks.manage', 'tasks.assign', 'attendance.view', 'attendance.manage']
+            $timetablePermissions,
+            ['admissions.view', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.hod.approve', 'canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.finance_clear', 'character_certificates.library_clear', 'character_certificates.issue', 'hostel.view', 'hostel.manage', 'hostel.allocate', 'hostel.payments', 'hostel.maintenance', 'hostel.clearance', 'hr.view', 'hr.manage', 'hr.payroll.approve', 'hr.finance', 'tasks.view', 'tasks.create', 'tasks.manage', 'tasks.assign', 'attendance.view', 'attendance.manage', 'reports.view', 'reports.students.view', 'reports.students.export', 'reports.manage', 'contracts.view', 'contracts.create', 'contracts.generate', 'contracts.send', 'contracts.approve', 'contracts.reject', 'contracts.renew', 'contracts.download', 'contracts.templates.manage', 'contracts.manage', 'documents.view', 'documents.create', 'documents.edit', 'documents.delete', 'documents.generate', 'documents.send', 'documents.approve', 'documents.reject', 'documents.renew', 'documents.download', 'documents.templates.manage', 'documents.types.view', 'documents.types.manage', 'documents.settings.manage', 'documents.manage']
         );
 
-        $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, [
+        $adminPermissions = array_merge($fullAccessControl, $adminTimesheetPermissions, $lettersPermissions, $timetablePermissions, [
             'admissions.view',
             'admissions.manage',
             'admissions.registry.review',
@@ -407,6 +470,35 @@ class RolePermissionSeeder extends Seeder
             'tasks.assign',
             'attendance.view',
             'attendance.manage',
+            'reports.view',
+            'reports.students.view',
+            'reports.students.export',
+            'reports.manage',
+            'contracts.view',
+            'contracts.create',
+            'contracts.generate',
+            'contracts.send',
+            'contracts.approve',
+            'contracts.reject',
+            'contracts.renew',
+            'contracts.download',
+            'contracts.templates.manage',
+            'contracts.manage',
+            'documents.view',
+            'documents.create',
+            'documents.edit',
+            'documents.delete',
+            'documents.generate',
+            'documents.send',
+            'documents.approve',
+            'documents.reject',
+            'documents.renew',
+            'documents.download',
+            'documents.templates.manage',
+            'documents.types.view',
+            'documents.types.manage',
+            'documents.settings.manage',
+            'documents.manage',
         ]);
 
         $superAdmin->syncPermissions($allPermissions);
@@ -442,9 +534,9 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $admissionsStaffPermissions = ['admissions.view', 'admissions.manage'];
-        $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review']));
-        $registrarRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registrar.admit', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.issue']));
-        $hodAdmissionRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.department.review', 'admissions.hod.approve', 'admissions.courses.register']));
+        $registryRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registry.review', 'reports.view', 'reports.students.view']));
+        $registrarRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.registrar.admit', 'character_certificates.view', 'character_certificates.manage', 'character_certificates.issue', 'reports.view', 'reports.students.view', 'reports.students.export', 'contracts.view', 'contracts.generate', 'contracts.send', 'contracts.approve', 'contracts.download', 'documents.view', 'documents.generate', 'documents.send', 'documents.approve', 'documents.download', 'documents.types.view']));
+        $hodAdmissionRole->syncPermissions(array_merge($admissionsStaffPermissions, ['admissions.department.review', 'admissions.hod.approve', 'admissions.courses.register', 'reports.view', 'reports.students.view']));
         $financeOfficerRole->syncPermissions(array_merge($admissionsStaffPermissions, [
             'admissions.finance.verify',
             'fees.view',
@@ -456,6 +548,8 @@ class RolePermissionSeeder extends Seeder
             'hr.view',
             'hr.finance',
             'tasks.view',
+            'reports.view',
+            'reports.students.view',
         ]));
 
         $timesheetSupervisorRole->syncPermissions(array_merge($adminTimesheetPermissions, [
@@ -487,6 +581,29 @@ class RolePermissionSeeder extends Seeder
             'tasks.assign',
             'attendance.view',
             'attendance.manage',
+            'contracts.view',
+            'contracts.create',
+            'contracts.generate',
+            'contracts.send',
+            'contracts.approve',
+            'contracts.reject',
+            'contracts.renew',
+            'contracts.download',
+            'contracts.templates.manage',
+            'contracts.manage',
+            'documents.view',
+            'documents.create',
+            'documents.edit',
+            'documents.generate',
+            'documents.send',
+            'documents.approve',
+            'documents.reject',
+            'documents.renew',
+            'documents.download',
+            'documents.templates.manage',
+            'documents.types.view',
+            'documents.types.manage',
+            'documents.manage',
         ]));
 
         $staffRole->syncPermissions(array_merge($employeePermissions, [
@@ -514,6 +631,8 @@ class RolePermissionSeeder extends Seeder
             'admissions.view',
             'admissions.department.review',
             'admissions.hod.approve',
+            'reports.view',
+            'reports.students.view',
             'timesheets.view_teacher_schedules',
             'timesheets.assign_teacher_schedules',
             'timesheets.manage_teacher_availability',
@@ -543,6 +662,58 @@ class RolePermissionSeeder extends Seeder
             'timesheets.view_course_hour_reports',
             'timesheets.approve_timesheets',
         ]);
+
+        // ---- Timetable & Course Management role grants ----
+        $timetableHodPermissions = [
+            'timetable.view', 'timetable.create', 'timetable.edit', 'timetable.delete',
+            'timetable.courses.view', 'timetable.courses.manage',
+            'timetable.assignments.view', 'timetable.assignments.manage',
+            'timetable.classrooms.view',
+            'timetable.availability.view', 'timetable.availability.manage',
+            'timetable.workload.view', 'timetable.generate',
+            'timetable.lessons.view', 'timetable.reports.view', 'timetable.student.view',
+        ];
+
+        $hodRole->syncPermissions(array_merge($hodRole->permissions->pluck('name')->toArray(), $timetableHodPermissions));
+        $hodAdmissionRole->syncPermissions(array_merge($hodAdmissionRole->permissions->pluck('name')->toArray(), $timetableHodPermissions));
+
+        $courseMasterRole->syncPermissions(array_merge($courseMasterRole->permissions->pluck('name')->toArray(), [
+            'timetable.view', 'timetable.create', 'timetable.edit',
+            'timetable.courses.view', 'timetable.courses.manage',
+            'timetable.assignments.view', 'timetable.assignments.manage',
+            'timetable.classrooms.view',
+            'timetable.availability.view', 'timetable.availability.manage',
+            'timetable.workload.view', 'timetable.generate',
+            'timetable.lessons.view', 'timetable.reports.view',
+        ]));
+
+        $deanRole->syncPermissions([
+            'timetable.view',
+            'timetable.approve',
+            'timetable.courses.view',
+            'timetable.assignments.view',
+            'timetable.classrooms.view',
+            'timetable.availability.view',
+            'timetable.workload.view',
+            'timetable.lessons.view',
+            'timetable.reports.view',
+            'timetable.student.view',
+            'reports.view',
+        ]);
+
+        $registrarRole->syncPermissions(array_merge($registrarRole->permissions->pluck('name')->toArray(), $timetablePermissions));
+
+        $teacherRole->syncPermissions(array_merge($teacherRole->permissions->pluck('name')->toArray(), [
+            'timetable.view',
+            'timetable.lessons.view',
+            'timetable.lessons.log',
+            'timetable.availability.view',
+            'timetable.student.view',
+        ]));
+
+        $studentRole->syncPermissions(array_merge($studentRole->permissions->pluck('name')->toArray(), [
+            'timetable.student.view',
+        ]));
 
         $admin = User::updateOrCreate(
             ['email' => 'admin@test.com'],

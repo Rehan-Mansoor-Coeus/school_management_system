@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createTimesheetCategory, deleteTimesheetCategory, fetchTimesheetCategories, updateTimesheetCategory } from '../api/timesheets'
+import { createTimesheetCategory, deleteTimesheetCategory, fetchTimesheetCategories, formatTimesheetError, updateTimesheetCategory } from '../api/timesheets'
 import { FieldLabel, PrimaryButton, TextArea, TextInput, TimesheetCard, TimesheetPageHeader } from '../components/timesheets/TimesheetUi'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 
@@ -13,11 +13,10 @@ export default function TimesheetCategoriesPage() {
   const [error, setError] = useState('')
 
   async function load() {
-    const res = await fetchTimesheetCategories()
-    setCategories(res.data || [])
+    setCategories(await fetchTimesheetCategories())
   }
 
-  useEffect(() => { load().catch(() => setError('Failed to load categories')) }, [])
+  useEffect(() => { load().catch((err) => setError(formatTimesheetError(err, 'Failed to load categories'))) }, [])
 
   async function save(e: React.FormEvent) {
     e.preventDefault()

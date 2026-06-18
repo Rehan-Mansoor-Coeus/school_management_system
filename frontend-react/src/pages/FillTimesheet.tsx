@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createTimesheetEntry, deleteTimesheetEntry, fetchTimesheetActivities, fetchTimesheetEntries, updateTimesheetEntry } from '../api/timesheets'
+import { createTimesheetEntry, deleteTimesheetEntry, fetchTimesheetActivities, fetchTimesheetEntries, formatTimesheetError, updateTimesheetEntry } from '../api/timesheets'
 import { FieldLabel, PrimaryButton, SelectInput, TextArea, TextInput, TimesheetCard, TimesheetPageHeader } from '../components/timesheets/TimesheetUi'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 
@@ -17,11 +17,11 @@ export default function FillTimesheetPage() {
       fetchTimesheetActivities(),
       fetchTimesheetEntries(),
     ])
-    setActivities(acts.data || [])
-    setEntries(Array.isArray(ents.data) ? ents.data : (ents.data?.data || []))
+    setActivities(acts)
+    setEntries(ents)
   }
 
-  useEffect(() => { load().catch(() => setError('Failed to load timesheet data')) }, [])
+  useEffect(() => { load().catch((err) => setError(formatTimesheetError(err, 'Failed to load timesheet data'))) }, [])
 
   async function save(e: React.FormEvent) {
     e.preventDefault()

@@ -1,0 +1,5 @@
+code,name,credit_hours,default_contact_hours,is_active
+CSC101,Introduction to Programming,3,45,true
+CSC102,Discrete Mathematics,3,45,true
+CSC201,Data Structures,3,45,true
+MAT201,Calculus II,4,60,true

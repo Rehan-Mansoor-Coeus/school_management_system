@@ -1,0 +1,4 @@
+first_name,last_name,email,phone_number,id_number,gender,date_of_birth,programme_code,academic_year,nationality
+Jane,Doe,jane.doe+uat@example.com,+237600000010,ID12345,female,2006-04-12,BCS,2026/2027,Cameroonian
+John,Smith,john.smith+uat@example.com,+237600000011,ID67890,male,2005-11-03,BCS,2026/2027,Cameroonian
+Mary,Johnson,mary.j+uat@example.com,+237600000012,ID11223,female,2006-01-20,BMATH,2026/2027,Cameroonian

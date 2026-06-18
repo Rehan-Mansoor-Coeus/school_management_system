@@ -26,6 +26,7 @@ Route::prefix('public')->group(function () {
     Route::get('settings', 'Api\\Landing\\LandingController@settings');
     Route::get('institutions', 'Api\\Landing\\LandingController@institutions');
     Route::get('institutions/{id}', 'Api\\Landing\\LandingController@institution');
+    Route::get('institutions/{id}/programmes/{programmeId}/courses', 'Api\\Landing\\LandingController@programmeCourses');
     Route::post('institution-requests', 'Api\\Landing\\LandingController@storeInstitutionRequest');
     Route::post('support-tickets', 'Api\\Landing\\LandingController@storeSupportTicket');
 });
@@ -159,6 +160,12 @@ Route::middleware('auth:api')->group(function () {
         Route::get('notifications', 'Api\Timesheets\TimesheetExtendedController@notifications')->middleware('permission:manage_timesheet_notifications|timesheets.manage');
         Route::post('notifications/{notification}/read', 'Api\Timesheets\TimesheetExtendedController@markNotificationRead')->middleware('permission:manage_timesheet_notifications|timesheets.manage');
     });
+
+    Route::prefix('reports')->middleware('module_enabled:reports')->group(function () {
+        Route::middleware('permission:reports.view|reports.students.view|reports.manage|admissions.view|admissions.manage')->get('students', 'Api\Reports\StudentReportController@index');
+        Route::middleware('permission:reports.view|reports.students.view|reports.manage|admissions.view|admissions.manage')->get('students/{studentId}', 'Api\Reports\StudentReportController@show');
+    });
+
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions', 'Api\InstitutionController@index');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('institutions', 'Api\InstitutionController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
@@ -295,14 +302,6 @@ Route::middleware('auth:api')->group(function () {
         Route::put('staff/{id}', 'Api\People\StaffController@update');
         Route::delete('staff/{id}', 'Api\People\StaffController@destroy');
     });
-
-    require base_path('app/Modules/Admissions/Routes/api.php');
-    require base_path('app/Modules/Canteen/Routes/api.php');
-    require base_path('app/Modules/CharacterCertificates/Routes/api.php');
-    require base_path('app/Modules/Hr/Routes/api.php');
-    require base_path('app/Modules/Hostel/Routes/api.php');
-    require base_path('app/Modules/Tasks/Routes/api.php');
-    require base_path('app/Modules/Attendance/Routes/api.php');
 
     Route::prefix('library')->group(function () {
         // Dashboard
