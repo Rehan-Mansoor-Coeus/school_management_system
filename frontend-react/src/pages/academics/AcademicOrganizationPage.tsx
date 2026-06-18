@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import SearchableSelect from '../../components/ui/SearchableSelect'
 import SearchableMultiSelect, { type SearchableMultiSelectOption } from '../../components/ui/SearchableMultiSelect'
+import FormSelect from '../../components/ui/FormSelect'
 import { useToast } from '../../components/ui/ToastProvider'
-import { useAcademicInstitutionParams } from '../../context/AcademicInstitutionContext'
+import { useAcademicInstitution, useAcademicInstitutionParams } from '../../context/AcademicInstitutionContext'
 import {
   createProgramSubject,
   deleteProgramSubject,
@@ -67,6 +68,8 @@ type ProgramLink = {
 export default function AcademicOrganizationPage() {
   const { pushToast } = useToast()
   const { institutionId, requiresSelection, params } = useAcademicInstitutionParams()
+  const { institutions, setInstitutionId, loadingInstitutions } = useAcademicInstitution()
+  const showInstitutionPicker = requiresSelection || institutions.length > 1
 
   const [institution, setInstitution] = useState<{ id: number; name: string } | null>(null)
   const [units, setUnits] = useState<TreeUnit[]>([])
@@ -255,27 +258,142 @@ export default function AcademicOrganizationPage() {
     }
   }
 
-  if (requiresSelection && !institutionId) {
+  if (!institutionId) {
     return (
-      <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Select a working institution above to assign subjects to programmes.
-      </p>
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <h3 className="font-semibold text-amber-900">Select an institution</h3>
+        <p className="mt-1 text-sm text-amber-800">Choose an institution first, then organize its academic units, departments, and programmes.</p>
+        {showInstitutionPicker && (
+          <div className="mt-4 max-w-md">
+            <FormSelect
+              value=""
+              onChange={(value) => setInstitutionId(value ? Number(value) : null)}
+              options={institutions.map((inst) => ({
+                value: String(inst.id),
+                label: inst.code ? `${inst.name} (${inst.code})` : inst.name,
+              }))}
+              placeholder={loadingInstitutions ? 'Loading institutions…' : 'Select institution'}
+            />
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Institution</p>
-        <p className="mt-1 text-lg font-bold text-slate-900">{loading ? 'Loading…' : institution?.name || '—'}</p>
-        <p className="mt-2 text-sm text-slate-500">
-          Search and select subjects for a programme. Unchecked &quot;Optional&quot; means the course is mandatory.
-          The same subject can be assigned to multiple programmes.
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Step 1 — Institution</p>
+        {showInstitutionPicker ? (
+          <div className="mt-2 max-w-lg">
+            <FormSelect
+              value={String(institutionId)}
+              onChange={(value) => {
+                setInstitutionId(value ? Number(value) : null)
+                setSelectedProgramId('')
+                setPendingSubjects([])
+              }}
+              options={institutions.map((inst) => ({
+                value: String(inst.id),
+                label: inst.code ? `${inst.name} (${inst.code})` : inst.name,
+              }))}
+              placeholder={loadingInstitutions ? 'Loading institutions…' : 'Select institution'}
+            />
+            <p className="mt-2 text-sm text-slate-500">
+              All organization below applies to the selected institution. Change institution to manage another campus.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="mt-1 text-lg font-bold text-slate-900">{loading ? 'Loading…' : institution?.name || '—'}</p>
+            <p className="mt-2 text-sm text-slate-500">Organizing academic structure for your institution.</p>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <h3 className="text-lg font-semibold text-slate-900">Step 2 — Organize departments → academic units</h3>
+        <p className="text-xs text-slate-500">Assign each department to an academic unit (faculty / school). Academic units belong to the selected institution.</p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Department</th>
+                <th className="px-4 py-2">Academic unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {departmentsFlat.length === 0 ? (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No departments yet.</td></tr>
+              ) : (
+                departmentsFlat.map((dept) => (
+                  <tr key={dept.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium text-slate-900">{dept.name} <span className="text-xs text-slate-400">({dept.code})</span></td>
+                    <td className="px-4 py-2">
+                      <select
+                        disabled={savingOrg}
+                        value={dept.academic_unit_id ? String(dept.academic_unit_id) : ''}
+                        onChange={(e) => reassignDepartmentUnit(dept, e.target.value ? Number(e.target.value) : null)}
+                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                      >
+                        <option value="">— No academic unit —</option>
+                        {academicUnits.map((u) => (
+                          <option key={u.id} value={String(u.id)}>{u.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <h3 className="text-lg font-semibold text-slate-900">Step 3 — Organize programmes → departments</h3>
+        <p className="text-xs text-slate-500">Assign each programme to a department so it shows up for applicants under the right structure.</p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Programme</th>
+                <th className="px-4 py-2">Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {programmes.length === 0 ? (
+                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No programmes yet.</td></tr>
+              ) : (
+                programmes.map((prog) => (
+                  <tr key={prog.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium text-slate-900">{prog.name} <span className="text-xs text-slate-400">({prog.code})</span></td>
+                    <td className="px-4 py-2">
+                      <select
+                        disabled={savingOrg}
+                        value={prog.department_id ? String(prog.department_id) : ''}
+                        onChange={(e) => e.target.value && reassignProgrammeDepartment(prog, Number(e.target.value))}
+                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                      >
+                        <option value="">— Select department —</option>
+                        {departmentsFlat.map((d) => (
+                          <option key={d.id} value={String(d.id)}>{d.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">Assign subjects to a programme</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Step 4 — Assign subjects to a programme</h3>
+        <p className="text-sm text-slate-500">
+          Unchecked &quot;Optional&quot; means the course is mandatory. The same subject can be assigned to multiple programmes.
+        </p>
 
         <SearchableSelect
           value={selectedProgramId}
@@ -350,86 +468,8 @@ export default function AcademicOrganizationPage() {
         )}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-        <h3 className="text-lg font-semibold text-slate-900">Organize departments → academic units</h3>
-        <p className="text-xs text-slate-500">Assign each department to an academic unit (faculty / school). Academic units belong to the selected institution.</p>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
-              <tr>
-                <th className="px-4 py-2">Department</th>
-                <th className="px-4 py-2">Academic unit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {departmentsFlat.length === 0 ? (
-                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No departments yet.</td></tr>
-              ) : (
-                departmentsFlat.map((dept) => (
-                  <tr key={dept.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-medium text-slate-900">{dept.name} <span className="text-xs text-slate-400">({dept.code})</span></td>
-                    <td className="px-4 py-2">
-                      <select
-                        disabled={savingOrg}
-                        value={dept.academic_unit_id ? String(dept.academic_unit_id) : ''}
-                        onChange={(e) => reassignDepartmentUnit(dept, e.target.value ? Number(e.target.value) : null)}
-                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-                      >
-                        <option value="">— No academic unit —</option>
-                        {academicUnits.map((u) => (
-                          <option key={u.id} value={String(u.id)}>{u.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-        <h3 className="text-lg font-semibold text-slate-900">Organize programmes → departments</h3>
-        <p className="text-xs text-slate-500">Assign each programme to a department so it shows up for applicants under the right structure.</p>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
-              <tr>
-                <th className="px-4 py-2">Programme</th>
-                <th className="px-4 py-2">Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              {programmes.length === 0 ? (
-                <tr><td colSpan={2} className="px-4 py-6 text-center text-slate-500">No programmes yet.</td></tr>
-              ) : (
-                programmes.map((prog) => (
-                  <tr key={prog.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-medium text-slate-900">{prog.name} <span className="text-xs text-slate-400">({prog.code})</span></td>
-                    <td className="px-4 py-2">
-                      <select
-                        disabled={savingOrg}
-                        value={prog.department_id ? String(prog.department_id) : ''}
-                        onChange={(e) => e.target.value && reassignProgrammeDepartment(prog, Number(e.target.value))}
-                        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-                      >
-                        <option value="">— Select department —</option>
-                        {departmentsFlat.map((d) => (
-                          <option key={d.id} value={String(d.id)}>{d.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <h3 className="mb-2 font-semibold text-slate-900">Department → Programme structure</h3>
+        <h3 className="mb-2 font-semibold text-slate-900">Academic structure overview</h3>
         <p className="mb-3 text-xs text-slate-500">Read-only view of how departments and programmes are linked.</p>
         {units.length === 0 && unassignedDepartments.length === 0 ? (
           <p className="text-sm text-slate-500">No structure configured yet.</p>

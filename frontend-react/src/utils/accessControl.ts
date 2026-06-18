@@ -52,8 +52,13 @@ export function canAccessMenu(options: {
   const { permissions = [], roles = [], userPermissions, userRoles } = options
 
   if (hasFullAdmissionsAccess(userPermissions, userRoles)) {
-    const admissionsOnly = permissions.every((p) => p.startsWith('admissions.'))
+    const admissionsOnly = permissions.some((p) => p.startsWith('admissions.'))
     if (admissionsOnly && permissions.length > 0) return true
+  }
+
+  const timetableOnly = permissions.length > 0 && permissions.every((p) => p.startsWith('timetable.'))
+  if (timetableOnly && (isAdminRole(userRoles) || isPlatformSuperAdminRole(userRoles))) {
+    return true
   }
 
   if (permissions.length > 0 && permissions.some((p) => userPermissions.includes(p))) return true

@@ -5,15 +5,11 @@ import {
   Award,
   BarChart3,
   Bell,
-  BookOpen,
   Building2,
-  CalendarClock,
   CalendarDays,
   CheckSquare,
-  ClipboardList,
   Clock,
   CreditCard,
-  DoorOpen,
   FileStack,
   FileText,
   GraduationCap,
@@ -33,7 +29,6 @@ import {
   Users,
   UtensilsCrossed,
   Wallet,
-  Wand2,
 } from 'lucide-react'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useLettersI18n } from '../hooks/useLettersI18n'
@@ -122,7 +117,7 @@ function SidebarLink({ item, nested = false }: { item: SidebarItem; nested?: boo
 export default function Sidebar() {
   const { t } = useTimesheetI18n()
   const { t: tLetters } = useLettersI18n()
-  const { institution, enabledModules, canAccess, hasPermission } = useAuth()
+  const { institution, enabledModules, canAccess, hasPermission, hasAnyPermission, isAdmin, userRoles } = useAuth()
   const location = useLocation()
 
   const safeEnabledModules = Array.isArray(enabledModules) ? enabledModules : []
@@ -154,20 +149,14 @@ export default function Sidebar() {
   const showDocumentWorkflow = safeEnabledModules.includes('document_workflow') && canAccess({
     permissions: ['documents.view', 'documents.manage', 'documents.generate', 'documents.types.view', 'documents.templates.manage'],
   })
-  const timetableNavItems = [
-    { to: '/timetable/courses', label: 'Course Management', icon: BookOpen, permissions: ['timetable.courses.view', 'timetable.view', 'timetable.manage'] },
-    { to: '/timetable/assignments', label: 'Course Assignment', icon: FileStack, permissions: ['timetable.assignments.view', 'timetable.view', 'timetable.manage'] },
-    { to: '/timetable/workload', label: 'Teacher Workload', icon: BarChart3, permissions: ['timetable.workload.view', 'timetable.view', 'timetable.manage'] },
-    { to: '/timetable/availability', label: 'Teacher Availability', icon: CalendarClock, permissions: ['timetable.availability.view', 'timetable.manage'] },
-    { to: '/timetable/schedule', label: 'Timetable', icon: CalendarDays, permissions: ['timetable.view', 'timetable.manage'] },
-    { to: '/timetable/generate', label: 'Auto Generate', icon: Wand2, permissions: ['timetable.generate', 'timetable.manage'] },
-    { to: '/timetable/classrooms', label: 'Classrooms', icon: DoorOpen, permissions: ['timetable.classrooms.view', 'timetable.manage'] },
-    { to: '/timetable/lessons', label: 'Lesson Logging', icon: ClipboardList, permissions: ['timetable.lessons.log', 'timetable.lessons.view', 'timetable.manage'] },
-    { to: '/timetable/my', label: 'My Timetable', icon: CalendarDays, permissions: ['timetable.student.view'] },
-    { to: '/timetable/reports', label: 'Reports', icon: BarChart3, permissions: ['timetable.reports.view', 'timetable.view', 'timetable.manage'] },
-    { to: '/timetable/settings', label: 'Settings', icon: Settings, permissions: ['timetable.settings.manage', 'timetable.manage'] },
-  ].filter((item) => canAccess({ permissions: item.permissions }))
-  const showTimetable = safeEnabledModules.includes('timetable') && timetableNavItems.length > 0
+  const timetablePermissions = MODULE_MENU_PERMISSIONS.timetable
+  const showTimetable = safeEnabledModules.includes('timetable') && (
+    isAdmin() ||
+    userRoles.includes('super-admin') ||
+    userRoles.includes('system-super-admin') ||
+    hasAnyPermission(timetablePermissions)
+  )
+  const timetableActive = location.pathname.startsWith('/timetable')
   const showOperations = showTimesheetEmployee || showTimesheetAdmin || showTaskManager
 
   const canViewLetters = hasPermission('view_letters_menu') || hasPermission('create_letters')
@@ -200,7 +189,6 @@ export default function Sidebar() {
   const [reportsOpen, setReportsOpen] = useSidebarSection(false, ['/reports'])
   const [contractsOpen, setContractsOpen] = useSidebarSection(false, ['/contracts'])
   const [documentWorkflowOpen, setDocumentWorkflowOpen] = useSidebarSection(false, ['/document-workflow'])
-  const [timetableOpen, setTimetableOpen] = useSidebarSection(false, ['/timetable'])
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
 
@@ -457,36 +445,14 @@ export default function Sidebar() {
         )}
 
         {showTimetable && (
-          <>
-            <button
-              type="button"
-              onClick={() => setTimetableOpen((v) => !v)}
-              className="mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-medium text-blue-100 hover:bg-[#2a4a73]/70"
-            >
-              <span className="flex items-center gap-2.5">
-                <CalendarDays className="h-4 w-4 text-[#eab308]" aria-hidden="true" />
-                Timetable &amp; Courses
-              </span>
-              <span className={`transition ${timetableOpen ? 'rotate-180' : ''}`}>▾</span>
-            </button>
-            {timetableOpen && (
-              <div className="space-y-1">
-                {timetableNavItems.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <NavLink key={item.to} to={item.to} className={({ isActive }) => linkClass(isActive, true)}>
-                      {({ isActive }) => (
-                        <>
-                          <Icon className={iconClass(isActive)} aria-hidden="true" />
-                          <span className="truncate">{item.label}</span>
-                        </>
-                      )}
-                    </NavLink>
-                  )
-                })}
-              </div>
+          <NavLink to="/timetable" className={() => linkClass(timetableActive)}>
+            {() => (
+              <>
+                <CalendarDays className={iconClass(timetableActive)} aria-hidden="true" />
+                <span className="truncate">Time Table</span>
+              </>
             )}
-          </>
+          </NavLink>
         )}
 
         {showLibrary && (

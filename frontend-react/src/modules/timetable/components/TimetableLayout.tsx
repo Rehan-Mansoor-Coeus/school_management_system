@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
+import { isAdminRole, isPlatformSuperAdminRole, resolveUserRoles } from '../../../utils/accessControl'
 
 type Tab = { to: string; label: string; permissions: string[]; end?: boolean }
 
@@ -18,8 +19,10 @@ const TABS: Tab[] = [
 ]
 
 export default function TimetableLayout() {
-  const { canAccess } = useAuth()
-  const visible = TABS.filter((tab) => canAccess({ permissions: tab.permissions }))
+  const { canAccess, user } = useAuth()
+  const roles = resolveUserRoles(user)
+  const elevated = isAdminRole(roles) || isPlatformSuperAdminRole(roles)
+  const visible = elevated ? TABS : TABS.filter((tab) => canAccess({ permissions: tab.permissions }))
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
