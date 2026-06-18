@@ -1,0 +1,72 @@
+---
+description: Global non-refactoring architecture and PR hygiene rules for this repository
+alwaysApply: true
+---
+
+# Global Non-Refactoring Architecture Rules
+
+Apply these rules to ALL development in this project.
+
+## Architecture
+
+1. Do NOT refactor unrelated modules.
+2. Do NOT change existing stable architecture unnecessarily.
+3. Do NOT break authentication, dashboards, APIs, permissions, notifications, or existing modules.
+4. Extend existing functionality only.
+5. Preserve backward compatibility.
+6. Use modular additions and safe migrations only.
+7. Every major table must continue using `institution_id`.
+8. All changes must be production-safe and scalable.
+9. Keep existing role slugs and permission names working unless explicitly migrating them.
+10. Test authentication and core dashboards after any permission or auth change.
+11. Prefer new migrations, seeders, routes, controllers, policies, and services over modifying stable code paths.
+12. Maintain English/French translation support where user-facing text is added.
+
+## Migrations
+
+- Use safe checks where necessary: `Schema::hasTable()`, `Schema::hasColumn()`, `Schema::table()` for existing tables.
+- Do not duplicate existing tables or migrations.
+- Do not recreate tables unsafely or delete existing data.
+
+## Git / PR hygiene
+
+- Do NOT push `node_modules/`.
+- Ensure `node_modules/` is in `.gitignore`.
+- Only push code-related project files required for the PR.
+- Do NOT push local cache, logs, build output, vendor, `.env`, or personal IDE files unless already intentionally tracked.
+
+Ignored paths must include:
+
+```
+node_modules/
+frontend-react/node_modules/
+vendor/
+.env
+.env.*
+!.env.example
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+coverage/
+storage/logs/*
+bootstrap/cache/*
+.idea/
+.vscode/
+*.log
+```
+
+## Timesheet module scope
+
+When working on Timesheets, only include changes related to:
+
+- Timesheets module, teacher availability, staff work schedules, shift types
+- Course contact hours, timetable suggestions, timesheet approvals
+- Bilingual translation files for Timesheets
+- Roles and permissions required by Timesheets
+- Safe migrations/seeders required by Timesheets
+
+Revert unrelated file changes unless required for the Timesheet module.

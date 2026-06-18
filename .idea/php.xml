@@ -105,9 +105,7 @@
       <path value="$PROJECT_DIR$/backend-laravel/vendor/symfony/http-kernel" />
     </include_path>
   </component>
-  <component name="PhpProjectSharedConfiguration" php_language_level="7.2">
-    <option name="suggestChangeDefaultLanguageLevel" value="false" />
-  </component>
+  <component name="PhpProjectSharedConfiguration" php_language_level="7.2" />
   <component name="PhpStanOptionsConfiguration">
     <option name="transferred" value="true" />
   </component>

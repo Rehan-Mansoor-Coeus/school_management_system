@@ -9,6 +9,8 @@ import {
   fetchRoles,
   updateRole,
 } from '../api/admin'
+import { useAuth } from '../context/AuthContext'
+import { filterAssignableRoles, PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl'
 
 interface Permission {
   id: number
@@ -22,6 +24,8 @@ interface Role {
 }
 
 export default function RolesPage() {
+  const { userRoles } = useAuth()
+  const isPlatformSuperAdmin = userRoles.some((role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role as typeof PLATFORM_SUPER_ADMIN_ROLES[number]))
   const [loading, setLoading] = useState(false)
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -107,10 +111,17 @@ export default function RolesPage() {
     }
   }
 
+  const visibleRoles = useMemo(
+    () => filterAssignableRoles(roles, userRoles),
+    [roles, userRoles],
+  )
+
   const permissionOptions = useMemo(
     () => permissions.map((permission) => ({ id: permission.id, label: permission.name })),
     [permissions]
   )
+
+  const isProtectedRole = (role: Role) => PLATFORM_SUPER_ADMIN_ROLES.includes(role.name as typeof PLATFORM_SUPER_ADMIN_ROLES[number])
 
   return (
     <div className="space-y-6">
@@ -140,28 +151,32 @@ export default function RolesPage() {
                   Loading roles...
                 </td>
               </tr>
-            ) : roles.length === 0 ? (
+            ) : visibleRoles.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-6 py-10 text-center text-slate-500">
                   No roles found.
                 </td>
               </tr>
             ) : (
-              roles.map((role) => (
+              visibleRoles.map((role) => (
                 <tr key={role.id}>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">{role.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{role.permissions.map((permission) => permission.name).join(', ') || 'None'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => openEditModal(role)} className="rounded-xl bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200">
-                        Edit
-                      </button>
+                      {!isProtectedRole(role) && (
+                        <button onClick={() => openEditModal(role)} className="rounded-xl bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200">
+                          Edit
+                        </button>
+                      )}
                       <button onClick={() => openPermissionModal(role)} className="rounded-xl bg-blue-100 px-3 py-1 text-blue-700 hover:bg-blue-200">
                         Permissions
                       </button>
-                      <button onClick={() => handleDelete(role)} className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200">
-                        Delete
-                      </button>
+                      {!isProtectedRole(role) && (
+                        <button onClick={() => handleDelete(role)} className="rounded-xl bg-rose-100 px-3 py-1 text-rose-700 hover:bg-rose-200">
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -171,8 +186,22 @@ export default function RolesPage() {
         </table>
       </div>
 
-      <Modal title={activeRole ? 'Edit Role' : 'Create Role'} open={modalOpen} onClose={() => setModalOpen(false)}>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+      <Modal
+        title={activeRole ? 'Edit Role' : 'Create Role'}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="submit" form="role-form" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save
+            </button>
+          </div>
+        }
+      >
+        <form id="role-form" onSubmit={handleFormSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Name</label>
             <input
@@ -183,20 +212,48 @@ export default function RolesPage() {
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-900"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save
-            </button>
-          </div>
         </form>
       </Modal>
 
-      <Modal title="Assign Permissions" open={permModalOpen} onClose={() => setPermModalOpen(false)}>
+      <Modal
+        title="Assign Permissions"
+        open={permModalOpen}
+        onClose={() => setPermModalOpen(false)}
+        wide
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setPermModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
+              Cancel
+            </button>
+            <button type="button" onClick={handleAssignPermissions} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+              Save Permissions
+            </button>
+          </div>
+        }
+      >
         <div className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-slate-600">
+              Selected {selectedPermissions.length} of {permissionOptions.length}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPermissions(permissionOptions.map((permission) => permission.id))}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedPermissions([])}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {permissionOptions.map((permission) => (
               <label key={permission.id} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 <input
@@ -212,14 +269,6 @@ export default function RolesPage() {
                 {permission.label}
               </label>
             ))}
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <button onClick={() => setPermModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100">
-              Cancel
-            </button>
-            <button onClick={handleAssignPermissions} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Save Permissions
-            </button>
           </div>
         </div>
       </Modal>

@@ -1,33 +1,34 @@
-import React from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useAuth } from '../context/AuthContext';
+import StaffDashboardOverview from '../components/dashboard/StaffDashboardOverview';
+import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats';
 
-const data = [
-  {name:'Jan', uv:400}, {name:'Feb', uv:300}, {name:'Mar', uv:500}, {name:'Apr', uv:200}
-]
+export default function Dashboard() {
+  const { hasAnyRole, canAccess } = useAuth();
+  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] });
 
-export default function Dashboard(){
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 bg-white rounded shadow">
-          <h3 className="text-sm text-gray-500">Revenue</h3>
-          <div style={{height:200}}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="uv" stroke="#8884d8" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+  if (isStudent) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Your applications, fees, enrollment status, and next steps at a glance.
+          </p>
         </div>
-        <div className="p-4 bg-white rounded shadow">
-          <h3 className="text-sm text-gray-500">Users</h3>
-          <div className="text-3xl font-bold">1,234</div>
-        </div>
+        <StudentAdmissionsStats />
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Institution overview, pending tasks, and quick links for your role.
+        </p>
+      </div>
+      <StaffDashboardOverview />
     </div>
-  )
+  );
 }

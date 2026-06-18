@@ -24,8 +24,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')
-        //          ->hourly();
+        $schedule->call(function () {
+            app(\App\Services\Messaging\ScheduledAnnouncementProcessor::class)->processDue();
+        })->everyMinute();
+        $schedule->job(new \App\Jobs\ProcessMessageQueueJob())->everyMinute();
+        $schedule->call(function () {
+            app(\App\Services\Fees\FeeReminderProcessor::class)->processDue();
+        })->everyMinute();
+        $schedule->call(function () {
+            app(\App\Modules\Contracts\Services\DocumentExpiryProcessor::class)->processDue();
+        })->dailyAt('07:00');
     }
 
     /**

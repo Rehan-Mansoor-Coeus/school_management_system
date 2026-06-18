@@ -5,21 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Permission;
 use App\Role;
-use App\User;
+use App\Support\PlatformAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Role::with('permissions')->get());
+        $query = Role::with('permissions')->orderBy('name');
+
+        if (! PlatformAccess::isPlatformSuperAdmin($request->user())) {
+            $query->whereNotIn('name', PlatformAccess::roles());
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:50|unique:roles',
+            'name' => ['required', 'string', 'max:50', 'unique:roles', Rule::notIn(PlatformAccess::roles())],
         ]);
 
         if ($validator->fails()) {
@@ -33,8 +40,14 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
+        $this->authorizePlatformRoleManagement($request, $role);
+
+        if (PlatformAccess::isPlatformRole($role)) {
+            return response()->json(['message' => 'This role cannot be renamed. Update its permissions instead.'], 403);
+        }
+
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:50|unique:roles,name,' . $role->id,
+            'name' => ['required', 'string', 'max:50', 'unique:roles,name,'.$role->id, Rule::notIn(PlatformAccess::roles())],
         ]);
 
         if ($validator->fails()) {
@@ -46,8 +59,14 @@ class RoleController extends Controller
         return response()->json(['message' => 'Role updated successfully.', 'role' => $role]);
     }
 
-    public function destroy(Role $role)
+    public function destroy(Request $request, Role $role)
     {
+        $this->authorizePlatformRoleManagement($request, $role);
+
+        if (PlatformAccess::isPlatformRole($role)) {
+            return response()->json(['message' => 'This role cannot be deleted.'], 403);
+        }
+
         $role->delete();
 
         return response()->json(['message' => 'Role deleted successfully.']);
@@ -55,6 +74,8 @@ class RoleController extends Controller
 
     public function assignPermissions(Request $request, Role $role)
     {
+        $this->authorizePlatformRoleManagement($request, $role);
+
         $validator = Validator::make($request->all(), [
             'permissions' => 'required|array',
             'permissions.*' => 'exists:permissions,id',
@@ -64,8 +85,18 @@ class RoleController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $role->syncPermissions($request->permissions);
+        $role->syncPermissions(Permission::whereIn('id', $request->permissions)->get());
 
-        return response()->json(['message' => 'Role permissions updated successfully.', 'permissions' => $role->permissions]);
+        return response()->json([
+            'message' => 'Role permissions updated successfully.',
+            'permissions' => $role->permissions,
+        ]);
+    }
+
+    protected function authorizePlatformRoleManagement(Request $request, Role $role): void
+    {
+        if (PlatformAccess::isPlatformRole($role) && ! PlatformAccess::isPlatformSuperAdmin($request->user())) {
+            abort(403, 'You are not authorized to manage this role.');
+        }
     }
 }

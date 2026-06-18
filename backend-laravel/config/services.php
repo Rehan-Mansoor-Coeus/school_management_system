@@ -30,4 +30,38 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'phone_number' => env('TWILIO_PHONE_NUMBER'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        'announcement_content_sid' => env('TWILIO_WHATSAPP_ANNOUNCEMENT_CONTENT_SID'),
+    ],
+
+    'wasender' => [
+        'base_url' => env('WASENDER_BASE_URL', env('WASENDER_API_BASE_URL', 'https://wasenderapi.com')),
+        'api_key' => env('WASENDER_API_KEY', env('WASENDER_API_TOKEN')),
+        'token' => env('WASENDER_API_KEY', env('WASENDER_API_TOKEN')),
+        'session_id' => env('WASENDER_SESSION_ID'),
+    ],
+
+    'flutterwave' => [
+        'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
+        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
+    ],
+
+    'stripe' => [
+        'key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'currency' => env('STRIPE_CURRENCY', 'usd'),
+    ],
+
+    'campay' => [
+        'username' => env('CAMPAY_USERNAME'),
+        'password' => env('CAMPAY_PASSWORD'),
+        'environment' => env('CAMPAY_ENV', 'DEV'),
+        'currency' => env('CAMPAY_CURRENCY', 'XAF'),
+    ],
+
 ];

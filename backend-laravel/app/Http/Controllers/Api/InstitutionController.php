@@ -1,0 +1,459 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Institution;
+use App\InstitutionSetting;
+use App\Services\InstitutionModuleService;
+use App\Services\Letters\LetterAssetHelper;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+
+class InstitutionController extends Controller
+{
+    private function blanksToNull(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if ($value === '' || $value === 'null') {
+                $data[$key] = null;
+            }
+        }
+
+        return $data;
+    }
+
+    private function normalizeJsonArrayFields(array $data, array $keys)
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $data)) {
+                continue;
+            }
+            if (is_string($data[$key])) {
+                $decoded = json_decode($data[$key], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $data[$key] = $decoded;
+                }
+            }
+        }
+        return $data;
+    }
+
+    public function index(Request $request)
+    {
+        $query = Institution::query()->with('settings');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('country')) {
+            $query->where('country', $request->country);
+        }
+
+        $perPage = (int) ($request->get('per_page', 10));
+        $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 10;
+
+        return response()->json($query->orderBy('name')->paginate($perPage));
+    }
+
+    public function show($id)
+    {
+        $institution = Institution::with('settings')->findOrFail($id);
+
+        return response()->json($institution);
+    }
+
+    public function myInstitution(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user || ! $user->institution_id) {
+            return response()->json(['message' => 'No institution assigned to this user.'], 404);
+        }
+
+        $institution = Institution::with('settings')->find($user->institution_id);
+
+        if (! $institution) {
+            return response()->json(['message' => 'Institution not found.'], 404);
+        }
+
+        return response()->json($institution);
+    }
+
+    public function store(Request $request)
+    {
+        $normalized = $this->blanksToNull($this->normalizeJsonArrayFields($request->all(), [
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ]));
+
+        $validator = Validator::make($normalized, [
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:institutions,code',
+            'type' => 'required|in:university,college,school,vocational,technical,training',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:500',
+            'city' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
+            'website' => 'nullable|url|max:255',
+            'currency' => 'nullable|string|max:10',
+            'timezone' => 'nullable|string|max:64',
+            'language' => 'nullable|in:en,fr',
+            'is_active' => 'nullable|boolean',
+            'subscription_plan' => 'nullable|string|max:100',
+
+            'academic_structure' => 'nullable|array',
+            'fee_structure' => 'nullable|array',
+            'grading_system' => 'nullable|array',
+            'academic_calendar' => 'nullable|array',
+            'payment_settings' => 'nullable|array',
+
+            'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $institution = Institution::create(collect($validator->validated())->only([
+            'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
+            'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
+        ])->toArray());
+
+        $this->handleBrandUploads($request, $institution);
+
+        $settingsPayload = $this->normalizeJsonArrayFields($request->only(['academic_structure', 'fee_structure', 'grading_system', 'academic_calendar', 'payment_settings']), [
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ]);
+
+        InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], $settingsPayload);
+
+        app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
+
+        return response()->json(['message' => 'Institution created successfully.', 'institution' => $institution->load('settings')], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $institution = Institution::with('settings')->findOrFail($id);
+
+        $normalized = $this->blanksToNull($this->normalizeJsonArrayFields($request->all(), [
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ]));
+
+        $validator = Validator::make($normalized, [
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:institutions,code,' . $institution->id,
+            'type' => 'required|in:university,college,school,vocational,technical,training',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:500',
+            'city' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
+            'website' => 'nullable|url|max:255',
+            'currency' => 'nullable|string|max:10',
+            'timezone' => 'nullable|string|max:64',
+            'language' => 'nullable|in:en,fr',
+            'is_active' => 'nullable|boolean',
+            'subscription_plan' => 'nullable|string|max:100',
+
+            'academic_structure' => 'nullable|array',
+            'fee_structure' => 'nullable|array',
+            'grading_system' => 'nullable|array',
+            'academic_calendar' => 'nullable|array',
+            'payment_settings' => 'nullable|array',
+
+            'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $institution->update(collect($validator->validated())->only([
+            'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
+            'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
+        ])->toArray());
+
+        $this->handleBrandUploads($request, $institution);
+
+        $settingsPayload = $this->normalizeJsonArrayFields($request->only(['academic_structure', 'fee_structure', 'grading_system', 'academic_calendar', 'payment_settings']), [
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ]);
+
+        InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], $settingsPayload);
+
+        return response()->json(['message' => 'Institution updated successfully.', 'institution' => $institution->fresh()->load('settings')]);
+    }
+
+    public function destroy($id)
+    {
+        $institution = Institution::withTrashed()->findOrFail($id);
+        $institutionId = $institution->id;
+
+        try {
+            DB::transaction(function () use ($institution, $institutionId) {
+                // Hard-delete every user belonging to the institution, removing
+                // role/permission pivots and student profiles so nothing lingers.
+                \App\User::withTrashed()->where('institution_id', $institutionId)->get()->each(function ($user) {
+                    $user->roles()->detach();
+                    $user->permissions()->detach();
+                    if (Schema::hasTable('students')) {
+                        \App\Student::withTrashed()->where('user_id', $user->id)->forceDelete();
+                    }
+                    $user->forceDelete();
+                });
+
+                if (Schema::hasTable('students')) {
+                    \App\Student::withTrashed()->where('institution_id', $institutionId)->forceDelete();
+                }
+
+                // Academic data (children before parents to satisfy FKs).
+                if (Schema::hasTable('program_subjects')) {
+                    \App\ProgramSubject::where('institution_id', $institutionId)->forceDelete();
+                }
+
+                \App\Programme::where('institution_id', $institutionId)->get()->each(function ($programme) {
+                    if (Schema::hasTable('programme_semester_subjects')) {
+                        DB::table('programme_semester_subjects')
+                            ->whereIn('programme_semester_id', \App\ProgrammeSemester::where('programme_id', $programme->id)->pluck('id'))
+                            ->delete();
+                    }
+                    \App\ProgrammeSemester::where('programme_id', $programme->id)->forceDelete();
+                    if (class_exists(\App\ProgrammeLevel::class)) {
+                        \App\ProgrammeLevel::where('programme_id', $programme->id)->forceDelete();
+                    }
+                    if (Schema::hasTable('programme_required_documents')) {
+                        DB::table('programme_required_documents')->where('programme_id', $programme->id)->delete();
+                    }
+                    if (Schema::hasTable('admission_agreements')) {
+                        DB::table('admission_agreements')->where('programme_id', $programme->id)->delete();
+                    }
+                    $programme->forceDelete();
+                });
+
+                \App\Subject::where('institution_id', $institutionId)->forceDelete();
+                \App\Department::where('institution_id', $institutionId)->forceDelete();
+                \App\AcademicUnit::where('institution_id', $institutionId)->forceDelete();
+                if (class_exists(\App\AcademicYear::class)) {
+                    \App\AcademicYear::where('institution_id', $institutionId)->forceDelete();
+                }
+
+                DB::table('institution_modules')->where('institution_id', $institutionId)->delete();
+                if (Schema::hasTable('institution_settings')) {
+                    DB::table('institution_settings')->where('institution_id', $institutionId)->delete();
+                }
+
+                $institution->forceDelete();
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Unable to fully delete institution. It still has linked records.',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Institution deleted permanently.']);
+    }
+
+    public function getSettings($id)
+    {
+        $institution = Institution::findOrFail($id);
+        $settings = InstitutionSetting::firstOrCreate(['institution_id' => $institution->id]);
+
+        return response()->json($settings);
+    }
+
+    public function updateSettings(Request $request, $id)
+    {
+        $institution = Institution::findOrFail($id);
+
+        $normalized = $this->normalizeJsonArrayFields($request->all(), [
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ]);
+
+        $validator = Validator::make($normalized, [
+            'academic_structure' => 'nullable|array',
+            'fee_structure' => 'nullable|array',
+            'grading_system' => 'nullable|array',
+            'academic_calendar' => 'nullable|array',
+            'payment_settings' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $settingsPayload = collect($normalized)->only([
+            'academic_structure',
+            'fee_structure',
+            'grading_system',
+            'academic_calendar',
+            'payment_settings',
+        ])->filter(function ($value) {
+            return $value !== null;
+        })->all();
+
+        $settings = InstitutionSetting::updateOrCreate(
+            ['institution_id' => $institution->id],
+            $settingsPayload
+        );
+
+        return response()->json([
+            'message' => 'Institution settings updated successfully.',
+            'settings' => $settings,
+        ]);
+    }
+
+    public function uploadLogo(Request $request, $id)
+    {
+        return $this->uploadFiles($request, $id, 'logo');
+    }
+
+    public function uploadLetterhead(Request $request, $id)
+    {
+        return $this->uploadFiles($request, $id, 'letterhead');
+    }
+
+    public function uploadSignature(Request $request, $id)
+    {
+        return $this->uploadFiles($request, $id, 'registrar_signature');
+    }
+
+    public function uploadFooter(Request $request, $id)
+    {
+        return $this->uploadFiles($request, $id, 'footer');
+    }
+
+    public function uploadFiles(Request $request, $id, $type = null)
+    {
+        $institution = Institution::findOrFail($id);
+
+        $allowed = ['logo', 'letterhead', 'footer', 'registrar_signature'];
+        if (! $type || ! in_array($type, $allowed, true)) {
+            return response()->json(['message' => 'Invalid upload type.'], 422);
+        }
+
+        $rules = [
+            'logo' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'letterhead' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'footer' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'registrar_signature' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
+        ];
+
+        $validator = Validator::make($request->all(), [
+            'file' => $rules[$type],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $newPath = "institutions/{$institution->id}/{$type}.{$extension}";
+        $oldPath = $institution->{$type};
+
+        // Delete previous file only when the stored path changes — never after storeAs,
+        // or re-uploading to the same path (e.g. logo.png) deletes the file just written.
+        if ($oldPath && $oldPath !== $newPath) {
+            $this->deleteOldPublicFile($oldPath);
+        }
+
+        $path = $file->storeAs("institutions/{$institution->id}", "{$type}.{$extension}", 'public');
+
+        $institution->{$type} = $path;
+        $institution->save();
+
+        $institution = $institution->fresh();
+        $urlKey = $type . '_url';
+        $path = $institution->{$type};
+
+        return response()->json([
+            'message' => 'File uploaded successfully.',
+            'path' => $path,
+            'url' => LetterAssetHelper::url($path, $request) ?: $institution->{$urlKey},
+        ]);
+    }
+
+    private function handleBrandUploads(Request $request, Institution $institution)
+    {
+        foreach (['logo', 'letterhead', 'footer', 'registrar_signature'] as $field) {
+            if (! $request->hasFile($field)) {
+                continue;
+            }
+
+            $file = $request->file($field);
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $newPath = "institutions/{$institution->id}/{$field}.{$extension}";
+            $oldPath = $institution->{$field};
+
+            if ($oldPath && $oldPath !== $newPath) {
+                $this->deleteOldPublicFile($oldPath);
+            }
+
+            $path = $file->storeAs("institutions/{$institution->id}", "{$field}.{$extension}", 'public');
+
+            $institution->{$field} = $path;
+            $legacyField = $field . '_path';
+            if (array_key_exists($legacyField, $institution->getAttributes())) {
+                $institution->{$legacyField} = $path;
+            }
+        }
+
+        $institution->save();
+    }
+
+    private function deleteOldPublicFile($path)
+    {
+        if (! $path) {
+            return;
+        }
+
+        try {
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+    }
+}

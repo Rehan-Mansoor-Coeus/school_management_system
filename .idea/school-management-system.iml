@@ -96,6 +96,8 @@
       <excludeFolder url="file://$MODULE_DIR$/backend-laravel/vendor/theseer/tokenizer" />
       <excludeFolder url="file://$MODULE_DIR$/backend-laravel/vendor/tijsverkoyen/css-to-inline-styles" />
       <excludeFolder url="file://$MODULE_DIR$/backend-laravel/vendor/vlucas/phpdotenv" />
+      <excludeFolder url="file://$MODULE_DIR$/backend-laravel/storage/app" />
+      <excludeFolder url="file://$MODULE_DIR$/backend-laravel/storage/framework" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

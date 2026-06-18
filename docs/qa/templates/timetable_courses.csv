@@ -1,0 +1,4 @@
+code,name,subject_code,department_code,programme_code,semester_name,credit_hours,contact_hours,practical_hours,laboratory_hours,is_active
+CSC101,Introduction to Programming,CSC101,CS,BCS,Semester 1,3,45,15,0,true
+CSC102,Discrete Mathematics,CSC102,CS,BCS,Semester 1,3,45,0,0,true
+MAT201,Calculus II,MAT201,MATH,BMATH,Semester 1,4,60,0,0,true

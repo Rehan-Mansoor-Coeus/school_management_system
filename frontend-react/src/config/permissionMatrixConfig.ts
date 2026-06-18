@@ -1,0 +1,242 @@
+export type PermissionAction = 'view' | 'edit' | 'delete'
+
+/** Permission names that grant a cell when assigned to a role. */
+export type PermissionCell = string[]
+
+export type MatrixRow = {
+  id: string
+  label: string
+  view?: PermissionCell
+  edit?: PermissionCell
+  delete?: PermissionCell
+}
+
+export type MatrixSection = {
+  id: string
+  label: string
+  rows: MatrixRow[]
+}
+
+function row(id: string, label: string, view: PermissionCell, edit: PermissionCell, del: PermissionCell): MatrixRow {
+  return { id, label, view, edit, delete: del }
+}
+
+export const permissionMatrixSections: MatrixSection[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    rows: [
+      row('dashboard', 'Dashboard', ['users.view', 'view_users'], ['users.edit', 'edit_users'], ['users.delete', 'delete_users']),
+    ],
+  },
+  {
+    id: 'access_control',
+    label: 'Access Control',
+    rows: [
+      row('users', 'Users', ['users.view', 'view_users'], ['users.create', 'users.edit', 'create_users', 'edit_users', 'manage_users'], ['users.delete', 'delete_users']),
+      row('roles_permissions', 'Roles & Permissions', ['roles.view', 'view_roles', 'permissions.view', 'view_permissions'], ['roles.create', 'roles.edit', 'roles.manage', 'create_roles', 'edit_roles', 'manage_roles', 'permissions.create', 'permissions.edit', 'assign_permissions'], ['roles.delete', 'delete_roles', 'permissions.delete']),
+      row('modules', 'Module Settings', ['modules.view'], ['modules.manage'], ['modules.manage']),
+    ],
+  },
+  {
+    id: 'operations_employee',
+    label: 'Operations — Time Sheet Employee',
+    rows: [
+      row('ts_create_activity', 'Create Activity', ['view_timesheet_menu', 'timesheets.view_own'], ['create_timesheet_activity', 'timesheets.create_entry'], ['delete_own_timesheet']),
+      row('ts_fill', 'Fill Time Sheet', ['fill_timesheet', 'timesheets.view_own'], ['fill_timesheet', 'timesheets.create_entry', 'edit_own_timesheet'], ['delete_own_timesheet']),
+      row('ts_working_week', 'Working Week', ['manage_own_working_week'], ['manage_own_working_week', 'timesheets.manage'], ['delete_own_timesheet', 'timesheets.manage']),
+    ],
+  },
+  {
+    id: 'operations_admin',
+    label: 'Operations — Time Sheet Admin',
+    rows: [
+      row('ts_report', 'Time Sheet Report', ['view_timesheet_reports', 'timesheets.report', 'timesheets.view_timesheet_reports'], ['export_timesheet_reports'], []),
+      row('ts_overtime', 'Overtime Report', ['view_overtime_reports'], ['export_overtime_reports'], []),
+      row('ts_manage_all', 'Manage All', ['view_all_timesheets', 'timesheets.review'], ['approve_timesheets', 'timesheets.approve_timesheets'], ['reject_timesheets', 'timesheets.reject_timesheets', 'timesheets.manage']),
+      row('ts_categories', 'Categories', ['manage_timesheet_categories', 'timesheets.manage'], ['manage_timesheet_categories'], ['manage_timesheet_categories', 'timesheets.manage']),
+    ],
+  },
+  {
+    id: 'announcements',
+    label: 'Announcements',
+    rows: [
+      row('ann_create', 'Create Announcement', ['view_announcements'], ['create_announcements'], ['manage_announcement_recipients', 'send_announcements']),
+      row('ann_templates', 'Announcement Templates', ['view_announcements'], ['create_announcements', 'send_announcements'], ['manage_announcement_recipients', 'send_announcements']),
+      row('ann_list', 'Announcement List', ['view_announcements'], ['send_announcements', 'schedule_announcements', 'manage_announcement_recipients'], ['manage_announcement_recipients', 'send_announcements']),
+      row('ann_scheduled', 'Scheduled Announcements', ['view_announcements'], ['schedule_announcements'], ['schedule_announcements', 'send_announcements']),
+      row('ann_message_logs', 'Message Logs', ['view_announcements', 'view_letters_menu'], ['send_announcements'], ['send_announcements']),
+      row('ann_whatsapp', 'WhatsApp Settings', ['view_announcements'], ['send_whatsapp_announcements', 'manage_letter_settings'], ['manage_letter_settings']),
+    ],
+  },
+  {
+    id: 'letters',
+    label: 'Letters & Messaging',
+    rows: [
+      row('ltr_settings', 'Letter Settings', ['view_letters_menu'], ['manage_letter_settings'], ['manage_letter_settings']),
+      row('ltr_categories', 'Letter Categories', ['view_letters_menu'], ['manage_letter_categories'], ['manage_letter_categories']),
+      row('ltr_listing', 'Letter Listing', ['view_letters_menu'], ['create_letters', 'edit_letters'], ['delete_letters']),
+      row('ltr_create', 'Create Letter', ['view_letters_menu'], ['create_letters'], ['delete_letters']),
+      row('ltr_pending', 'Pending Letters', ['view_letters_menu', 'view_awaiting_editing', 'view_awaiting_approval', 'view_awaiting_signature'], ['edit_awaiting_letters', 'approve_letters', 'reject_letters'], ['delete_letters', 'reject_letters']),
+      row('ltr_workflow', 'Awaiting Editing / Approval / Signature', ['view_awaiting_editing', 'view_awaiting_approval', 'view_awaiting_signature'], ['edit_awaiting_letters', 'forward_letter_to_approver', 'forward_letter_to_signer', 'approve_letters', 'sign_letters'], ['delete_letters', 'reject_letters']),
+      row('ltr_send', 'Ready to Send / Sent', ['view_ready_to_send_letters', 'view_sent_letters'], ['send_letters', 'bulk_send_letters'], ['delete_letters']),
+      row('ltr_print', 'Print / Download', ['print_letters', 'download_letters'], ['print_letters', 'download_letters'], ['delete_letters']),
+      row('ltr_templates', 'Letter Templates', ['view_letters_menu'], ['manage_letter_templates'], ['manage_letter_templates']),
+    ],
+  },
+  {
+    id: 'library',
+    label: 'Library',
+    rows: [
+      row('lib_dashboard', 'Library Dashboard', ['view_library_reports', 'view_library_menu'], ['manage_library_settings'], ['manage_library_settings']),
+      row('lib_categories', 'Book Categories', ['view_library_menu'], ['manage_book_categories'], ['manage_book_categories']),
+      row('lib_register', 'Register Book', ['view_books', 'view_library_menu'], ['register_books'], ['manage_book_copies']),
+      row('lib_copies', 'Book Copies', ['view_books'], ['manage_book_copies'], ['manage_book_copies']),
+      row('lib_borrow', 'Borrow a Book', ['borrow_books'], ['borrow_books'], ['reject_borrow_requests']),
+      row('lib_requests', 'Borrow Requests', ['view_own_borrow_requests', 'approve_borrow_requests'], ['approve_borrow_requests', 'reject_borrow_requests', 'issue_books'], ['reject_borrow_requests']),
+      row('lib_borrowed', 'Borrowed Books', ['view_borrowed_books'], ['return_books'], ['return_books']),
+      row('lib_due', 'Due for Return', ['view_due_for_return'], ['send_library_reminders'], ['manage_library_fines']),
+      row('lib_overdue', 'Overdue Books', ['view_overdue_books'], ['manage_library_fines'], ['manage_library_fines']),
+      row('lib_fines', 'Fines Management', ['manage_library_fines'], ['manage_library_fines'], ['manage_library_fines']),
+      row('lib_frequent', 'Frequently Signed', ['view_frequently_signed_books'], ['view_library_reports'], ['manage_library_settings']),
+      row('lib_history', 'Borrowing History', ['view_own_borrow_requests', 'view_library_reports'], ['view_library_reports'], ['manage_library_settings']),
+      row('lib_settings', 'Library Settings', ['view_library_menu'], ['manage_library_settings'], ['manage_library_settings']),
+    ],
+  },
+  {
+    id: 'academics',
+    label: 'Academics',
+    rows: [
+      row('ac_institutions', 'Institutions', ['institutions.view'], ['institutions.create', 'institutions.edit', 'institutions.settings'], ['institutions.delete']),
+      row('ac_departments', 'Departments', ['academics.view', 'academics.departments.view'], ['academics.manage', 'academics.departments.create', 'academics.departments.edit'], ['academics.delete', 'academics.departments.delete']),
+      row('ac_programmes', 'Programmes', ['academics.view', 'academics.programs.view'], ['academics.manage', 'academics.programs.create', 'academics.programs.edit'], ['academics.delete', 'academics.programs.delete']),
+      row('ac_subjects', 'Subjects', ['academics.view', 'academics.subjects.view'], ['academics.manage', 'academics.subjects.create', 'academics.subjects.edit'], ['academics.delete', 'academics.subjects.delete']),
+      row('ac_admissions', 'Admissions', ['admissions.view', 'admissions.apply'], ['admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.courses.register', 'admissions.hod.approve'], ['admissions.manage']),
+      row('ac_certificates', 'Character Certificates', ['character_certificates.view'], ['character_certificates.manage', 'character_certificates.issue', 'character_certificates.finance_clear', 'character_certificates.library_clear'], ['character_certificates.manage']),
+    ],
+  },
+  {
+    id: 'timetable',
+    label: 'Timetable & Courses',
+    rows: [
+      row('tt_courses', 'Course Management', ['timetable.courses.view', 'timetable.view', 'timetable.manage'], ['timetable.courses.manage', 'timetable.manage'], ['timetable.courses.manage', 'timetable.delete', 'timetable.manage']),
+      row('tt_assignments', 'Course Assignment', ['timetable.assignments.view', 'timetable.view', 'timetable.manage'], ['timetable.assignments.manage', 'timetable.manage'], ['timetable.assignments.manage', 'timetable.manage']),
+      row('tt_classrooms', 'Classroom Management', ['timetable.classrooms.view', 'timetable.manage'], ['timetable.classrooms.manage', 'timetable.manage'], ['timetable.classrooms.manage', 'timetable.manage']),
+      row('tt_availability', 'Teacher Availability', ['timetable.availability.view', 'timetable.manage'], ['timetable.availability.manage', 'timetable.manage'], ['timetable.availability.manage', 'timetable.manage']),
+      row('tt_workload', 'Teacher Workload', ['timetable.workload.view', 'timetable.view', 'timetable.manage'], ['timetable.manage'], ['timetable.manage']),
+      row('tt_schedule', 'Timetable', ['timetable.view', 'timetable.manage'], ['timetable.create', 'timetable.edit', 'timetable.generate', 'timetable.approve', 'timetable.manage'], ['timetable.delete', 'timetable.manage']),
+      row('tt_lessons', 'Lesson Logging', ['timetable.lessons.view', 'timetable.lessons.log', 'timetable.manage'], ['timetable.lessons.log', 'timetable.manage'], ['timetable.lessons.log', 'timetable.manage']),
+      row('tt_reports', 'Timetable Reports', ['timetable.reports.view', 'timetable.view', 'timetable.manage'], ['timetable.manage'], ['timetable.manage']),
+      row('tt_student', 'Student Timetable', ['timetable.student.view'], ['timetable.manage'], ['timetable.manage']),
+      row('tt_settings', 'Settings', ['timetable.settings.manage', 'timetable.manage'], ['timetable.settings.manage', 'timetable.manage'], ['timetable.settings.manage', 'timetable.manage']),
+    ],
+  },
+  {
+    id: 'modules',
+    label: 'Modules',
+    rows: [
+      row('mod_attendance', 'Attendance', ['attendance.view'], ['attendance.manage'], ['attendance.manage']),
+      row('mod_results', 'Results', ['results.view'], ['results.manage'], ['results.manage']),
+      row('mod_fees', 'Fees & Payments', ['fees.view'], ['fees.manage'], ['fees.manage']),
+      row('mod_hr', 'HR & Payroll', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('mod_tasks', 'Task Manager', ['tasks.view'], ['tasks.create', 'tasks.manage', 'tasks.assign'], ['tasks.manage']),
+      row('mod_hostel', 'Hostel', ['hostel.view'], ['hostel.manage', 'hostel.allocate', 'hostel.payments'], ['hostel.manage']),
+      row('mod_canteen', 'Canteen', ['canteen.view'], ['canteen.manage', 'canteen.verify'], ['canteen.manage']),
+      row('mod_contracts', 'Contract Management', ['contracts.view'], ['contracts.generate', 'contracts.send', 'contracts.approve'], ['contracts.manage']),
+    ],
+  },
+  {
+    id: 'document_workflow',
+    label: 'Document Workflow',
+    rows: [
+      row('dw_dashboard', 'Dashboard', ['documents.view', 'documents.manage'], ['documents.edit', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_documents', 'Documents', ['documents.view', 'documents.manage'], ['documents.create', 'documents.edit', 'documents.generate', 'documents.send', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_templates', 'Templates', ['documents.view', 'documents.templates.manage', 'documents.manage'], ['documents.templates.manage', 'documents.edit', 'documents.manage'], ['documents.templates.manage', 'documents.delete', 'documents.manage']),
+      row('dw_types', 'Document Types', ['documents.types.view', 'documents.view', 'documents.manage'], ['documents.types.manage', 'documents.edit', 'documents.manage'], ['documents.types.manage', 'documents.delete', 'documents.manage']),
+      row('dw_generate', 'Generate Document', ['documents.generate', 'documents.manage'], ['documents.generate', 'documents.edit', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_signatures', 'Pending Signatures', ['documents.view', 'documents.manage'], ['documents.send', 'documents.edit', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_approvals', 'Pending Approvals', ['documents.view', 'documents.approve', 'documents.manage'], ['documents.approve', 'documents.reject', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_completed', 'Completed Documents', ['documents.view', 'documents.manage'], ['documents.download', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_expired', 'Expired Documents', ['documents.view', 'documents.manage'], ['documents.renew', 'documents.edit', 'documents.manage'], ['documents.delete', 'documents.manage']),
+      row('dw_settings', 'Settings', ['documents.settings.manage', 'documents.manage'], ['documents.settings.manage', 'documents.manage'], ['documents.settings.manage', 'documents.manage']),
+    ],
+  },
+  {
+    id: 'contracts',
+    label: 'Contract Management',
+    rows: [
+      row('ctr_dashboard', 'Contract Dashboard', ['contracts.view'], ['contracts.manage'], ['contracts.manage']),
+      row('ctr_list', 'All Contracts', ['contracts.view'], ['contracts.create', 'contracts.generate'], ['contracts.manage']),
+      row('ctr_templates', 'Contract Templates', ['contracts.templates.manage', 'contracts.manage'], ['contracts.templates.manage'], ['contracts.manage']),
+      row('ctr_generate', 'Generate Contracts', ['contracts.generate', 'contracts.manage'], ['contracts.generate'], ['contracts.manage']),
+      row('ctr_send', 'Send Contracts', ['contracts.send', 'contracts.manage'], ['contracts.send'], ['contracts.manage']),
+      row('ctr_approve', 'Approve Contracts', ['contracts.approve', 'contracts.manage'], ['contracts.approve'], ['contracts.manage']),
+      row('ctr_reject', 'Reject Contracts', ['contracts.reject', 'contracts.manage'], ['contracts.reject'], ['contracts.manage']),
+      row('ctr_renew', 'Renew Contracts', ['contracts.renew', 'contracts.manage'], ['contracts.renew'], ['contracts.manage']),
+      row('ctr_download', 'Download Contracts', ['contracts.download', 'contracts.manage'], ['contracts.download'], ['contracts.manage']),
+    ],
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    rows: [
+      row('rpt_students', 'Student Report', ['reports.view', 'reports.students.view'], ['reports.students.export'], ['reports.manage']),
+    ],
+  },
+  {
+    id: 'tasks',
+    label: 'Task Manager',
+    rows: [
+      row('tsk_dashboard', 'Task Dashboard', ['tasks.view'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_list', 'All Tasks', ['tasks.view'], ['tasks.create', 'tasks.manage'], ['tasks.manage']),
+      row('tsk_create', 'Create Task', ['tasks.create', 'tasks.manage'], ['tasks.create', 'tasks.manage'], ['tasks.manage']),
+      row('tsk_scheduled', 'Scheduled Tasks', ['tasks.view', 'tasks.manage'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_settings', 'Task Settings', ['tasks.manage'], ['tasks.manage'], ['tasks.manage']),
+      row('tsk_my', 'My Tasks', ['tasks.view', 'tasks.assign'], ['tasks.assign'], ['tasks.manage']),
+      row('tsk_pending', 'Pending Acceptances', ['tasks.view', 'tasks.assign'], ['tasks.assign'], ['tasks.manage']),
+    ],
+  },
+  {
+    id: 'hr_payroll',
+    label: 'HR & Payroll',
+    rows: [
+      row('hr_staff', 'Staff', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_jobs', 'Job Payroll', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_monthly', 'Monthly Payroll', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_approvals', 'Payroll Approvals', ['hr.view', 'hr.payroll.approve'], ['hr.payroll.approve', 'hr.manage'], ['hr.manage']),
+      row('hr_finance', 'Finance Payments', ['hr.view', 'hr.finance'], ['hr.finance', 'hr.manage'], ['hr.manage']),
+      row('hr_payslips', 'Payslips', ['hr.view'], ['hr.manage'], ['hr.manage']),
+      row('hr_letters', 'HR Letters', ['hr.view'], ['hr.manage'], ['hr.manage']),
+    ],
+  },
+]
+
+export function allMatrixPermissionNames(): string[] {
+  const names = new Set<string>()
+  for (const section of permissionMatrixSections) {
+    for (const r of section.rows) {
+      for (const action of ['view', 'edit', 'delete'] as PermissionAction[]) {
+        r[action]?.forEach((n) => names.add(n))
+      }
+    }
+  }
+  return [...names]
+}
+
+export function sectionPermissionNames(section: MatrixSection): string[] {
+  const names = new Set<string>()
+  for (const r of section.rows) {
+    for (const action of ['view', 'edit', 'delete'] as PermissionAction[]) {
+      r[action]?.forEach((n) => names.add(n))
+    }
+  }
+  return [...names]
+}
+
+export function rowPermissionNames(r: MatrixRow): string[] {
+  const names = new Set<string>()
+  for (const action of ['view', 'edit', 'delete'] as PermissionAction[]) {
+    r[action]?.forEach((n) => names.add(n))
+  }
+  return [...names]
+}

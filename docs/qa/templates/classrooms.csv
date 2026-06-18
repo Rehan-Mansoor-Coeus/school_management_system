@@ -1,0 +1,5 @@
+name,building,capacity,room_type,is_active
+Room A2,Main Block,60,lecture_hall,true
+Lab 1,ICT Block,40,computer_lab,true
+Workshop 1,Engineering Block,30,workshop,true
+Seminar Room 1,Library Block,25,seminar_room,true

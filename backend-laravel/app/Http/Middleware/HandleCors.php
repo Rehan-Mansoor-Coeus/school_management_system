@@ -6,25 +6,37 @@ use Closure;
 
 class HandleCors
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
-     * @return mixed
-     */
+    protected function allowedOrigins(): array
+    {
+        $raw = env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,http://10.110.4.223:5173');
+
+        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+    }
+
     public function handle($request, Closure $next)
     {
-        $origin = $request->headers->get('Origin') ?: '*';
+        $requestOrigin = $request->headers->get('Origin');
+        $allowed = $this->allowedOrigins();
+
+        $allowOrigin = '*';
+        if ($requestOrigin && in_array($requestOrigin, $allowed, true)) {
+            $allowOrigin = $requestOrigin;
+        } elseif ($requestOrigin && config('app.debug')) {
+            // Local dev fallback: reflect any localhost / LAN vite origin
+            if (preg_match('#^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+)(:\d+)?$#', $requestOrigin)) {
+                $allowOrigin = $requestOrigin;
+            }
+        }
+
         $headers = [
-            'Access-Control-Allow-Origin' => $origin,
+            'Access-Control-Allow-Origin' => $allowOrigin,
             'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept',
-            'Access-Control-Allow-Credentials' => 'true',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Cache-Control, Pragma',
+            'Access-Control-Max-Age' => '86400',
         ];
 
         if ($request->getMethod() === 'OPTIONS') {
-            return response()->json('OK', 200, $headers);
+            return response('', 204, $headers);
         }
 
         $response = $next($request);

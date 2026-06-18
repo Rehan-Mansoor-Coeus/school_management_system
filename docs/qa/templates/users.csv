@@ -1,0 +1,11 @@
+name,email,username,phone_number,password,role,institution_code,status
+Super Admin,admin@uatu.test,uatadmin,+237600000001,Admin@123,super-admin,UATU,active
+Registrar User,registrar@uatu.test,uatregistrar,+237600000002,Reg@12345,registrar,UATU,active
+Admission Officer,registry@uatu.test,uatregistry,+237600000003,Adm@12345,registry,UATU,active
+Finance Officer,finance@uatu.test,uatfinance,+237600000004,Fin@12345,finance-officer,UATU,active
+Dean User,dean@uatu.test,uatdean,+237600000005,Dean@1234,dean,UATU,active
+HOD User,hod@uatu.test,uathod,+237600000006,Hod@12345,hod,UATU,active
+Course Master,coursemaster@uatu.test,uatcm,+237600000007,Crs@12345,course-master,UATU,active
+Teacher One,teacher1@uatu.test,uatteacher1,+237600000008,Tch@12345,teacher,UATU,active
+Teacher Two,teacher2@uatu.test,uatteacher2,+237600000009,Tch@12345,teacher,UATU,active
+Student One,student1@uatu.test,uatstudent1,+237600000010,Std@12345,student,UATU,active
