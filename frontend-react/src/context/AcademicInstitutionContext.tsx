@@ -55,11 +55,18 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
     fetchInstitutions({ per_page: 500 })
       .then((res) => {
         const rows = res.data?.data || res.data || []
-        setInstitutions(Array.isArray(rows) ? rows : [])
-        if (!institutionId && rows.length > 0) {
-          const firstId = assignedId || rows[0].id
-          setInstitutionIdState(firstId)
-          sessionStorage.setItem(STORAGE_KEY, String(firstId))
+        const list = Array.isArray(rows) ? rows : []
+        setInstitutions(list)
+        if (list.length > 0) {
+          const validIds = list.map((r) => r.id)
+          // If nothing is selected, or the current/home institution no longer
+          // exists (e.g. it was deleted), fall back to a valid institution so
+          // the academics screens don't break.
+          if (!institutionId || !validIds.includes(institutionId)) {
+            const firstId = assignedId && validIds.includes(assignedId) ? assignedId : list[0].id
+            setInstitutionIdState(firstId)
+            sessionStorage.setItem(STORAGE_KEY, String(firstId))
+          }
         }
       })
       .catch(() => setInstitutions([]))
