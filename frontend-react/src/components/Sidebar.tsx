@@ -150,12 +150,15 @@ export default function Sidebar() {
     permissions: ['documents.view', 'documents.manage', 'documents.generate', 'documents.types.view', 'documents.templates.manage'],
   })
   const timetablePermissions = MODULE_MENU_PERMISSIONS.timetable
-  const showTimetable = safeEnabledModules.includes('timetable') && (
+  const canViewTimetable =
     isAdmin() ||
     userRoles.includes('super-admin') ||
     userRoles.includes('system-super-admin') ||
     hasAnyPermission(timetablePermissions)
-  )
+  // Admins with timetable access should see the menu even if cached enabled_modules is stale.
+  const showTimetable =
+    canViewTimetable &&
+    (safeEnabledModules.includes('timetable') || isAdmin() || userRoles.includes('super-admin') || userRoles.includes('system-super-admin'))
   const timetableActive = location.pathname.startsWith('/timetable')
   const showOperations = showTimesheetEmployee || showTimesheetAdmin || showTaskManager
 
@@ -216,6 +219,17 @@ export default function Sidebar() {
         {navItems.map((item) => (
           <SidebarLink key={item.path} item={item} />
         ))}
+
+        {showTimetable && (
+          <NavLink to="/timetable" className={() => linkClass(timetableActive)}>
+            {() => (
+              <>
+                <CalendarDays className={iconClass(timetableActive)} aria-hidden="true" />
+                <span className="truncate">Time Table</span>
+              </>
+            )}
+          </NavLink>
+        )}
 
         {showAccessControl && (
           <>
@@ -442,17 +456,6 @@ export default function Sidebar() {
               </div>
             )}
           </>
-        )}
-
-        {showTimetable && (
-          <NavLink to="/timetable" className={() => linkClass(timetableActive)}>
-            {() => (
-              <>
-                <CalendarDays className={iconClass(timetableActive)} aria-hidden="true" />
-                <span className="truncate">Time Table</span>
-              </>
-            )}
-          </NavLink>
         )}
 
         {showLibrary && (
