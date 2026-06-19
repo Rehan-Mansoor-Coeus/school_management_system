@@ -7,6 +7,7 @@ use App\Institution;
 use App\Role;
 use App\User;
 use App\Services\Messaging\AuthOtpService;
+use App\Support\ProtectedSystemAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -306,9 +307,28 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
-        if (! $user->api_token) {
-            $user->api_token = Str::random(60);
-            $user->save();
+
+        if ($user->status === 'inactive') {
+            Auth::logout();
+
+            return response()->json(['message' => 'This account is inactive. Contact your administrator.'], 403);
+        }
+
+        if ($user->trashed()) {
+            Auth::logout();
+
+            return response()->json(['message' => 'Invalid credentials.'], 401);
+        }
+
+        // Issue a fresh API token on every login so stale browser tokens cannot linger.
+        $user->api_token = Str::random(60);
+        $user->save();
+
+        if (ProtectedSystemAccounts::isProtected($user)) {
+            $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
+            if ($superAdmin && ! $user->hasRole($superAdmin)) {
+                $user->assignRole($superAdmin);
+            }
         }
 
         return response()->json(array_merge([

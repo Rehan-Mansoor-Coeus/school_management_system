@@ -7,7 +7,7 @@ export type AuthProfile = {
   institution: Record<string, unknown> | null
 }
 
-const AUTH_TIMEOUT_MS = 12_000
+const AUTH_TIMEOUT_MS = 30_000
 
 export function readCachedProfile(): AuthProfile {
   const readJson = <T,>(key: string, fallback: T): T => {

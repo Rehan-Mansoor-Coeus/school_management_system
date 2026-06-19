@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: (import.meta as any).env?.VITE_API_BASE || '/api',
-  timeout: 12_000,
+  timeout: 30_000,
   headers: {
     Accept: 'application/json',
   },
@@ -28,8 +28,14 @@ api.interceptors.response.use(
     const url = String(error?.config?.url || '')
     const hasResponse = Boolean(error?.response)
 
-    // Only treat explicit 401 from the API as session expiry — not network/timeout/HTML errors.
-    if (hasResponse && status === 401 && !url.includes('/auth/login') && !url.includes('/auth/user')) {
+    const message = String(error?.response?.data?.message || '')
+    const isSessionExpired =
+      hasResponse &&
+      status === 401 &&
+      (!message || /unauthenticated/i.test(message)) &&
+      !url.includes('/auth/login')
+
+    if (isSessionExpired) {
       localStorage.removeItem('token')
       delete api.defaults.headers.common['Authorization']
 

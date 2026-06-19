@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\People\Concerns;
 
 use App\Role;
 use App\User;
+use App\Support\ProtectedSystemAccounts;
 use App\Services\UserAccountNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -218,12 +219,22 @@ trait HandlesUserPeopleCrud
         $users = $this->baseQuery($this->institutionId($request))->whereIn('id', $ids)->get();
 
         $deleted = 0;
+        $skipped = 0;
         foreach ($users as $user) {
+            if (ProtectedSystemAccounts::isProtected($user)) {
+                $skipped++;
+                continue;
+            }
             $this->hardDeleteUser($user);
             $deleted++;
         }
 
-        return response()->json(['message' => "{$deleted} record(s) deleted.", 'deleted' => $deleted]);
+        $message = "{$deleted} record(s) deleted.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} protected system account(s) skipped.";
+        }
+
+        return response()->json(['message' => $message, 'deleted' => $deleted, 'skipped' => $skipped]);
     }
 
     /**

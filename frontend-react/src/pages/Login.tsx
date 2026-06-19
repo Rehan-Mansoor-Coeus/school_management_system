@@ -17,6 +17,7 @@ import {
   persistProfile,
   profileFromAuthResponse,
 } from '../utils/authSession'
+import { formatApiError } from '../utils/apiError'
 import { FormField, formInputClass } from '../components/ui/FormField'
 
 const systemFeatures = [
@@ -119,18 +120,7 @@ export default function LoginPage() {
         ? Object.values(data.errors).flat().join(' ')
         : null
 
-      setError(
-        validation ||
-          data?.message ||
-          (apiErr?.code === 'ECONNABORTED'
-            ? 'API server timed out. Is Laravel running on port 8000?'
-            : null) ||
-          (apiErr?.message === 'Network Error'
-            ? 'Cannot reach API server. Run: php artisan serve'
-            : null) ||
-          apiErr?.message ||
-          'Login failed',
-      )
+      setError(formatApiError(err, 'Login failed'))
     } finally {
       setSubmitting(false)
     }

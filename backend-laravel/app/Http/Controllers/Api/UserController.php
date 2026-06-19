@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Role;
 use App\User;
 use App\Support\PhoneNumberGuard;
+use App\Support\ProtectedSystemAccounts;
 use App\Services\UserAccountNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -92,6 +93,11 @@ class UserController extends Controller
     {
         $this->authorizeUserAccess($request, $user);
 
+        if (ProtectedSystemAccounts::isProtected($user) && $request->filled('email')
+            && strtolower(trim((string) $request->email)) !== strtolower(trim((string) $user->email))) {
+            return response()->json(['message' => 'This system account email cannot be changed.'], 422);
+        }
+
         $isPlatformSuperAdmin = $this->isPlatformSuperAdmin($request->user());
 
         $validator = Validator::make($request->all(), [
@@ -135,6 +141,9 @@ class UserController extends Controller
 
         if ($request->filled('roles')) {
             $roles = Role::whereIn('id', $request->roles)->get();
+            if (ProtectedSystemAccounts::isProtected($user)) {
+                $roles = $this->ensurePlatformSuperAdminRole($roles);
+            }
             $user->syncRoles($roles);
         }
 
@@ -147,6 +156,10 @@ class UserController extends Controller
     public function destroy(Request $request, User $user)
     {
         $this->authorizeUserAccess($request, $user);
+
+        if (ProtectedSystemAccounts::isProtected($user)) {
+            return response()->json(['message' => 'This system account cannot be deleted.'], 422);
+        }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
             $user->roles()->detach();
@@ -175,9 +188,27 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->syncRoles(Role::whereIn('id', $request->roles)->get());
+        $roles = Role::whereIn('id', $request->roles)->get();
+        if (ProtectedSystemAccounts::isProtected($user)) {
+            $roles = $this->ensurePlatformSuperAdminRole($roles);
+        }
+        $user->syncRoles($roles);
 
         return response()->json(['message' => 'User roles updated successfully.', 'roles' => $user->roles]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Role>  $roles
+     * @return \Illuminate\Support\Collection<int, Role>
+     */
+    protected function ensurePlatformSuperAdminRole($roles)
+    {
+        $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
+        if ($superAdmin && ! $roles->contains(fn ($role) => (int) $role->id === (int) $superAdmin->id)) {
+            return $roles->push($superAdmin);
+        }
+
+        return $roles;
     }
 
     protected function isPlatformSuperAdmin($user): bool
