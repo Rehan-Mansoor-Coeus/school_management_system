@@ -9,9 +9,10 @@ function unwrap<T>(payload: ApiEnvelope<T> | T): T {
   return payload as T
 }
 
+import { formatApiError } from '../../utils/apiError'
+
 export function formatTimetableError(error: unknown, fallback: string): string {
-  const err = error as { response?: { data?: { message?: string } }; message?: string }
-  return err?.response?.data?.message || err?.message || fallback
+  return formatApiError(error, fallback)
 }
 
 export const DAY_LABELS: Record<number, string> = {
