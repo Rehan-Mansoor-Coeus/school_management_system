@@ -67,7 +67,7 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'multi-token-eloquent',
             'model' => App\User::class,
         ],
 

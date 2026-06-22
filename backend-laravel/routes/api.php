@@ -171,6 +171,8 @@ Route::middleware('auth:api')->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->match(['put', 'post'], 'institutions/{id}', 'Api\InstitutionController@update');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.delete'])->delete('institutions/{id}', 'Api\InstitutionController@destroy');
+    Route::middleware(['module_enabled:academics', 'permission:academics.view'])->get('academic-years', 'Api\AcademicYearController@index');
+    Route::middleware(['module_enabled:academics', 'permission:academics.create'])->post('academic-years', 'Api\AcademicYearController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('departments', 'Api\DepartmentController@index');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.create'])->post('departments', 'Api\DepartmentController@store');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.edit'])->put('departments/{department}', 'Api\DepartmentController@update');

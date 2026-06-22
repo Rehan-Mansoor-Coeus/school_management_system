@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Institution;
 use App\Role;
 use App\User;
+use App\UserApiToken;
 use App\Services\Messaging\AuthOtpService;
 use App\Support\ProtectedSystemAccounts;
 use Illuminate\Http\Request;
@@ -320,8 +321,14 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        // Issue a fresh API token on every login so stale browser tokens cannot linger.
-        $user->api_token = Str::random(60);
+        // Create a new session token so concurrent logins (testing / multiple devices) stay signed in.
+        $plainToken = Str::random(60);
+        UserApiToken::create([
+            'user_id' => $user->id,
+            'token' => $plainToken,
+            'label' => substr((string) $request->userAgent(), 0, 120) ?: null,
+        ]);
+        $user->api_token = $plainToken;
         $user->save();
 
         if (ProtectedSystemAccounts::isProtected($user)) {
@@ -333,17 +340,22 @@ class AuthController extends Controller
 
         return response()->json(array_merge([
             'message' => 'Login successful.',
-            'token' => $user->api_token,
+            'token' => $plainToken,
         ], $this->buildAuthPayload($user)));
     }
 
     public function logout(Request $request)
     {
         $user = $request->user();
+        $token = $request->bearerToken();
 
-        if ($user) {
-            $user->api_token = null;
-            $user->save();
+        if ($user && $token) {
+            UserApiToken::where('user_id', $user->id)->where('token', $token)->delete();
+            if ($user->api_token === $token) {
+                $fallback = UserApiToken::where('user_id', $user->id)->latest('id')->value('token');
+                $user->api_token = $fallback;
+                $user->save();
+            }
         }
 
         return response()->json(['message' => 'Logged out successfully.']);

@@ -3,12 +3,15 @@ import { GraduationCap, ClipboardList, Building2, Wallet, UserCheck, BookOpen } 
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
 import StudentAdmissionsStats from '../components/StudentAdmissionsStats';
+import AdmissionsAdminStats from '../components/AdmissionsAdminStats';
 
 export default function AdmissionsOverviewPage() {
   const { t } = useAdmissionsI18n();
   const { canAccess, hasAnyRole } = useAuth();
   const canViewAllApplications = canAccess({ permissions: ['admissions.view', 'admissions.manage'] });
-  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] });
+  const isPureStudent = hasAnyRole(['student']) && !canViewAllApplications;
+  const showAdminDashboard = canViewAllApplications;
+  const showStudentDashboard = isPureStudent || (hasAnyRole(['student']) && canAccess({ permissions: ['admissions.apply'] }) && !canViewAllApplications);
 
   const steps = [
     { n: 1, titleKey: 'step1Title', descKey: 'step1Desc', icon: GraduationCap },
@@ -29,7 +32,13 @@ export default function AdmissionsOverviewPage() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      {isStudent && (
+      {showAdminDashboard && (
+        <div className="lg:col-span-3">
+          <AdmissionsAdminStats />
+        </div>
+      )}
+
+      {showStudentDashboard && (
         <div className="lg:col-span-3">
           <StudentAdmissionsStats />
         </div>

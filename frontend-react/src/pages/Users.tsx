@@ -44,7 +44,7 @@ interface User {
 
 export default function UsersPage() {
   const { userRoles } = useAuth()
-  const isPlatformSuperAdmin = userRoles.includes('super-admin') || userRoles.includes('system-super-admin')
+  const isPlatformSuperAdmin = userRoles.includes('system-super-admin')
   const [loading, setLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])

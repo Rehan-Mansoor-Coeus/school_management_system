@@ -21,7 +21,7 @@ trait ResolvesScopedInstitution
         }
 
         return $user->roles
-            ->whereIn('name', ['super-admin', 'system-super-admin'])
+            ->whereIn('name', ['system-super-admin'])
             ->isNotEmpty();
     }
 

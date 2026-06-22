@@ -12,6 +12,7 @@ type SearchableSelectProps = {
   placeholder?: string
   emptyLabel?: string
   className?: string
+  disabled?: boolean
 }
 
 export default function SearchableSelect({
@@ -21,6 +22,7 @@ export default function SearchableSelect({
   placeholder = 'Search or select...',
   emptyLabel = 'No matches found',
   className = '',
+  disabled = false,
 }: SearchableSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -63,17 +65,21 @@ export default function SearchableSelect({
         type="text"
         value={open ? query : (selected?.label || query)}
         placeholder={placeholder}
+        disabled={disabled}
+        readOnly={disabled}
         onFocus={() => {
+          if (disabled) return
           setOpen(true)
           setQuery(selected?.label || query)
         }}
         onChange={event => {
+          if (disabled) return
           setQuery(event.target.value)
           setOpen(true)
         }}
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#1e3a5f] focus:ring-2 focus:ring-[#1e3a5f]/15"
+        className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#1e3a5f] focus:ring-2 focus:ring-[#1e3a5f]/15 ${disabled ? 'cursor-not-allowed bg-slate-100 opacity-80' : ''}`}
       />
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-[100] mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
           {filtered.map(option => (
             <button

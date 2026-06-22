@@ -213,7 +213,7 @@ class UserController extends Controller
 
     protected function isPlatformSuperAdmin($user): bool
     {
-        return $user && $user->hasRole(['super-admin', 'system-super-admin']);
+        return $user && $user->hasRole(['system-super-admin']);
     }
 
     protected function scopedInstitutionId(Request $request): ?int

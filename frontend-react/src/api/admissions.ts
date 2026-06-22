@@ -240,6 +240,18 @@ export async function fetchStudentAdmissionsDashboard() {
   };
 }
 
+export async function fetchAdmissionsAdminDashboard() {
+  const { data } = await api.get('/admissions/admin/dashboard');
+  return data.data as {
+    total_applications: number;
+    active_applications: number;
+    enrolled_count: number;
+    pending_fee_count: number;
+    by_status: Record<string, number>;
+    pipeline: Record<string, number>;
+  };
+}
+
 export async function fetchRegistryDashboard() {
   const { data } = await api.get('/admissions/registry/dashboard');
   return data;

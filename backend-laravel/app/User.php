@@ -38,6 +38,11 @@ class User extends Authenticatable
         return $this->belongsTo(Institution::class);
     }
 
+    public function apiTokens()
+    {
+        return $this->hasMany(UserApiToken::class);
+    }
+
     /**
      * The role ids assigned to this user. Exposed so the frontend can keep using
      * `role_ids` while roles remain the single source of truth (Spatie pivot).

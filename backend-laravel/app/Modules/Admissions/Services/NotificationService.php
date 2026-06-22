@@ -28,16 +28,21 @@ class NotificationService
 
     public function sendAdmissionLetter(Application $application, $pdfPath)
     {
+        $application->loadMissing(['applicant.user', 'programme', 'institution']);
         $user = optional($application->applicant)->user;
         $this->sendAdmissionEmail($application, $pdfPath);
         $whatsappResult = $this->sendAdmissionWhatsApp($application, $pdfPath);
-        $this->createInAppNotification(
-            $application->applicant->user_id,
-            $application->institution_id,
-            $this->transForUser('admissions.notify_admission_letter_title', [], $user),
-            $this->transForUser('admissions.notify_admission_letter_body', [], $user),
-            'admission'
-        );
+
+        if ($application->applicant && $application->applicant->user_id) {
+            $this->createInAppNotification(
+                $application->applicant->user_id,
+                $application->institution_id,
+                $this->transForUser('admissions.notify_admission_letter_title', [], $user),
+                $this->transForUser('admissions.notify_admission_letter_body', [], $user),
+                'admission'
+            );
+        }
+
         $application->markAdmissionLetterSent();
 
         return $whatsappResult;

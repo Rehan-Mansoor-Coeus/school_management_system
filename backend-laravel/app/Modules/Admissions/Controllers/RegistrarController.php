@@ -70,37 +70,45 @@ class RegistrarController extends Controller
 
     public function resendAdmissionLetter($applicationId)
     {
-        $application = Application::with(['applicant', 'programme', 'institution'])->findOrFail($applicationId);
+        try {
+            $application = Application::with(['applicant', 'programme', 'institution', 'academicYear'])->findOrFail($applicationId);
 
-        if ((int) $application->institution_id !== $this->institutionId()) {
-            abort(403, $this->transForUser('admissions.unauthorized'));
-        }
+            if ((int) $application->institution_id !== $this->institutionId()) {
+                abort(403, $this->transForUser('admissions.unauthorized'));
+            }
 
-        if (! $application->canResendAdmissionLetter()) {
+            if (! $application->canResendAdmissionLetter()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $this->transForUser('admissions.letter_cannot_resend'),
+                ], 400);
+            }
+
+            $letterPath = (new AdmissionLetterService())->generateAdmissionLetter($application);
+            $delivery = (new NotificationService())->sendAdmissionLetter($application, $letterPath);
+
+            $whatsappOk = (bool) ($delivery['whatsapp_document_sent'] ?? false);
+            $message = $whatsappOk
+                ? $this->transForUser('admissions.letter_resent')
+                : ($delivery['error'] ?? 'Admission letter PDF generated and emailed. WhatsApp delivery was skipped or failed.');
+
             return response()->json([
-                'success' => false,
-                'message' => $this->transForUser('admissions.letter_cannot_resend'),
-            ], 400);
-        }
-
-        $letterPath = (new AdmissionLetterService())->generateAdmissionLetter($application);
-        $delivery = (new NotificationService())->sendAdmissionLetter($application, $letterPath);
-
-        if (! ($delivery['whatsapp_document_sent'] ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => $delivery['error'] ?? $this->transForUser('admissions.letter_whatsapp_failed'),
+                'success' => true,
+                'message' => $message,
                 'delivery' => $delivery,
                 'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
-            ], 422);
-        }
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Resend admission letter failed', [
+                'application_id' => $applicationId,
+                'error' => $e->getMessage(),
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => $this->transForUser('admissions.letter_resent'),
-            'delivery' => $delivery,
-            'data' => new ApplicationResource($application->fresh(['applicant', 'programme', 'academicYear'])),
-        ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not generate admission letter: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     public function dashboard()

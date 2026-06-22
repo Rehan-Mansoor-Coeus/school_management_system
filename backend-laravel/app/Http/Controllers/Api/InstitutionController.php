@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\AcademicYear;
 use App\Institution;
 use App\InstitutionSetting;
 use App\Services\InstitutionModuleService;
@@ -152,6 +153,7 @@ class InstitutionController extends Controller
         InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], $settingsPayload);
 
         app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
+        $this->ensureDefaultAcademicYear($institution->id);
 
         return response()->json(['message' => 'Institution created successfully.', 'institution' => $institution->load('settings')], 201);
     }
@@ -455,5 +457,25 @@ class InstitutionController extends Controller
         } catch (\Exception $e) {
             // ignore
         }
+    }
+
+    protected function ensureDefaultAcademicYear(int $institutionId): void
+    {
+        if (! class_exists(AcademicYear::class)) {
+            return;
+        }
+
+        AcademicYear::firstOrCreate(
+            ['institution_id' => $institutionId, 'code' => 'AY2026-2027'],
+            [
+                'name' => '2026/2027',
+                'start_year' => 2026,
+                'end_year' => 2027,
+                'start_date' => '2026-09-01',
+                'end_date' => '2027-08-31',
+                'is_active' => true,
+                'is_current' => ! AcademicYear::where('institution_id', $institutionId)->where('is_current', true)->exists(),
+            ]
+        );
     }
 }

@@ -9,7 +9,7 @@ import ProgrammeDocumentUploadList, {
 } from './ProgrammeDocumentUploadList';
 import SignaturePad from '../../../components/letters/SignaturePad';
 import ApplicationAgreementSection from './ApplicationAgreementSection';
-import { fetchAdmissionsReferenceData } from '../../../api/admissions';
+import { fetchAdmissionsReferenceData, fetchMyApplications } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -71,6 +71,7 @@ export const ApplicationForm: React.FC = () => {
 
   const [selectedProgramme, setSelectedProgramme] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [lockedFromApplication, setLockedFromApplication] = useState(false);
   const [documentUploads, setDocumentUploads] = useState<RequiredDocumentUpload[]>([]);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState('');
@@ -154,8 +155,32 @@ export const ApplicationForm: React.FC = () => {
     try {
       const data = await fetchAdmissionsReferenceData();
       setProgrammes((data.programmes as Programme[]) || []);
-      setAcademicYears((data.academic_years as AcademicYear[]) || []);
+      const years = (data.academic_years as AcademicYear[]) || [];
+      setAcademicYears(years);
       setInstitutionAgreement((data.institution_agreement as AdmissionAgreement) || null);
+
+      if (years.length === 1) {
+        setSelectedAcademicYear(String(years[0].id));
+      }
+
+      try {
+        const appsRes = await fetchMyApplications(1);
+        const apps = (appsRes.data as Array<{ status: string; programme_id?: number; academic_year_id?: number; programme?: { id: number } | null; academic_year?: { id: number } | null }>) || [];
+        const existing = apps.find((app) => !['cancelled', 'rejected'].includes(app.status));
+        if (existing) {
+          const programmeId = existing.programme_id || existing.programme?.id;
+          const yearId = existing.academic_year_id || existing.academic_year?.id;
+          if (programmeId) {
+            setSelectedProgramme(String(programmeId));
+            setLockedFromApplication(true);
+          }
+          if (yearId) {
+            setSelectedAcademicYear(String(yearId));
+          }
+        }
+      } catch {
+        // No prior applications
+      }
     } catch (fetchError) {
       console.error('Failed to fetch admissions reference data:', fetchError);
     }
@@ -504,7 +529,11 @@ export const ApplicationForm: React.FC = () => {
                 label: `${year.name}${year.is_current ? ` (${t('current')})` : ''}`,
               }))}
               placeholder={t('selectAcademicYear')}
+              disabled={lockedFromApplication && Boolean(selectedAcademicYear)}
             />
+            {!academicYears.length && (
+              <p className="mt-2 text-sm text-amber-700">No academic years are configured for your institution. Ask an administrator to add one under Academics or Institution setup.</p>
+            )}
           </div>
 
           <div>
@@ -519,7 +548,11 @@ export const ApplicationForm: React.FC = () => {
                 label: `${prog.name} (${prog.code})`,
               }))}
               placeholder={t('selectProgrammeOption')}
+              disabled={lockedFromApplication && Boolean(selectedProgramme)}
             />
+            {lockedFromApplication && (
+              <p className="mt-2 text-sm text-slate-600">Programme and academic year are taken from your existing application and cannot be changed here.</p>
+            )}
           </div>
 
           {selectedProgramme && (

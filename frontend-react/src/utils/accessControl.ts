@@ -2,7 +2,9 @@ import type { AuthUser } from '../context/AuthContext'
 
 export const ADMIN_ROLES = ['admin', 'institution-admin', 'super-admin'] as const
 
-export const PLATFORM_SUPER_ADMIN_ROLES = ['super-admin', 'system-super-admin'] as const
+export const PLATFORM_SUPER_ADMIN_ROLES = ['system-super-admin'] as const
+
+export const INSTITUTION_SUPER_ADMIN_ROLES = ['super-admin'] as const
 
 export const ADMISSIONS_FULL_ACCESS_PERMISSIONS = [
   'admissions.manage',

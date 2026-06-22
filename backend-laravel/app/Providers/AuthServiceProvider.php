@@ -23,5 +23,9 @@ class AuthServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->registerPolicies();
+
+        \Illuminate\Support\Facades\Auth::provider('multi-token-eloquent', function ($app, array $config) {
+            return new \App\Auth\MultiTokenUserProvider($app['hash'], $config['model']);
+        });
     }
 }

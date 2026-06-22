@@ -15,6 +15,7 @@ use App\Modules\Admissions\Controllers\CourseRegistrationController;
 use App\Modules\Admissions\Controllers\DocumentReviewController;
 use App\Modules\Admissions\Controllers\AdmissionAgreementController;
 use App\Modules\Admissions\Controllers\NotificationController;
+use App\Modules\Admissions\Controllers\AdmissionsAdminDashboardController;
 
 Route::prefix('admissions')->group(function () {
     Route::post('payment/webhook', [PaymentController::class, 'webhook']);
@@ -22,12 +23,13 @@ Route::prefix('admissions')->group(function () {
 
     Route::middleware(['auth:api', 'module_enabled:admissions'])->group(function () {
         Route::get('student/dashboard', [StudentDashboardController::class, 'index']);
+        Route::get('admin/dashboard', [AdmissionsAdminDashboardController::class, 'index']);
         Route::get('reference-data', [ApplicationController::class, 'referenceData']);
         Route::get('my-applicant', [ApplicationController::class, 'myApplicant']);
         Route::post('applicant', [ApplicationController::class, 'createApplicant']);
         Route::post('apply', [ApplicationController::class, 'submitApplication']);
         Route::get('my-applications', [ApplicationController::class, 'getMyApplications']);
-        Route::middleware('role:registry|registrar|finance-officer|hod|head-of-department|institution-admin|admin|super-admin')->group(function () {
+        Route::middleware('role:registry|registrar|finance-officer|hod|head-of-department|institution-admin|admin|super-admin|system-super-admin')->group(function () {
             Route::get('applications', [ApplicationController::class, 'index']);
         });
         Route::get('applications/{applicationId}', [ApplicationController::class, 'show']);

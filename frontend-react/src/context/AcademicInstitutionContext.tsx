@@ -21,7 +21,7 @@ export function AcademicInstitutionProvider({ children }: { children: React.Reac
   const { user } = useAuth()
   const assignedId = user?.institution_id ?? null
   const roles = resolveUserRoles(user)
-  const isPlatformAdmin = roles.includes('super-admin') || roles.includes('system-super-admin')
+  const isPlatformAdmin = roles.includes('system-super-admin')
   // Platform super-admins manage every institution, so they always pick a
   // working institution even though they may have a home institution_id.
   const requiresSelection = !assignedId || isPlatformAdmin

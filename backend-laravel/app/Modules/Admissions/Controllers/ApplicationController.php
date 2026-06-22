@@ -362,6 +362,7 @@ class ApplicationController extends Controller
                     ->orderBy('name')
                     ->get(['id', 'name', 'code', 'department_id', 'tuition_fee', 'application_fee', 'level']),
                 'academic_years' => AcademicYear::where('institution_id', $institutionId)
+                    ->where('is_active', true)
                     ->orderByDesc('is_current')
                     ->orderByDesc('start_year')
                     ->get(['id', 'name', 'code', 'is_current', 'start_year', 'end_year']),

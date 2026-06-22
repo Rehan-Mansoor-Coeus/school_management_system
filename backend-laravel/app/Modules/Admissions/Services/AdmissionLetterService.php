@@ -32,9 +32,14 @@ class AdmissionLetterService
         $barcodeData = urlencode($application->application_number);
         $qrData = urlencode($verifyUrl);
 
+        $applicant = $application->applicant;
+        $programmeName = optional($application->programme)->name ?: '—';
+        $applicantFirst = optional($applicant)->first_name ?: optional($user)->name ?: 'Applicant';
+        $applicantLast = optional($applicant)->last_name ?: '';
+
         $data = [
             'institution' => $institution,
-            'applicant' => $application->applicant,
+            'applicant' => $applicant,
             'application' => $application,
             'programme' => $application->programme,
             'current_date' => Carbon::now()->format('d F Y'),
@@ -54,10 +59,10 @@ class AdmissionLetterService
                 'title' => $this->transForUser('admissions.letter_title', [], $user),
                 'date' => $this->transForUser('admissions.letter_date', [], $user),
                 'application_no' => $this->transForUser('admissions.letter_application_no', [], $user),
-                'dear' => $this->transForUser('admissions.letter_dear', ['name' => $application->applicant->first_name.' '.$application->applicant->last_name], $user),
+                'dear' => $this->transForUser('admissions.letter_dear', ['name' => trim($applicantFirst.' '.$applicantLast)], $user),
                 'body' => $this->transForUser('admissions.letter_body', [
-                    'institution' => $application->institution->name,
-                    'programme' => $application->programme->name,
+                    'institution' => optional($institution)->name ?: 'Institution',
+                    'programme' => $programmeName,
                     'session' => $session,
                 ], $user),
                 'conditions' => $this->transForUser('admissions.letter_conditions', [], $user),
