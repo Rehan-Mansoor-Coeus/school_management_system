@@ -9,7 +9,7 @@ function unwrap<T>(payload: ApiEnvelope<T> | T): T {
   return payload as T
 }
 
-import { formatApiError } from '../../utils/apiError'
+import { formatApiError } from '../utils/apiError'
 
 export function formatTimetableError(error: unknown, fallback: string): string {
   return formatApiError(error, fallback)
