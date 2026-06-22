@@ -466,7 +466,7 @@ class InstitutionController extends Controller
         }
 
         AcademicYear::firstOrCreate(
-            ['institution_id' => $institutionId, 'code' => 'AY2026-2027'],
+            ['institution_id' => $institutionId, 'code' => 'AY2026-2027-'.$institutionId],
             [
                 'name' => '2026/2027',
                 'start_year' => 2026,

@@ -55,7 +55,7 @@ class AcademicYearController extends Controller
         $year = AcademicYear::create([
             'institution_id' => $institutionId,
             'name' => $request->name,
-            'code' => 'AY'.$request->start_year.'-'.$request->end_year,
+            'code' => 'AY'.$request->start_year.'-'.$request->end_year.'-'.$institutionId,
             'start_year' => (int) $request->start_year,
             'end_year' => (int) $request->end_year,
             'start_date' => $request->start_date ?: $request->start_year.'-09-01',

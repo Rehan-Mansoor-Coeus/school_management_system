@@ -16,7 +16,7 @@ class SeedAcademicYears20262027 extends Migration
             AcademicYear::firstOrCreate(
                 [
                     'institution_id' => $institution->id,
-                    'code' => 'AY2026-2027',
+                    'code' => 'AY2026-2027-'.$institution->id,
                 ],
                 [
                     'name' => '2026/2027',
