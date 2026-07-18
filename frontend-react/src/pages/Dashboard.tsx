@@ -1,9 +1,23 @@
 import { useAuth } from '../context/AuthContext';
 import StaffDashboardOverview from '../components/dashboard/StaffDashboardOverview';
 import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats';
+import SuperAdminDashboard from './superadmin/SuperAdminDashboard';
+import AdminDashboard from './AdminDashboard';
+import { PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl';
 
 export default function Dashboard() {
   const { hasAnyRole, canAccess } = useAuth();
+
+  // Platform super admins manage every school; school admins get a
+  // single-school dashboard. Other staff/students keep their existing views.
+  if (hasAnyRole([...PLATFORM_SUPER_ADMIN_ROLES])) {
+    return <SuperAdminDashboard />;
+  }
+
+  if (hasAnyRole(['admin', 'institution-admin'])) {
+    return <AdminDashboard />;
+  }
+
   const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] });
 
   if (isStudent) {

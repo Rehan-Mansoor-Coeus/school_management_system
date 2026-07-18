@@ -13,6 +13,7 @@ import GeneralSettingsPage from './pages/GeneralSettingsPage'
 import SystemLayout from './components/system/SystemLayout'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
 import DashboardPage from './pages/Dashboard'
+import SchoolDetailPage from './pages/superadmin/SchoolDetail'
 import RolesAndPermissionsPage from './pages/RolesAndPermissions'
 import LibraryLayout from './components/library/LibraryLayout'
 import TimesheetEmployeeLayout from './components/timesheets/TimesheetEmployeeLayout'
@@ -151,6 +152,8 @@ export default function App(){
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
+          <Route path="super-admin" element={<Navigate to="/dashboard" replace />} />
+          <Route path="super-admin/schools/:id" element={<SchoolDetailPage />} />
           <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
           <Route path="system" element={<SystemLayout />}>
             <Route path="general-settings" element={<GeneralSettingsPage />} />
