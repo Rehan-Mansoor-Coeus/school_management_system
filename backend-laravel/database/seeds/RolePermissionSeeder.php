@@ -506,7 +506,8 @@ class RolePermissionSeeder extends Seeder
             [
                 'institution_id' => $defaultInstitution->id,
                 'name' => 'Test Admin',
-                'password' => Hash::make('admin123'),
+                'username' => 'admin',
+                'password' => Hash::make('system'),
                 'api_token' => Str::random(60),
                 'status' => 'active',
                 'locale' => 'en',
