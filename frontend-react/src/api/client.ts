@@ -10,9 +10,15 @@ const api = axios.create({
 
 function applyAuthHeader(config: { headers?: Record<string, unknown> }) {
   const token = localStorage.getItem('token')
+  config.headers = config.headers || {}
   if (token) {
-    config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const activeInstitutionId = localStorage.getItem('active_institution_id')
+  if (activeInstitutionId && activeInstitutionId !== 'null') {
+    config.headers['X-Active-Institution-Id'] = activeInstitutionId
+  } else if (config.headers['X-Active-Institution-Id']) {
+    delete config.headers['X-Active-Institution-Id']
   }
   return config
 }

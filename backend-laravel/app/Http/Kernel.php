@@ -67,6 +67,9 @@ class Kernel extends HttpKernel
         'permission' => \App\Http\Middleware\EnsureUserHasPermission::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'module_enabled' => \App\Http\Middleware\EnsureModuleEnabled::class,
+        'platform_super_admin' => \App\Http\Middleware\EnsurePlatformSuperAdmin::class,
+        'resolve_institution' => \App\Http\Middleware\ResolveActiveInstitution::class,
+        'institution_context' => \App\Http\Middleware\EnsureInstitutionContext::class,
     ];
 
     /**

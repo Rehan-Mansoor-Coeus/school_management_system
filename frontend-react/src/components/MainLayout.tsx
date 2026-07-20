@@ -3,7 +3,8 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { ChevronDown, KeyRound, LogOut, UserCircle2 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import api from '../api/client'
-import { clearStoredSession } from '../utils/authSession'
+import { returnToPlatform } from '../api/superadmin'
+import { clearStoredSession, profileFromAuthResponse } from '../utils/authSession'
 import { useToast } from './ui/ToastProvider'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAuth } from '../context/AuthContext'
@@ -14,13 +15,25 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
   const { locale, setAppLocale } = useTimesheetI18n()
-  const { user, clearAuth } = useAuth()
+  const {
+    user,
+    clearAuth,
+    setAuth,
+    leaveInstitutionContext,
+    isPlatformContext,
+    isPlatformSuperAdmin,
+    actingAsSuperAdmin,
+    activeInstitution,
+  } = useAuth()
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
   const displayName = (user?.name as string) || 'Account'
   const displayEmail = (user?.email as string) || (user?.username as string) || ''
+  const managingInstitution = actingAsSuperAdmin && activeInstitution?.name
+    ? String(activeInstitution.name)
+    : null
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -44,6 +57,28 @@ export default function MainLayout() {
     pushToast('Logged out successfully.', 'info')
   }
 
+  const returnToSuperAdmin = async () => {
+    try {
+      const res = await returnToPlatform()
+      const profile = profileFromAuthResponse(res.data as Record<string, unknown>)
+      leaveInstitutionContext()
+      setAuth(profile)
+    } catch {
+      leaveInstitutionContext()
+    }
+    navigate('/super-admin/dashboard')
+    pushToast('Returned to Super Admin platform.', 'info')
+  }
+
+  const headerTitle = isPlatformSuperAdmin && isPlatformContext
+    ? 'Okusoma Super Admin'
+    : managingInstitution || 'School Management'
+  const headerSubtitle = isPlatformSuperAdmin && isPlatformContext
+    ? 'Platform Administration · No institution selected'
+    : managingInstitution
+      ? 'Managed by Super Admin'
+      : 'Manage users, roles, and permissions.'
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="flex min-h-screen">
@@ -51,10 +86,22 @@ export default function MainLayout() {
           <Sidebar />
         </div>
         <div className="min-w-0 flex-1">
+          {managingInstitution && (
+            <div className="flex items-center justify-between gap-3 bg-amber-500 px-6 py-2.5 text-sm font-semibold text-slate-900">
+              <span>You are managing: {managingInstitution}</span>
+              <button
+                type="button"
+                onClick={returnToSuperAdmin}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                Return to Super Admin
+              </button>
+            </div>
+          )}
           <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
             <div>
-              <h1 className="text-lg font-semibold">School Management</h1>
-              <p className="text-sm text-slate-500">Manage users, roles, and permissions.</p>
+              <h1 className="text-lg font-semibold">{headerTitle}</h1>
+              <p className="text-sm text-slate-500">{headerSubtitle}</p>
             </div>
             <div className="flex items-center gap-3">
               <NotificationBell />

@@ -7,6 +7,8 @@ use App\Institution;
 use App\Role;
 use App\User;
 use App\Services\Messaging\AuthOtpService;
+use App\Support\AdminContext;
+use App\Support\PlatformAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -47,7 +49,7 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'institution_id' => $request->institution_id ?: 1,
+            'institution_id' => $request->institution_id ?: null,
             'name' => $request->name,
             'username' => $request->username,
             'email' => $request->email,
@@ -311,10 +313,15 @@ class AuthController extends Controller
             $user->save();
         }
 
+        // Platform super admins always start in platform context (no institution selected).
+        if (PlatformAccess::isPlatformSuperAdmin($user)) {
+            $request->headers->set(AdminContext::HEADER, '');
+        }
+
         return response()->json(array_merge([
             'message' => 'Login successful.',
             'token' => $user->api_token,
-        ], $this->buildAuthPayload($user)));
+        ], $this->buildAuthPayload($user, $request)));
     }
 
     public function logout(Request $request)
@@ -331,7 +338,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json($this->buildAuthPayload($request->user()));
+        return response()->json($this->buildAuthPayload($request->user(), $request));
     }
 
     protected function looksLikePhone(string $login): bool
@@ -341,27 +348,17 @@ class AuthController extends Controller
         return strlen($digits) >= 8 && (strpos($login, '+') === 0 || ctype_digit(str_replace(['+', ' ', '-', '(', ')'], '', $login)));
     }
 
-    protected function buildAuthPayload(User $user): array
+    protected function buildAuthPayload(User $user, Request $request = null): array
     {
         $user->load(['roles', 'institution']);
+        $request = $request ?: request();
 
         $permissions = $user->getAllPermissions()->pluck('name')->values();
+        $context = AdminContext::authContextPayload($request, $user);
 
-        $modules = [];
-        if ($user->institution_id) {
-            $modules = \Illuminate\Support\Facades\DB::table('institution_modules')
-                ->join('modules', 'modules.id', '=', 'institution_modules.module_id')
-                ->where('institution_modules.institution_id', $user->institution_id)
-                ->where('institution_modules.enabled', true)
-                ->pluck('modules.key')
-                ->values();
-        }
-
-        return [
+        return array_merge([
             'user' => $user,
             'permissions' => $permissions,
-            'enabled_modules' => $modules,
-            'institution' => $user->institution,
-        ];
+        ], $context);
     }
 }

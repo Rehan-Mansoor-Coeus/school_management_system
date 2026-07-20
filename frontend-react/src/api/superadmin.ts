@@ -103,3 +103,11 @@ export type InstitutionDashboard = {
 export function fetchInstitutionDashboard() {
   return api.get<InstitutionDashboard>('/institution-dashboard')
 }
+
+export function switchIntoInstitution(id: number) {
+  return api.post(`/super-admin/switch-institution/${id}`)
+}
+
+export function returnToPlatform() {
+  return api.post('/super-admin/return-to-platform')
+}

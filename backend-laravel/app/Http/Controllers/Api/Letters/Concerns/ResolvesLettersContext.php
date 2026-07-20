@@ -2,18 +2,25 @@
 
 namespace App\Http\Controllers\Api\Letters\Concerns;
 
+use App\Support\AdminContext;
+use App\Support\PlatformAccess;
 use Illuminate\Http\Request;
 
 trait ResolvesLettersContext
 {
     protected function institutionId(Request $request)
     {
-        return (int) (optional($request->user())->institution_id ?: 1);
+        return AdminContext::requireInstitutionId($request);
     }
 
     protected function canAccessInstitution(Request $request, $institutionId)
     {
-        return (int) $this->institutionId($request) === (int) $institutionId;
+        $active = AdminContext::activeInstitutionId($request);
+        if (! $active) {
+            return false;
+        }
+
+        return (int) $active === (int) $institutionId;
     }
 
     protected function hasAnyPermission(Request $request, array $permissions)
@@ -22,7 +29,7 @@ trait ResolvesLettersContext
         if (! $user) {
             return false;
         }
-        if ($user->hasRole('super-admin')) {
+        if (PlatformAccess::isPlatformSuperAdmin($user) && AdminContext::isInInstitutionContext($request, $user)) {
             return true;
         }
         foreach ($permissions as $permission) {

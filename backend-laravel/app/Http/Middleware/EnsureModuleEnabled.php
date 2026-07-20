@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Module;
+use App\Support\AdminContext;
+use App\Support\PlatformAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +19,14 @@ class EnsureModuleEnabled
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        if ($user->hasRole('super-admin')) {
+        // Platform super admins bypass module gating. Operational controllers still
+        // require an active institution context via AdminContext::requireInstitutionId().
+        if (PlatformAccess::isPlatformSuperAdmin($user)) {
             return $next($request);
         }
 
-        if (! $user->institution_id) {
+        $institutionId = AdminContext::activeInstitutionId($request, $user);
+        if (! $institutionId) {
             return response()->json(['message' => 'Institution not set for this user.'], 403);
         }
 
@@ -31,7 +36,7 @@ class EnsureModuleEnabled
         }
 
         $enabled = DB::table('institution_modules')
-            ->where('institution_id', $user->institution_id)
+            ->where('institution_id', $institutionId)
             ->where('module_id', $module->id)
             ->value('enabled');
 
@@ -42,4 +47,3 @@ class EnsureModuleEnabled
         return $next($request);
     }
 }
-

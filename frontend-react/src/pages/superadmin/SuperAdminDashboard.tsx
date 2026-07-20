@@ -17,11 +17,14 @@ import {
   createSchool,
   fetchPlatformOverview,
   fetchSchools,
+  switchIntoInstitution,
   updateSchoolLicense,
   type PlatformOverview,
   type SchoolSummary,
 } from '../../api/superadmin'
 import { formatApiError } from '../../utils/apiError'
+import { useAuth } from '../../context/AuthContext'
+import { profileFromAuthResponse } from '../../utils/authSession'
 
 const PLAN_OPTIONS = ['free', 'basic', 'standard', 'premium', 'enterprise']
 const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired']
@@ -82,7 +85,9 @@ function toDateInput(value: string | null): string {
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate()
+  const { setAuth, enterInstitutionContext } = useAuth()
   const [overview, setOverview] = useState<PlatformOverview | null>(null)
+  const [switchingId, setSwitchingId] = useState<number | null>(null)
   const [schools, setSchools] = useState<SchoolSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -94,6 +99,29 @@ export default function SuperAdminDashboard() {
   const [licenseError, setLicenseError] = useState('')
 
   const [showCreate, setShowCreate] = useState(false)
+
+  const switchIntoSchool = async (school: SchoolSummary) => {
+    setSwitchingId(school.id)
+    try {
+      const res = await switchIntoInstitution(school.id)
+      const profile = profileFromAuthResponse(res.data as Record<string, unknown>)
+      enterInstitutionContext({
+        id: school.id,
+        name: school.name,
+        code: school.code,
+        logo_url: school.logo_url,
+        is_active: school.is_active,
+        subscription_status: school.license.status,
+        subscription_expires_at: school.license.expires_at,
+      }, profile.enabledModules)
+      setAuth(profile)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(formatApiError(err, 'Unable to switch into this institution.'))
+    } finally {
+      setSwitchingId(null)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -269,9 +297,18 @@ export default function SuperAdminDashboard() {
                         <button
                           type="button"
                           onClick={() => navigate(`/super-admin/schools/${school.id}`)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[#1e3a5f] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#2d4a73]"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-[#1e3a5f] hover:text-[#1e3a5f]"
                         >
-                          <Settings2 className="h-3.5 w-3.5" /> Manage
+                          <Settings2 className="h-3.5 w-3.5" /> Details
+                        </button>
+                        <button
+                          type="button"
+                          disabled={switchingId === school.id}
+                          onClick={() => switchIntoSchool(school)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-[#1e3a5f] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#2d4a73] disabled:opacity-60"
+                        >
+                          {switchingId === school.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Building2 className="h-3.5 w-3.5" />}
+                          Switch Institution
                         </button>
                       </div>
                     </td>

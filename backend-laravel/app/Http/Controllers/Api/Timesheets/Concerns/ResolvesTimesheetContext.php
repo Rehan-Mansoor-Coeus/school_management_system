@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Timesheets\Concerns;
 
+use App\Support\AdminContext;
 use App\TimesheetAuditLog;
 use App\User;
 use Illuminate\Http\Request;
@@ -10,7 +11,7 @@ trait ResolvesTimesheetContext
 {
     protected function institutionId(Request $request)
     {
-        return (int) (optional($request->user())->institution_id ?: $request->get('institution_id', 1));
+        return AdminContext::requireInstitutionId($request);
     }
 
     protected function locale(Request $request)

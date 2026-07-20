@@ -1,24 +1,36 @@
-import { useAuth } from '../context/AuthContext';
-import StaffDashboardOverview from '../components/dashboard/StaffDashboardOverview';
-import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats';
-import SuperAdminDashboard from './superadmin/SuperAdminDashboard';
-import AdminDashboard from './AdminDashboard';
-import { PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl';
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import StaffDashboardOverview from '../components/dashboard/StaffDashboardOverview'
+import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats'
+import SuperAdminDashboard from './superadmin/SuperAdminDashboard'
+import AdminDashboard from './AdminDashboard'
+import { PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl'
 
 export default function Dashboard() {
-  const { hasAnyRole, canAccess } = useAuth();
+  const { hasAnyRole, canAccess, isPlatformSuperAdmin, isPlatformContext, isInstitutionContext } = useAuth()
 
-  // Platform super admins manage every school; school admins get a
-  // single-school dashboard. Other staff/students keep their existing views.
+  // Platform super admins in platform context use the dedicated platform home.
+  if (isPlatformSuperAdmin && isPlatformContext) {
+    if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
+      return <Navigate to="/super-admin/dashboard" replace />
+    }
+    return <SuperAdminDashboard />
+  }
+
+  // Super admin who switched into an institution gets the school dashboard.
+  if (isPlatformSuperAdmin && isInstitutionContext) {
+    return <AdminDashboard />
+  }
+
   if (hasAnyRole([...PLATFORM_SUPER_ADMIN_ROLES])) {
-    return <SuperAdminDashboard />;
+    return <SuperAdminDashboard />
   }
 
   if (hasAnyRole(['admin', 'institution-admin'])) {
-    return <AdminDashboard />;
+    return <AdminDashboard />
   }
 
-  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] });
+  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] })
 
   if (isStudent) {
     return (
@@ -31,7 +43,7 @@ export default function Dashboard() {
         </div>
         <StudentAdmissionsStats />
       </div>
-    );
+    )
   }
 
   return (
@@ -44,5 +56,5 @@ export default function Dashboard() {
       </div>
       <StaffDashboardOverview />
     </div>
-  );
+  )
 }

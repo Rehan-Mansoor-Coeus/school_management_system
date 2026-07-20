@@ -1,5 +1,13 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { canAccessMenu, isAdminRole, resolveUserRoles } from '../utils/accessControl'
+import { canAccessMenu, isAdminRole, PLATFORM_SUPER_ADMIN_ROLES, resolveUserRoles } from '../utils/accessControl'
+import {
+  clearStoredSession,
+  persistProfile,
+  readCachedProfile,
+  setStoredActiveInstitutionId,
+  type AuthInstitution,
+  type AuthProfile,
+} from '../utils/authSession'
 
 export type AuthUser = {
   roles?: Array<{ name: string } | string>
@@ -11,11 +19,16 @@ type AuthState = {
   user: AuthUser
   permissions: string[]
   enabledModules: string[]
-  institution: Record<string, unknown> | null
+  institution: AuthInstitution
+  roleType: string
+  contextType: string
+  actingAsSuperAdmin: boolean
+  activeInstitution: AuthInstitution
+  activeInstitutionId: number | null
 }
 
 type AuthContextValue = AuthState & {
-  setAuth: (next: Partial<AuthState>) => void
+  setAuth: (next: Partial<AuthState> | AuthProfile) => void
   clearAuth: () => void
   hasPermission: (permission: string) => boolean
   hasAnyPermission: (permissions: string[]) => boolean
@@ -23,63 +36,121 @@ type AuthContextValue = AuthState & {
   hasRole: (role: string) => boolean
   hasAnyRole: (roles: string[]) => boolean
   isAdmin: () => boolean
+  isPlatformSuperAdmin: boolean
+  isPlatformContext: boolean
+  isInstitutionContext: boolean
+  enterInstitutionContext: (institution: NonNullable<AuthInstitution>, enabledModules?: string[]) => void
+  leaveInstitutionContext: () => void
   canAccess: (options: { permissions?: string[]; roles?: string[] }) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return fallback
-    return JSON.parse(raw)
-  } catch (error) {
-    return fallback
+function fromProfile(profile: AuthProfile): AuthState {
+  return {
+    user: profile.user as AuthUser,
+    permissions: profile.permissions || [],
+    enabledModules: profile.enabledModules || [],
+    institution: profile.institution,
+    roleType: profile.roleType || '',
+    contextType: profile.contextType || 'institution',
+    actingAsSuperAdmin: Boolean(profile.actingAsSuperAdmin),
+    activeInstitution: profile.activeInstitution,
+    activeInstitutionId: profile.activeInstitutionId,
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>(() => {
-    const user = readJson<AuthUser>('me', null)
-    return {
-      user,
-      permissions: readJson('permissions', []),
-      enabledModules: readJson('enabled_modules', []),
-      institution: readJson('institution', null) ?? (user?.institution as Record<string, unknown> | undefined) ?? null,
-    }
-  })
+  const [state, setState] = useState<AuthState>(() => fromProfile(readCachedProfile()))
 
-  const setAuth = useCallback((next: Partial<AuthState>) => {
+  const setAuth = useCallback((next: Partial<AuthState> | AuthProfile) => {
     setState((current) => {
-      const merged = {
-        ...current,
-        ...next,
-        institution: next.institution ?? next.user?.institution ?? current.institution ?? null,
+      const incoming = 'enabledModules' in next || 'roleType' in next || 'contextType' in next
+        ? {
+            user: ('user' in next ? next.user : current.user) as AuthUser,
+            permissions: ('permissions' in next && next.permissions) ? next.permissions : current.permissions,
+            enabledModules: ('enabledModules' in next && next.enabledModules) ? next.enabledModules : current.enabledModules,
+            institution: ('institution' in next ? next.institution : current.institution) as AuthInstitution,
+            roleType: ('roleType' in next && next.roleType) ? String(next.roleType) : current.roleType,
+            contextType: ('contextType' in next && next.contextType) ? String(next.contextType) : current.contextType,
+            actingAsSuperAdmin: ('actingAsSuperAdmin' in next) ? Boolean(next.actingAsSuperAdmin) : current.actingAsSuperAdmin,
+            activeInstitution: ('activeInstitution' in next ? next.activeInstitution : current.activeInstitution) as AuthInstitution,
+            activeInstitutionId: ('activeInstitutionId' in next) ? (next.activeInstitutionId ?? null) : current.activeInstitutionId,
+          }
+        : { ...current, ...(next as Partial<AuthState>) }
+
+      const profile: AuthProfile = {
+        user: incoming.user as Record<string, unknown> | null,
+        permissions: incoming.permissions,
+        enabledModules: incoming.enabledModules,
+        institution: incoming.institution,
+        roleType: incoming.roleType,
+        contextType: incoming.contextType,
+        actingAsSuperAdmin: incoming.actingAsSuperAdmin,
+        activeInstitution: incoming.activeInstitution,
+        activeInstitutionId: incoming.activeInstitutionId,
       }
-      localStorage.setItem('me', JSON.stringify(merged.user))
-      localStorage.setItem('permissions', JSON.stringify(merged.permissions || []))
-      localStorage.setItem('enabled_modules', JSON.stringify(merged.enabledModules || []))
-      localStorage.setItem('institution', JSON.stringify(merged.institution))
-      return merged
+      persistProfile(profile)
+      return incoming
     })
   }, [])
 
   const clearAuth = useCallback(() => {
-    setState({ user: null, permissions: [], enabledModules: [], institution: null })
-    localStorage.removeItem('me')
-    localStorage.removeItem('permissions')
-    localStorage.removeItem('enabled_modules')
-    localStorage.removeItem('institution')
+    setState({
+      user: null,
+      permissions: [],
+      enabledModules: [],
+      institution: null,
+      roleType: '',
+      contextType: 'platform',
+      actingAsSuperAdmin: false,
+      activeInstitution: null,
+      activeInstitutionId: null,
+    })
+    clearStoredSession()
   }, [])
+
+  const enterInstitutionContext = useCallback((institution: NonNullable<AuthInstitution>, enabledModules?: string[]) => {
+    const id = Number(institution.id)
+    setStoredActiveInstitutionId(id)
+    setAuth({
+      contextType: 'institution',
+      actingAsSuperAdmin: true,
+      activeInstitution: institution,
+      activeInstitutionId: id,
+      institution,
+      enabledModules: enabledModules || [],
+    })
+  }, [setAuth])
+
+  const leaveInstitutionContext = useCallback(() => {
+    setStoredActiveInstitutionId(null)
+    setAuth({
+      contextType: 'platform',
+      actingAsSuperAdmin: false,
+      activeInstitution: null,
+      activeInstitutionId: null,
+      institution: null,
+      enabledModules: [],
+    })
+  }, [setAuth])
 
   const value = useMemo<AuthContextValue>(() => {
     const userRoles = resolveUserRoles(state.user)
+    const isPlatformSuperAdmin = userRoles.some((role) =>
+      PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number])
+    ) || state.roleType === 'platform_super_admin'
 
     return {
       ...state,
       userRoles,
       setAuth,
       clearAuth,
+      enterInstitutionContext,
+      leaveInstitutionContext,
+      isPlatformSuperAdmin,
+      isPlatformContext: isPlatformSuperAdmin && state.contextType === 'platform',
+      isInstitutionContext: state.contextType === 'institution',
       hasPermission: (permission: string) => state.permissions.includes(permission),
       hasAnyPermission: (permissions: string[]) => permissions.some((p) => state.permissions.includes(p)),
       hasRole: (role: string) => userRoles.includes(role),
@@ -92,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userRoles,
       }),
     }
-  }, [state, setAuth, clearAuth])
+  }, [state, setAuth, clearAuth, enterInstitutionContext, leaveInstitutionContext])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

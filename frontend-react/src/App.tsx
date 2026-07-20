@@ -152,7 +152,8 @@ export default function App(){
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
-          <Route path="super-admin" element={<Navigate to="/dashboard" replace />} />
+          <Route path="super-admin" element={<Navigate to="/super-admin/dashboard" replace />} />
+          <Route path="super-admin/dashboard" element={<DashboardPage/>} />
           <Route path="super-admin/schools/:id" element={<SchoolDetailPage />} />
           <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
           <Route path="system" element={<SystemLayout />}>
