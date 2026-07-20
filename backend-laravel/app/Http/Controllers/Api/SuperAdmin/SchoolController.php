@@ -166,7 +166,7 @@ class SchoolController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'username' => 'nullable|string|max:255|unique:users,username',
+            'username' => 'required|string|max:255|unique:users,username',
             'password' => 'required|string|min:8',
             'role' => 'nullable|in:admin,institution-admin',
         ]);

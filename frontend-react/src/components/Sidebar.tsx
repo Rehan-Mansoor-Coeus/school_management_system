@@ -116,9 +116,9 @@ function SidebarLink({ item, nested = false }: { item: SidebarItem; nested?: boo
 
 const platformNavItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/super-admin/dashboard', icon: LayoutDashboard },
-  { label: 'Institutions', path: '/super-admin/dashboard', icon: Building2 },
+  { label: 'Institutions', path: '/super-admin/institutions', icon: Building2 },
+  { label: 'Users', path: '/super-admin/users', icon: Users },
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2 },
-  { label: 'Administrators', path: '/users', icon: Users },
   { label: 'Roles & Permissions', path: '/roles-permissions', icon: UserCog },
   { label: 'Platform Settings', path: '/system/general-settings', icon: Settings },
 ]

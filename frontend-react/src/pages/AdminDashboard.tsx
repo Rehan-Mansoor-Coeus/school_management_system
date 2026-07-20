@@ -4,8 +4,10 @@ import {
   AlertTriangle,
   BookOpen,
   Building2,
+  CalendarDays,
   CreditCard,
   GraduationCap,
+  Layers,
   Loader2,
   Puzzle,
   ShieldCheck,
@@ -25,7 +27,7 @@ function formatDate(value: string | null): string {
 }
 
 export default function AdminDashboard() {
-  const { user, canAccess } = useAuth()
+  const { user, canAccess, actingAsSuperAdmin } = useAuth()
   const [data, setData] = useState<InstitutionDashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -63,12 +65,18 @@ export default function AdminDashboard() {
   const expiringSoon = license.days_remaining != null && license.days_remaining <= 30 && !license.is_expired
 
   const statCards = [
-    { key: 'users', label: 'Total users', value: stats.total_users, icon: Users, to: '/users' },
     { key: 'students', label: 'Students', value: stats.students, icon: GraduationCap, to: '/users/students' },
     { key: 'teachers', label: 'Teachers', value: stats.teachers, icon: Users, to: '/users/teachers' },
     { key: 'staff', label: 'Staff', value: stats.staff, icon: Users, to: '/users/staff' },
     { key: 'admins', label: 'Administrators', value: stats.admins, icon: ShieldCheck, to: '/users' },
-    { key: 'modules', label: 'Modules enabled', value: stats.modules_enabled, icon: BookOpen, to: '/modules' },
+    { key: 'courses', label: 'Courses', value: stats.courses ?? 0, icon: BookOpen, to: '/academics' },
+    { key: 'semesters', label: 'Semesters', value: stats.semesters ?? 0, icon: CalendarDays, to: '/academics' },
+    { key: 'subjects', label: 'Subjects', value: stats.subjects ?? 0, icon: Layers, to: '/academics' },
+    { key: 'programmes', label: 'Programmes', value: stats.programmes ?? 0, icon: GraduationCap, to: '/academics' },
+    { key: 'departments', label: 'Departments', value: stats.departments ?? 0, icon: Building2, to: '/academics' },
+    { key: 'years', label: 'Academic years', value: stats.academic_years ?? 0, icon: CalendarDays, to: '/academics' },
+    { key: 'users', label: 'Total users', value: stats.total_users, icon: Users, to: '/users' },
+    { key: 'modules', label: 'Modules enabled', value: stats.modules_enabled, icon: Puzzle, to: '/modules' },
   ]
 
   const quickLinks = [
@@ -83,7 +91,9 @@ export default function AdminDashboard() {
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73] p-6 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-blue-100">Welcome back{user?.name ? `, ${user.name}` : ''}</p>
+            <p className="text-sm text-blue-100">
+              {actingAsSuperAdmin ? 'Managing as Super Admin' : `Welcome back${user?.name ? `, ${user.name}` : ''}`}
+            </p>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold">
               <Building2 className="h-6 w-6" /> {institution.name}
             </h1>
@@ -106,7 +116,7 @@ export default function AdminDashboard() {
 
       {license.is_expired && (
         <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          <AlertTriangle className="h-4 w-4" /> Your school's license expired on {formatDate(license.expires_at)}. Contact the platform administrator to renew.
+          <AlertTriangle className="h-4 w-4" /> Your school&apos;s license expired on {formatDate(license.expires_at)}. Contact the platform administrator to renew.
         </div>
       )}
       {expiringSoon && (
@@ -123,7 +133,7 @@ export default function AdminDashboard() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-semibold text-slate-900">Quick access</h2>
-        <p className="mt-1 text-sm text-slate-500">Manage your school's people, roles, and modules.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage your school&apos;s people, roles, academics, and modules.</p>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {quickLinks.map((link) => {
             const Icon = link.icon

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   BookOpen,
@@ -49,7 +49,7 @@ export default function SchoolDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const schoolId = Number(id)
-  const { setAuth } = useAuth()
+  const { setAuth, isPlatformContext, isPlatformSuperAdmin } = useAuth()
 
   const [detail, setDetail] = useState<SchoolDetailType | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,7 +59,7 @@ export default function SchoolDetail() {
   const [savingLicense, setSavingLicense] = useState(false)
   const [licenseMsg, setLicenseMsg] = useState('')
 
-  const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '', role: 'institution-admin' })
+  const [adminForm, setAdminForm] = useState({ name: '', email: '', username: '', password: '', role: 'institution-admin' })
   const [creatingAdmin, setCreatingAdmin] = useState(false)
   const [adminMsg, setAdminMsg] = useState('')
   const [adminError, setAdminError] = useState('')
@@ -121,7 +121,7 @@ export default function SchoolDetail() {
     try {
       await createSchoolAdmin(schoolId, adminForm)
       setAdminMsg(`Administrator ${adminForm.name} created.`)
-      setAdminForm({ name: '', email: '', password: '', role: 'institution-admin' })
+      setAdminForm({ name: '', email: '', username: '', password: '', role: 'institution-admin' })
       await load()
     } catch (err) {
       setAdminError(formatApiError(err, 'Could not create administrator.'))
@@ -179,6 +179,10 @@ export default function SchoolDetail() {
     }
   }
 
+  if (!(isPlatformSuperAdmin && isPlatformContext)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
@@ -190,7 +194,7 @@ export default function SchoolDetail() {
   if (error || !detail) {
     return (
       <div className="space-y-4 p-6">
-        <button onClick={() => navigate('/super-admin/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
+        <button onClick={() => navigate('/super-admin/institutions')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
           <ArrowLeft className="h-4 w-4" /> Back to platform
         </button>
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error || 'School not found.'}</div>
@@ -207,11 +211,18 @@ export default function SchoolDetail() {
     { key: 'staff', label: 'Staff', value: stats.staff, icon: Users },
     { key: 'admins', label: 'Administrators', value: stats.admins, icon: ShieldCheck },
     { key: 'modules', label: 'Modules enabled', value: stats.modules_enabled, icon: BookOpen },
+    { key: 'courses', label: 'Courses', value: stats.courses ?? 0, icon: BookOpen },
+    { key: 'semesters', label: 'Semesters', value: stats.semesters ?? 0, icon: BookOpen },
+    { key: 'subjects', label: 'Subjects', value: stats.subjects ?? 0, icon: BookOpen },
+    { key: 'programmes', label: 'Programmes', value: stats.programmes ?? 0, icon: GraduationCap },
+    { key: 'departments', label: 'Departments', value: stats.departments ?? 0, icon: Building2 },
+    { key: 'years', label: 'Academic years', value: stats.academic_years ?? 0, icon: BookOpen },
   ]
+
 
   return (
     <div className="space-y-6 p-6">
-      <button onClick={() => navigate('/super-admin/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
+      <button onClick={() => navigate('/super-admin/institutions')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
         <ArrowLeft className="h-4 w-4" /> Back to platform
       </button>
 
@@ -352,6 +363,7 @@ export default function SchoolDetail() {
             <div className="mt-3 space-y-3">
               <input className={fieldClass()} placeholder="Full name" value={adminForm.name} onChange={(e) => setAdminForm((p) => ({ ...p, name: e.target.value }))} />
               <input className={fieldClass()} type="email" placeholder="Email" value={adminForm.email} onChange={(e) => setAdminForm((p) => ({ ...p, email: e.target.value }))} />
+              <input className={fieldClass()} type="text" placeholder="Username" value={adminForm.username} onChange={(e) => setAdminForm((p) => ({ ...p, username: e.target.value }))} />
               <input className={fieldClass()} type="text" placeholder="Password (min 8 chars)" value={adminForm.password} onChange={(e) => setAdminForm((p) => ({ ...p, password: e.target.value }))} />
               <select className={fieldClass()} value={adminForm.role} onChange={(e) => setAdminForm((p) => ({ ...p, role: e.target.value }))}>
                 <option value="institution-admin">Institution Admin</option>
@@ -360,7 +372,7 @@ export default function SchoolDetail() {
               <button
                 type="button"
                 onClick={createAdmin}
-                disabled={creatingAdmin || !adminForm.name || !adminForm.email || adminForm.password.length < 8}
+                disabled={creatingAdmin || !adminForm.name || !adminForm.email || !adminForm.username || adminForm.password.length < 8}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#eab308] px-4 py-2 text-sm font-semibold text-[#1e3a5f] hover:bg-[#d4a107] disabled:opacity-60"
               >
                 {creatingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create admin

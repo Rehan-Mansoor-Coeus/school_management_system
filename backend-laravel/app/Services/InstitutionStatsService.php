@@ -155,6 +155,10 @@ class InstitutionStatsService
             'applications_total' => ['applications', 'institution_id'],
             'programmes' => ['programmes', 'institution_id'],
             'departments' => ['departments', 'institution_id'],
+            'courses' => ['courses', 'institution_id'],
+            'semesters' => ['semesters', 'institution_id'],
+            'subjects' => ['subjects', 'institution_id'],
+            'academic_years' => ['academic_years', 'institution_id'],
         ];
 
         foreach ($tableColumnCounts as $key => [$table, $column]) {

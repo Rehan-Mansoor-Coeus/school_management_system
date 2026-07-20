@@ -22,6 +22,10 @@ export type SchoolStats = {
   applications_total: number
   programmes: number
   departments: number
+  courses: number
+  semesters: number
+  subjects: number
+  academic_years: number
 }
 
 export type SchoolSummary = {
@@ -70,6 +74,25 @@ export type SchoolDetail = {
   modules: { key: string; name: string; enabled: boolean }[]
 }
 
+export type PlatformUser = {
+  id: number
+  name: string
+  email: string
+  username: string | null
+  status: string | null
+  account_type: 'super_admin' | 'institution_admin'
+  roles: string[]
+  institution_id: number | null
+  institution: { id: number; name: string; code: string } | null
+  created_at: string | null
+}
+
+export type InstitutionDashboard = {
+  institution: SchoolSummary
+  license: LicenseInfo
+  stats: SchoolStats
+}
+
 export function fetchPlatformOverview() {
   return api.get<PlatformOverview>('/super-admin/overview')
 }
@@ -98,10 +121,12 @@ export function createSchoolStudent(id: number, payload: Record<string, unknown>
   return api.post(`/super-admin/schools/${id}/students`, payload)
 }
 
-export type InstitutionDashboard = {
-  institution: SchoolSummary
-  license: LicenseInfo
-  stats: SchoolStats
+export function fetchPlatformUsers(params?: { type?: string; search?: string; institution_id?: number }) {
+  return api.get<{ data: PlatformUser[] }>('/super-admin/users', { params })
+}
+
+export function createPlatformUser(payload: Record<string, unknown>) {
+  return api.post<{ message: string; user: PlatformUser }>('/super-admin/users', payload)
 }
 
 export function fetchInstitutionDashboard() {

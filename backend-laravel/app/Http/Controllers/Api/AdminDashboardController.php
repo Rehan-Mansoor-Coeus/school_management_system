@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Institution;
 use App\Services\InstitutionStatsService;
+use App\Support\AdminContext;
 use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
@@ -17,19 +18,22 @@ class AdminDashboardController extends Controller
     }
 
     /**
-     * School-scoped dashboard for the currently authenticated user.
-     * Always resolves to the caller's own institution, so a school admin
-     * can never see another school's data through this endpoint.
+     * School-scoped dashboard for the active institution context.
+     * Institution admins use their assigned school; platform super admins
+     * must have switched into an institution first.
      */
     public function show(Request $request)
     {
-        $user = $request->user();
+        $institutionId = AdminContext::activeInstitutionId($request);
 
-        if (! $user || ! $user->institution_id) {
-            return response()->json(['message' => 'No institution assigned to this user.'], 404);
+        if (! $institutionId) {
+            return response()->json([
+                'message' => 'Institution context required.',
+                'code' => 'INSTITUTION_CONTEXT_REQUIRED',
+            ], 403);
         }
 
-        $institution = Institution::find($user->institution_id);
+        $institution = Institution::find($institutionId);
 
         if (! $institution) {
             return response()->json(['message' => 'Institution not found.'], 404);
