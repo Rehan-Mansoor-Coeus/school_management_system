@@ -161,7 +161,7 @@ class AdminContext
         if ($activeId) {
             $activeInstitution = Institution::query()
                 ->where('id', $activeId)
-                ->first(['id', 'name', 'code', 'is_active', 'subscription_status', 'subscription_expires_at', 'logo_url', 'acronym']);
+                ->first(['id', 'name', 'code', 'is_active', 'subscription_status', 'subscription_expires_at', 'logo', 'acronym']);
         }
 
         // Platform home institution for display only — never used as operational scope.

@@ -13,6 +13,7 @@ use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class SchoolController extends Controller
@@ -197,6 +198,60 @@ class SchoolController extends Controller
         return response()->json([
             'message' => 'School administrator created successfully.',
             'admin' => $this->presentAdmin($user->fresh('roles')),
+        ], 201);
+    }
+
+    /**
+     * Create a student login account bound to a specific school.
+     */
+    public function storeStudent(Request $request, Institution $institution)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'username' => 'required|string|max:255|unique:users,username',
+            'password' => 'required|string|min:8',
+            'phone' => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $role = Role::where('name', 'student')->where('guard_name', 'api')->first();
+        if (! $role) {
+            return response()->json(['message' => "Role 'student' is not available."], 422);
+        }
+
+        $payload = [
+            'institution_id' => $institution->id,
+            'name' => $request->name,
+            'email' => $request->email,
+            'username' => $request->username,
+            'password' => Hash::make($request->password),
+            'api_token' => Str::random(60),
+            'status' => 'active',
+            'locale' => 'en',
+        ];
+        if ($request->filled('phone') && Schema::hasColumn('users', 'phone')) {
+            $payload['phone'] = $request->phone;
+        }
+
+        $user = User::create($payload);
+        $user->assignRole($role);
+        $user = $user->fresh('roles');
+
+        return response()->json([
+            'message' => 'Student created successfully.',
+            'student' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'username' => $user->username,
+                'status' => $user->status,
+                'institution_id' => $user->institution_id,
+                'roles' => $user->roles->pluck('name')->values(),
+            ],
         ], 201);
     }
 

@@ -15,11 +15,15 @@ import {
 import DashboardStatCard from '../../components/ui/DashboardStatCard'
 import {
   createSchoolAdmin,
+  createSchoolStudent,
   fetchSchool,
+  switchIntoInstitution,
   updateSchoolLicense,
   type SchoolDetail as SchoolDetailType,
 } from '../../api/superadmin'
 import { formatApiError } from '../../utils/apiError'
+import { useAuth } from '../../context/AuthContext'
+import { profileFromAuthResponse } from '../../utils/authSession'
 
 const PLAN_OPTIONS = ['free', 'basic', 'standard', 'premium', 'enterprise']
 const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired']
@@ -45,6 +49,7 @@ export default function SchoolDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const schoolId = Number(id)
+  const { setAuth, enterInstitutionContext } = useAuth()
 
   const [detail, setDetail] = useState<SchoolDetailType | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,6 +63,12 @@ export default function SchoolDetail() {
   const [creatingAdmin, setCreatingAdmin] = useState(false)
   const [adminMsg, setAdminMsg] = useState('')
   const [adminError, setAdminError] = useState('')
+
+  const [studentForm, setStudentForm] = useState({ name: '', email: '', username: '', password: '' })
+  const [creatingStudent, setCreatingStudent] = useState(false)
+  const [studentMsg, setStudentMsg] = useState('')
+  const [studentError, setStudentError] = useState('')
+  const [switching, setSwitching] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -119,6 +130,47 @@ export default function SchoolDetail() {
     }
   }
 
+  async function createStudent() {
+    setCreatingStudent(true)
+    setStudentMsg('')
+    setStudentError('')
+    try {
+      await createSchoolStudent(schoolId, studentForm)
+      setStudentMsg(`Student ${studentForm.name} created. They can sign in with username "${studentForm.username}".`)
+      setStudentForm({ name: '', email: '', username: '', password: '' })
+      await load()
+    } catch (err) {
+      setStudentError(formatApiError(err, 'Could not create student.'))
+    } finally {
+      setCreatingStudent(false)
+    }
+  }
+
+  async function switchIntoSchool() {
+    if (!detail) return
+    setSwitching(true)
+    setError('')
+    try {
+      const res = await switchIntoInstitution(detail.institution.id)
+      const profile = profileFromAuthResponse(res.data as Record<string, unknown>)
+      enterInstitutionContext({
+        id: detail.institution.id,
+        name: detail.institution.name,
+        code: detail.institution.code,
+        logo_url: detail.institution.logo_url,
+        is_active: detail.institution.is_active,
+        subscription_status: detail.license.status,
+        subscription_expires_at: detail.license.expires_at,
+      }, profile.enabledModules)
+      setAuth(profile)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(formatApiError(err, 'Unable to switch into this institution.'))
+    } finally {
+      setSwitching(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
@@ -130,7 +182,7 @@ export default function SchoolDetail() {
   if (error || !detail) {
     return (
       <div className="space-y-4 p-6">
-        <button onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
+        <button onClick={() => navigate('/super-admin/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
           <ArrowLeft className="h-4 w-4" /> Back to platform
         </button>
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error || 'School not found.'}</div>
@@ -151,7 +203,7 @@ export default function SchoolDetail() {
 
   return (
     <div className="space-y-6 p-6">
-      <button onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
+      <button onClick={() => navigate('/super-admin/dashboard')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-[#1e3a5f]">
         <ArrowLeft className="h-4 w-4" /> Back to platform
       </button>
 
@@ -176,13 +228,24 @@ export default function SchoolDetail() {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate(`/users?institution_id=${institution.id}`)}
-            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
-          >
-            <Users className="h-4 w-4" /> Open school users
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={switchIntoSchool}
+              disabled={switching}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#eab308] px-4 py-2 text-sm font-semibold text-[#1e3a5f] hover:bg-[#d4a107] disabled:opacity-60"
+            >
+              {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Switch Institution
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/users?institution_id=${institution.id}`)}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
+            >
+              <Users className="h-4 w-4" /> Open school users
+            </button>
+          </div>
         </div>
       </div>
 
@@ -296,6 +359,35 @@ export default function SchoolDetail() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+          <GraduationCap className="h-4 w-4 text-[#1e3a5f]" /> Create student for this school
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          The student is assigned to {institution.name} and can sign in with the username and password you set.
+        </p>
+        {studentMsg && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" /> {studentMsg}
+          </div>
+        )}
+        {studentError && <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{studentError}</div>}
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <input className={fieldClass()} type="text" placeholder="Full name" value={studentForm.name} onChange={(e) => setStudentForm((p) => ({ ...p, name: e.target.value }))} />
+          <input className={fieldClass()} type="email" placeholder="Email" value={studentForm.email} onChange={(e) => setStudentForm((p) => ({ ...p, email: e.target.value }))} />
+          <input className={fieldClass()} type="text" placeholder="Username (for login)" value={studentForm.username} onChange={(e) => setStudentForm((p) => ({ ...p, username: e.target.value }))} />
+          <input className={fieldClass()} type="text" placeholder="Password (min 8 chars)" value={studentForm.password} onChange={(e) => setStudentForm((p) => ({ ...p, password: e.target.value }))} />
+          <button
+            type="button"
+            onClick={createStudent}
+            disabled={creatingStudent || !studentForm.name || !studentForm.email || !studentForm.username || studentForm.password.length < 8}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2d4a73] disabled:opacity-60 md:col-span-2 md:w-fit"
+          >
+            {creatingStudent ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Create student
+          </button>
         </div>
       </div>
     </div>

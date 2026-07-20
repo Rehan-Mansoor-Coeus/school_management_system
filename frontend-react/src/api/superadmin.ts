@@ -94,6 +94,10 @@ export function createSchoolAdmin(id: number, payload: Record<string, unknown>) 
   return api.post(`/super-admin/schools/${id}/admins`, payload)
 }
 
+export function createSchoolStudent(id: number, payload: Record<string, unknown>) {
+  return api.post(`/super-admin/schools/${id}/students`, payload)
+}
+
 export type InstitutionDashboard = {
   institution: SchoolSummary
   license: LicenseInfo

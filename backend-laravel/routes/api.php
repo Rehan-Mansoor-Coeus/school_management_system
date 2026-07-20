@@ -54,6 +54,7 @@ Route::middleware(['auth:api', 'platform_super_admin'])->prefix('super-admin')->
     Route::get('schools/{institution}', 'Api\SuperAdmin\SchoolController@show');
     Route::put('schools/{institution}/license', 'Api\SuperAdmin\SchoolController@updateLicense');
     Route::post('schools/{institution}/admins', 'Api\SuperAdmin\SchoolController@storeAdmin');
+    Route::post('schools/{institution}/students', 'Api\SuperAdmin\SchoolController@storeStudent');
     Route::get('context', 'Api\SuperAdmin\AdminContextController@current');
     Route::post('switch-institution/{institution}', 'Api\SuperAdmin\AdminContextController@switchInstitution');
     Route::post('return-to-platform', 'Api\SuperAdmin\AdminContextController@leaveInstitution');
