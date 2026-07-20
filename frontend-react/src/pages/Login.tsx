@@ -103,10 +103,14 @@ export default function LoginPage() {
       setAuth(profile)
 
       const redirect = searchParams.get('redirect')
+      const defaultHome =
+        profile.roleType === 'platform_super_admin' && profile.contextType === 'platform'
+          ? '/super-admin/dashboard'
+          : '/dashboard'
       const safeRedirect =
         redirect && redirect.startsWith('/') && !redirect.startsWith('//')
           ? redirect
-          : '/dashboard'
+          : defaultHome
 
       navigate(safeRedirect)
     } catch (err: unknown) {

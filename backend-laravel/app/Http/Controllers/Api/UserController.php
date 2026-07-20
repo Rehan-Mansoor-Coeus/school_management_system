@@ -222,25 +222,33 @@ class UserController extends Controller
             return $request->filled('institution_id') ? (int) $request->institution_id : null;
         }
 
-        return (int) (optional($request->user())->institution_id ?: 1);
+        return \App\Support\AdminContext::requireInstitutionId($request);
     }
 
     protected function resolveTargetInstitutionId(Request $request): int
     {
         if ($this->isPlatformSuperAdmin($request->user())) {
-            return (int) $request->institution_id;
+            $id = (int) ($request->institution_id ?: \App\Support\AdminContext::activeInstitutionId($request));
+            if ($id <= 0) {
+                abort(response()->json([
+                    'message' => 'Institution context required.',
+                    'code' => 'INSTITUTION_CONTEXT_REQUIRED',
+                ], 403));
+            }
+
+            return $id;
         }
 
-        return (int) (optional($request->user())->institution_id ?: 1);
+        return \App\Support\AdminContext::requireInstitutionId($request);
     }
 
     protected function authorizeUserAccess(Request $request, User $user): void
     {
-        if ($this->isPlatformSuperAdmin($request->user())) {
+        if ($this->isPlatformSuperAdmin($request->user()) && \App\Support\AdminContext::isInPlatformContext($request)) {
             return;
         }
 
-        $institutionId = (int) (optional($request->user())->institution_id ?: 1);
+        $institutionId = \App\Support\AdminContext::requireInstitutionId($request);
         if ((int) $user->institution_id !== $institutionId) {
             abort(404, 'User not found.');
         }

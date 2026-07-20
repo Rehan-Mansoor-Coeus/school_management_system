@@ -397,7 +397,7 @@ class TimesheetController extends Controller
 
     protected function institutionId(Request $request)
     {
-        return (int) (optional($request->user())->institution_id ?: $request->get('institution_id', 1));
+        return \App\Support\AdminContext::requireInstitutionId($request);
     }
 
     protected function logEvent($institutionId, $timesheetId, $entryId, $actorId, $event, $metadata)

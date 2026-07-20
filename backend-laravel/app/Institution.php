@@ -12,6 +12,9 @@ class Institution extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'subscription_started_at' => 'datetime',
+        'subscription_expires_at' => 'datetime',
+        'max_users' => 'integer',
     ];
 
     protected $appends = [
@@ -47,7 +50,22 @@ class Institution extends Model
         'vision',
         'is_active',
         'subscription_plan',
+        'subscription_status',
+        'subscription_started_at',
+        'subscription_expires_at',
+        'max_users',
+        'license_key',
     ];
+
+    /**
+     * Convenience accessor: has this institution's subscription lapsed?
+     */
+    public function getIsExpiredAttribute()
+    {
+        return $this->subscription_expires_at
+            ? $this->subscription_expires_at->isPast()
+            : false;
+    }
 
     public function modules()
     {

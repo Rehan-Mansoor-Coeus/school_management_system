@@ -46,7 +46,23 @@ Route::middleware('auth:api')->group(function () {
 
 Route::get('letters/public/verify/{letter}', 'Api\Letters\LetterPublicController@verify');
 
-Route::middleware('auth:api')->group(function () {
+// Platform super-admin: manage every school (licensing, plans, admins).
+Route::middleware(['auth:api', 'platform_super_admin'])->prefix('super-admin')->group(function () {
+    Route::get('overview', 'Api\SuperAdmin\SchoolController@overview');
+    Route::get('schools', 'Api\SuperAdmin\SchoolController@index');
+    Route::post('schools', 'Api\SuperAdmin\SchoolController@storeSchool');
+    Route::get('schools/{institution}', 'Api\SuperAdmin\SchoolController@show');
+    Route::put('schools/{institution}/license', 'Api\SuperAdmin\SchoolController@updateLicense');
+    Route::post('schools/{institution}/admins', 'Api\SuperAdmin\SchoolController@storeAdmin');
+    Route::get('context', 'Api\SuperAdmin\AdminContextController@current');
+    Route::post('switch-institution/{institution}', 'Api\SuperAdmin\AdminContextController@switchInstitution');
+    Route::post('return-to-platform', 'Api\SuperAdmin\AdminContextController@leaveInstitution');
+});
+
+// School-scoped dashboard for the caller's own institution (school admins).
+Route::middleware(['auth:api', 'resolve_institution', 'institution_context'])->get('institution-dashboard', 'Api\AdminDashboardController@show');
+
+Route::middleware(['auth:api', 'resolve_institution'])->group(function () {
     Route::middleware(['module_enabled:users', 'permission:users.view|view_users|manage_users'])->get('users', 'Api\UserController@index');
     Route::middleware(['module_enabled:roles', 'permission:roles.view|view_roles|manage_roles|roles.manage'])->get('roles', 'Api\RoleController@index');
     Route::middleware(['module_enabled:permissions', 'permission:permissions.view|view_permissions|manage_roles|permissions.manage'])->get('permissions', 'Api\PermissionController@index');

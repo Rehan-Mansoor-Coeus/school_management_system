@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api\Library\Concerns;
 
 use App\Library\Services\LibraryService;
 use App\Library\LibrarySetting;
+use App\Support\AdminContext;
+use App\Support\PlatformAccess;
 use Illuminate\Http\Request;
 
 trait ResolvesLibraryContext
 {
     protected function institutionId(Request $request): int
     {
-        return (int) (optional($request->user())->institution_id ?: 1);
+        return AdminContext::requireInstitutionId($request);
     }
 
     protected function hasAnyPermission(Request $request, array $permissions): bool
@@ -19,7 +21,7 @@ trait ResolvesLibraryContext
         if (! $user) {
             return false;
         }
-        if (method_exists($user, 'hasRole') && $user->hasRole('super-admin')) {
+        if (PlatformAccess::isPlatformSuperAdmin($user) && AdminContext::isInInstitutionContext($request, $user)) {
             return true;
         }
         foreach ($permissions as $permission) {

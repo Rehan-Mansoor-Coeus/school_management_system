@@ -114,11 +114,49 @@ function SidebarLink({ item, nested = false }: { item: SidebarItem; nested?: boo
   )
 }
 
+const platformNavItems: SidebarItem[] = [
+  { label: 'Dashboard', path: '/super-admin/dashboard', icon: LayoutDashboard },
+  { label: 'Institutions', path: '/super-admin/dashboard', icon: Building2 },
+  { label: 'Institution Requests', path: '/institution-requests', icon: Building2 },
+  { label: 'Administrators', path: '/users', icon: Users },
+  { label: 'Roles & Permissions', path: '/roles-permissions', icon: UserCog },
+  { label: 'Platform Settings', path: '/system/general-settings', icon: Settings },
+]
+
 export default function Sidebar() {
   const { t } = useTimesheetI18n()
   const { t: tLetters } = useLettersI18n()
-  const { institution, enabledModules, canAccess, hasPermission, hasAnyPermission, isAdmin, userRoles } = useAuth()
+  const {
+    institution,
+    enabledModules,
+    canAccess,
+    hasPermission,
+    hasAnyPermission,
+    isAdmin,
+    userRoles,
+    isPlatformContext,
+    isPlatformSuperAdmin,
+    actingAsSuperAdmin,
+    activeInstitution,
+  } = useAuth()
   const location = useLocation()
+
+  if (isPlatformSuperAdmin && isPlatformContext) {
+    return (
+      <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
+        <div className="mb-6 shrink-0">
+          <div className="text-2xl font-bold tracking-tight text-[#eab308]">Okusoma Super Admin</div>
+          <div className="text-sm text-blue-100">Platform Administration</div>
+          <div className="mt-2 text-xs text-blue-200">No institution selected</div>
+        </div>
+        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+          {platformNavItems.map((item) => (
+            <SidebarLink key={`${item.label}-${item.path}`} item={item} />
+          ))}
+        </nav>
+      </aside>
+    )
+  }
 
   const safeEnabledModules = Array.isArray(enabledModules) ? enabledModules : []
 
@@ -195,8 +233,11 @@ export default function Sidebar() {
   const [lettersOpen, setLettersOpen] = useSidebarSection(false, ['/letters'])
   const [modulesOpen, setModulesOpen] = useSidebarSection(false, visibleModuleItems.map((item) => item.path))
 
-  const institutionName = institution?.name || 'School Management'
-  const institutionSubtitle = institution?.acronym || ''
+  const displayInstitution = activeInstitution || institution
+  const institutionName = (displayInstitution?.name as string) || 'School Management'
+  const institutionSubtitle = actingAsSuperAdmin
+    ? 'Managed by Super Admin'
+    : ((displayInstitution?.acronym as string) || (displayInstitution?.code as string) || '')
 
   const employeePath = '/timesheets/fill'
   const adminPath = '/timesheets/admin/reports'
@@ -208,8 +249,8 @@ export default function Sidebar() {
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
       <div className="mb-6 shrink-0">
-        {institution?.logo_url ? (
-          <img src={publicFileUrl(institution.logo_url) || institution.logo_url} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
+        {displayInstitution?.logo_url ? (
+          <img src={publicFileUrl(String(displayInstitution.logo_url)) || String(displayInstitution.logo_url)} alt={institutionName} className="mb-3 h-12 w-auto max-w-full object-contain" />
         ) : null}
         <div className="text-2xl font-bold tracking-tight text-[#eab308]">{institutionName}</div>
         {institutionSubtitle ? <div className="text-sm text-blue-100">{institutionSubtitle}</div> : null}
