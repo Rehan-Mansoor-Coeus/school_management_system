@@ -74,6 +74,13 @@ class EnrollmentService
             'is_active' => true,
         ]);
 
+        try {
+            app(\App\Modules\Licensing\Services\SemesterLicenseService::class)
+                ->syncOpenSemestersForInstitution((int) $application->institution_id);
+        } catch (\Throwable $e) {
+            \Log::debug('licensing.enrollment_sync_skipped', ['error' => $e->getMessage()]);
+        }
+
         return ['student' => $student->load('user'), 'plain_password' => $plainPassword];
     }
 

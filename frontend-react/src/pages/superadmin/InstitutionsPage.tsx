@@ -9,12 +9,28 @@ import {
   updateSchoolLicense,
   type SchoolSummary,
 } from '../../api/superadmin'
+import { fetchLicensePlans, type LicensePlan } from '../../api/licensing'
 import { formatApiError } from '../../utils/apiError'
 import { useAuth } from '../../context/AuthContext'
 import { profileFromAuthResponse } from '../../utils/authSession'
 
-const PLAN_OPTIONS = ['free', 'basic', 'standard', 'premium', 'enterprise']
-const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired']
+const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired', 'pending_payment', 'grace_period', 'overdue']
+
+function planCodeOf(school: SchoolSummary): string {
+  const lic = school.license
+  if (lic?.plan && typeof lic.plan === 'object') return lic.plan.code || 'free'
+  return lic?.plan_code || (typeof lic?.plan === 'string' ? lic.plan : 'free')
+}
+
+function planNameOf(school: SchoolSummary): string {
+  const lic = school.license
+  if (lic?.plan && typeof lic.plan === 'object') return lic.plan.name || lic.plan.code || 'Free'
+  return lic?.plan_name || planCodeOf(school)
+}
+
+function licenseStatusOf(school: SchoolSummary): string {
+  return school.license?.license_status || school.license?.status || 'active'
+}
 
 function fieldClass() {
   return 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20'
@@ -72,8 +88,10 @@ export default function InstitutionsPage() {
     city: '',
   })
 
+  const [plans, setPlans] = useState<LicensePlan[]>([])
   const [licenseTarget, setLicenseTarget] = useState<SchoolSummary | null>(null)
   const [licenseForm, setLicenseForm] = useState({
+    license_plan_id: '' as string | number,
     subscription_plan: 'free',
     subscription_status: 'active',
     subscription_expires_at: '',
@@ -93,8 +111,12 @@ export default function InstitutionsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetchSchools()
-      setSchools(res.data.data || [])
+      const [schoolsRes, plansRes] = await Promise.all([
+        fetchSchools(),
+        fetchLicensePlans({ active_only: true }),
+      ])
+      setSchools(schoolsRes.data.data || [])
+      setPlans(plansRes.data.data || [])
     } catch (err) {
       setError(formatApiError(err, 'Unable to load institutions.'))
     } finally {
@@ -130,10 +152,13 @@ export default function InstitutionsPage() {
   function openLicense(school: SchoolSummary) {
     setLicenseTarget(school)
     setLicenseError('')
+    const code = planCodeOf(school)
+    const matched = plans.find((p) => p.code === code)
     setLicenseForm({
-      subscription_plan: school.license.plan || 'free',
-      subscription_status: school.license.status || 'active',
-      subscription_expires_at: toDateInput(school.license.expires_at),
+      license_plan_id: matched?.id || '',
+      subscription_plan: code,
+      subscription_status: licenseStatusOf(school),
+      subscription_expires_at: toDateInput(school.license.expiry_date || school.license.expires_at),
       max_users: school.license.max_users != null ? String(school.license.max_users) : '',
       is_active: school.is_active,
     })
@@ -144,8 +169,10 @@ export default function InstitutionsPage() {
     setSavingLicense(true)
     setLicenseError('')
     try {
+      const selected = plans.find((p) => String(p.id) === String(licenseForm.license_plan_id))
       await updateSchoolLicense(licenseTarget.id, {
-        subscription_plan: licenseForm.subscription_plan,
+        license_plan_id: licenseForm.license_plan_id || undefined,
+        subscription_plan: selected?.code || licenseForm.subscription_plan,
         subscription_status: licenseForm.subscription_status,
         subscription_expires_at: licenseForm.subscription_expires_at || null,
         max_users: licenseForm.max_users === '' ? null : Number(licenseForm.max_users),
@@ -293,11 +320,11 @@ export default function InstitutionsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium capitalize text-indigo-700">
-                        {school.license.plan}
+                        {planNameOf(school)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusPill status={school.license.status} isActive={school.is_active} />
+                      <StatusPill status={licenseStatusOf(school)} isActive={school.is_active} />
                     </td>
                     <td className="px-4 py-3 text-slate-700">{school.stats.total_users}</td>
                     <td className="px-4 py-3 text-slate-700">{school.stats.courses ?? 0}</td>
@@ -365,8 +392,22 @@ export default function InstitutionsPage() {
             <h3 className="text-lg font-semibold text-slate-900">License · {licenseTarget.name}</h3>
             {licenseError && <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{licenseError}</div>}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <select className={fieldClass()} value={licenseForm.subscription_plan} onChange={(e) => setLicenseForm((p) => ({ ...p, subscription_plan: e.target.value }))}>
-                {PLAN_OPTIONS.map((plan) => <option key={plan} value={plan}>{plan}</option>)}
+              <select
+                className={fieldClass()}
+                value={String(licenseForm.license_plan_id || '')}
+                onChange={(e) => {
+                  const plan = plans.find((p) => String(p.id) === e.target.value)
+                  setLicenseForm((p) => ({
+                    ...p,
+                    license_plan_id: e.target.value,
+                    subscription_plan: plan?.code || p.subscription_plan,
+                  }))
+                }}
+              >
+                <option value="">Select plan…</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>{plan.name}</option>
+                ))}
               </select>
               <select className={fieldClass()} value={licenseForm.subscription_status} onChange={(e) => setLicenseForm((p) => ({ ...p, subscription_status: e.target.value }))}>
                 {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}

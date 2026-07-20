@@ -3,8 +3,10 @@
 namespace App\Modules\Contracts\Services;
 
 use App\Contracts\Messaging\WhatsAppMessagingProvider;
+use App\Institution;
 use App\Modules\Contracts\Models\Contract;
 use App\Modules\Contracts\Models\ContractNotification;
+use App\Services\Messaging\NotificationMessageFormatter;
 use Illuminate\Support\Facades\Mail;
 
 class ContractNotificationService
@@ -12,10 +14,18 @@ class ContractNotificationService
     protected $signingService;
     protected $whatsapp;
 
+    protected $formatter;
+
     public function __construct(ContractSigningService $signingService, WhatsAppMessagingProvider $whatsapp)
     {
         $this->signingService = $signingService;
         $this->whatsapp = $whatsapp;
+        $this->formatter = new NotificationMessageFormatter();
+    }
+
+    protected function institutionName(Contract $contract): ?string
+    {
+        return optional(Institution::find($contract->institution_id))->name;
     }
 
     public function sendSigningLink(Contract $contract, array $channels = ['email'], ?int $expiresDays = 14): array
@@ -68,7 +78,15 @@ class ContractNotificationService
             return;
         }
 
-        $message = 'Your signed contract '.$contract->reference_number.' is now fully executed. You can download your copy from the institution portal.';
+        $message = $this->formatter->format(
+            'CONTRACT EXECUTED',
+            $this->formatter->greeting($contract->recipient_name),
+            [
+                $this->formatter->field('Reference', (string) $contract->reference_number),
+                'Your signed contract is now fully executed. You can download your copy from the institution portal.',
+            ],
+            $this->institutionName($contract)
+        );
 
         if ($contract->recipient_email) {
             $this->sendExecutedEmail($contract->recipient_email, $contract, $message);
@@ -82,11 +100,17 @@ class ContractNotificationService
     {
         $name = $name ?: $contract->recipient_name;
         $subject = 'Document for Review & Signature — '.$contract->title;
-        $body = "Dear {$name},\n\n"
-            ."Please review and sign your document using the secure link below:\n\n"
-            .$url."\n\n"
-            ."Reference: {$contract->reference_number}\n\n"
-            ."This link is confidential. Do not share it with others.\n";
+        $body = $this->formatter->format(
+            'DOCUMENT FOR SIGNATURE',
+            $this->formatter->greeting($name),
+            [
+                $this->formatter->field('Document', (string) $contract->title),
+                $this->formatter->field('Reference', (string) $contract->reference_number),
+                $this->formatter->field('Secure link', $url),
+                'This link is confidential. Do not share it with others.',
+            ],
+            $this->institutionName($contract)
+        );
 
         try {
             Mail::raw($body, function ($message) use ($email, $subject) {
@@ -121,7 +145,17 @@ class ContractNotificationService
     protected function sendWhatsApp(Contract $contract, string $url, string $phone, ?string $name = null): bool
     {
         $name = $name ?: $contract->recipient_name;
-        $message = "Dear {$name}, please review and sign your document ({$contract->reference_number}): {$url}";
+        $message = $this->formatter->format(
+            'DOCUMENT FOR SIGNATURE',
+            $this->formatter->greeting($name),
+            [
+                $this->formatter->field('Document', (string) $contract->title),
+                $this->formatter->field('Reference', (string) $contract->reference_number),
+                $this->formatter->field('Secure link', $url),
+                'Please review and sign your document using the secure link.',
+            ],
+            $this->institutionName($contract)
+        );
 
         try {
             $result = $this->whatsapp->sendTextMessage($phone, $message);
@@ -178,12 +212,18 @@ class ContractNotificationService
         $title = $contract->title ?: ('Document '.$contract->reference_number);
         $expiry = optional($contract->end_date)->format('d M Y');
         $subject = 'Document Expiry Reminder — '.$title;
-        $body = "This is an automated reminder.\n\n"
-            ."Document: {$title}\n"
-            ."Reference: {$contract->reference_number}\n"
-            ."Expires on: {$expiry}\n"
-            ."Days remaining: {$daysLeft}\n\n"
-            ."Please initiate renewal or any required action before the expiry date.";
+        $body = $this->formatter->format(
+            'DOCUMENT EXPIRY REMINDER',
+            null,
+            [
+                $this->formatter->field('Document', (string) $title),
+                $this->formatter->field('Reference', (string) $contract->reference_number),
+                $this->formatter->field('Expires on', (string) $expiry),
+                $this->formatter->field('Days remaining', (string) $daysLeft),
+                'Please initiate renewal or any required action before the expiry date.',
+            ],
+            $this->institutionName($contract)
+        );
 
         $out = [];
 
@@ -201,8 +241,7 @@ class ContractNotificationService
         }
 
         if (in_array('whatsapp', $channels, true) && $contract->recipient_phone) {
-            $msg = "Reminder: document {$contract->reference_number} ({$title}) expires on {$expiry} — {$daysLeft} day(s) left. Please renew.";
-            $out['whatsapp'] = $this->sendExpiryWhatsApp($contract, $contract->recipient_phone, $msg, $marker);
+            $out['whatsapp'] = $this->sendExpiryWhatsApp($contract, $contract->recipient_phone, $body, $marker);
         }
 
         if (in_array('internal', $channels, true)) {

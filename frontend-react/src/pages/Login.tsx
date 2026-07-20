@@ -10,6 +10,11 @@ import {
 } from 'lucide-react'
 
 import api from '../api/client'
+import {
+  appCopyrightLabel,
+  appDevelopedByLabel,
+  appVersionLabel,
+} from '../config/appMeta'
 import { useAuth } from '../context/AuthContext'
 import {
   applyToken,
@@ -266,6 +271,14 @@ export default function LoginPage() {
                 {submitting ? 'Signing in...' : 'Sign in'}
               </button>
             </form>
+
+            <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">
+              <span className="font-medium text-slate-600">{appVersionLabel()}</span>
+              <br />
+              {appDevelopedByLabel()}
+              <br />
+              {appCopyrightLabel()}
+            </p>
           </div>
         </div>
       </div>

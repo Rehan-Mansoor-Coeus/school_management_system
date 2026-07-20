@@ -1,8 +1,10 @@
-import { NavLink, Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
+import { Award, FilePlus2, FolderOpen } from 'lucide-react'
 import { useAuth } from '../../../context/AuthContext'
 import { useCharacterCertificatesI18n } from '../../../hooks/useCharacterCertificatesI18n'
 import { CHARACTER_CERT_STAFF_PERMISSIONS } from '../../../utils/accessControl'
 import CertificatesListPage from '../pages/CertificatesListPage'
+import ColoredModuleTabsNav, { type TabColor } from '../../../components/ui/ColoredModuleTabsNav'
 
 const linkDefs = [
   {
@@ -10,16 +12,22 @@ const linkDefs = [
     label: 'Character Certificate',
     end: true,
     permissions: [...CHARACTER_CERT_STAFF_PERMISSIONS],
+    icon: Award,
+    color: 'navy' as TabColor,
   },
   {
     path: '/character-certificates/create',
     labelKey: 'createCertificate',
     permissions: ['character_certificates.manage', 'character_certificates.issue'],
+    icon: FilePlus2,
+    color: 'emerald' as TabColor,
   },
   {
     path: '/character-certificates/my',
     labelKey: 'myCertificates',
     permissions: ['character_certificates.view'],
+    icon: FolderOpen,
+    color: 'amber' as TabColor,
   },
 ]
 
@@ -56,7 +64,15 @@ export default function CharacterCertificatesLayout() {
   const isStudentPortal = canAccess({ permissions: ['character_certificates.view'] })
     && !canAccess({ permissions: [...CHARACTER_CERT_STAFF_PERMISSIONS] })
 
-  const visibleLinks = linkDefs.filter((link) => canAccess({ permissions: link.permissions }))
+  const tabs = linkDefs
+    .filter((link) => canAccess({ permissions: link.permissions }))
+    .map((link) => ({
+      label: link.label ?? t(link.labelKey!),
+      path: link.path,
+      end: link.end,
+      icon: link.icon,
+      color: link.color,
+    }))
 
   return (
     <div className="space-y-6">
@@ -70,25 +86,7 @@ export default function CharacterCertificatesLayout() {
         )}
       </div>
 
-      {visibleLinks.length > 0 && (
-        <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-          {visibleLinks.map((link) => (
-            <NavLink
-              key={link.path}
-              to={link.path}
-              end={link.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  isActive ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              {link.label ?? t(link.labelKey!)}
-            </NavLink>
-          ))}
-        </nav>
-      )}
-
+      <ColoredModuleTabsNav items={tabs} />
       <Outlet />
     </div>
   )

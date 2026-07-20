@@ -10,6 +10,7 @@ import {
 } from '../../api/superadmin'
 import { formatApiError } from '../../utils/apiError'
 import { useAuth } from '../../context/AuthContext'
+import { ColoredTabsBar, type TabColor } from '../../components/ui/ColoredModuleTabsNav'
 
 function fieldClass() {
   return 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20'
@@ -110,10 +111,10 @@ export default function PlatformUsersPage() {
     }
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'all', label: 'All admins' },
-    { id: 'super_admin', label: 'Super Admins' },
-    { id: 'institution_admin', label: 'Institution Admins' },
+  const tabs: { id: Tab; label: string; color: TabColor }[] = [
+    { id: 'all', label: 'All admins', color: 'navy' },
+    { id: 'super_admin', label: 'Super Admins', color: 'amber' },
+    { id: 'institution_admin', label: 'Institution Admins', color: 'purple' },
   ]
 
 
@@ -150,20 +151,11 @@ export default function PlatformUsersPage() {
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTab(item.id)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                  tab === item.id ? 'bg-[#1e3a5f] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <ColoredTabsBar
+            items={tabs.map((item) => ({ id: item.id, label: item.label, color: item.color }))}
+            activeId={tab}
+            onChange={(id) => setTab(id as Tab)}
+          />
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input

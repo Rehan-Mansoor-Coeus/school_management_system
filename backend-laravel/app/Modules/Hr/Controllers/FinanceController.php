@@ -58,7 +58,7 @@ class FinanceController extends Controller
                 if ($payment->status === 'paid') {
                     $staff = \App\Modules\Hr\Models\HrStaffProfile::find($item->staff_profile_id);
                     if ($staff) {
-                        $notifications->sendToStaff($staff, 'Your salary payment has been processed.');
+                        $notifications->sendToStaff($staff, 'Your salary payment has been processed.', 'SALARY PAYMENT');
                     }
                 }
             }

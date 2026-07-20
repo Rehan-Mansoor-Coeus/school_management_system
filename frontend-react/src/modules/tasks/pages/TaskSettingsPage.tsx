@@ -11,6 +11,7 @@ import {
 } from '../../../api/tasks'
 import { FormField, formInputClass } from '../../../components/ui/FormField'
 import { useToast } from '../../../components/ui/ToastProvider'
+import { ColoredTabsBar } from '../../../components/ui/ColoredModuleTabsNav'
 import { useEffect } from 'react'
 
 export default function TaskSettingsPage() {
@@ -83,22 +84,14 @@ export default function TaskSettingsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-        <button
-          type="button"
-          onClick={() => setTab('general')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'general' ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-        >
-          Categories & Templates
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('audit')}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === 'audit' ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-        >
-          Audit Logs
-        </button>
-      </div>
+      <ColoredTabsBar
+        items={[
+          { id: 'general', label: 'Categories & Templates', color: 'navy' },
+          { id: 'audit', label: 'Audit Logs', color: 'amber' },
+        ]}
+        activeId={tab}
+        onChange={(id) => setTab(id as 'general' | 'audit')}
+      />
 
       {tab === 'audit' ? (
         <AuditLogsPanel compact />

@@ -7,6 +7,7 @@ use App\Concerns\TranslatesForUser;
 use App\Modules\Admissions\Models\Application;
 use App\User;
 use App\Services\Messaging\MessageLogService;
+use App\Services\Messaging\NotificationMessageFormatter;
 use App\Services\Messaging\WhatsAppService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -20,10 +21,13 @@ class NotificationService
 
     protected $messageLogs;
 
+    protected $formatter;
+
     public function __construct()
     {
         $this->whatsapp = new WhatsAppService();
         $this->messageLogs = new MessageLogService();
+        $this->formatter = new NotificationMessageFormatter();
     }
 
     public function sendAdmissionLetter(Application $application, $pdfPath)
@@ -38,7 +42,18 @@ class NotificationService
                 $application->applicant->user_id,
                 $application->institution_id,
                 $this->transForUser('admissions.notify_admission_letter_title', [], $user),
-                $this->transForUser('admissions.notify_admission_letter_body', [], $user),
+                $this->formatter->format(
+                    $this->transForUser('admissions.notify_admission_letter_title', [], $user),
+                    $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
+                    [
+                        $this->formatter->field(
+                            $this->transForUser('admissions.notify_field_application', [], $user),
+                            (string) $application->application_number
+                        ),
+                        $this->transForUser('admissions.notify_admission_letter_body', [], $user),
+                    ],
+                    optional($application->institution)->name
+                ),
                 'admission'
             );
         }
@@ -57,12 +72,18 @@ class NotificationService
         $stageLabel = $this->transForUser('admissions.rejection_stage_'.$stage, [], $user);
 
         $header = $this->transForUser('admissions.rejection_notify_header', [], $user);
-        $message = $this->formatStructuredMessage(
+        $message = $this->formatter->format(
             $header,
-            $this->transForUser('admissions.notify_greeting', ['name' => optional($application->applicant)->first_name ?: optional($user)->name], $user),
+            $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
             [
-                $this->transForUser('admissions.notify_line_application', ['number' => $application->application_number], $user),
-                $this->transForUser('admissions.notify_line_programme', ['programme' => optional($application->programme)->name ?: '—'], $user),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_application', [], $user),
+                    (string) $application->application_number
+                ),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_programme', [], $user),
+                    optional($application->programme)->name ?: '—'
+                ),
                 $this->transForUser('admissions.rejection_notify_body', ['stage' => $stageLabel], $user),
             ],
             optional($application->institution)->name
@@ -196,12 +217,22 @@ class NotificationService
                 return $result;
             }
 
-            $message = $this->transForUser('admissions.whatsapp_admitted', [
-                'name' => $applicant->first_name,
-                'institution' => $application->institution->name,
-                'programme' => $application->programme->name,
-                'number' => $application->application_number,
-            ], $user);
+            $message = $this->formatter->format(
+                $this->transForUser('admissions.notify_header_admitted', [], $user),
+                $this->formatter->greeting($applicant->first_name),
+                [
+                    $this->formatter->field(
+                        $this->transForUser('admissions.notify_field_application', [], $user),
+                        (string) $application->application_number
+                    ),
+                    $this->formatter->field(
+                        $this->transForUser('admissions.notify_field_programme', [], $user),
+                        $application->programme->name
+                    ),
+                    $this->transForUser('admissions.whatsapp_admitted_body', [], $user),
+                ],
+                optional($application->institution)->name
+            );
 
             $textResult = $this->whatsapp->sendTextMessage($normalizedPhone, $message, 'admission_letter');
             $this->messageLogs->logWhatsAppResult($application->institution_id, $textResult, [
@@ -293,18 +324,18 @@ class NotificationService
             'enrolled' => 'notify_enrolled',
         ];
 
-        $headers = [
-            'submitted' => 'APPLICATION RECEIVED',
-            'application_fee_paid' => 'PAYMENT RECEIVED',
-            'application_fee_proof_submitted' => 'PAYMENT PROOF SUBMITTED',
-            'application_fee_proof_rejected' => 'PAYMENT PROOF REJECTED',
-            'registry_reviewed' => 'REGISTRY REVIEW COMPLETE',
-            'approved' => 'DEPARTMENT APPROVED',
-            'rejected' => 'APPLICATION UPDATE',
-            'admitted' => 'ADMISSION OFFER',
-            'accepted' => 'ADMISSION ACCEPTED',
-            'tuition_paid' => 'TUITION PAYMENT RECEIVED',
-            'enrolled' => 'ENROLLMENT COMPLETE',
+        $headerKeys = [
+            'submitted' => 'notify_header_submitted',
+            'application_fee_paid' => 'notify_header_application_fee_paid',
+            'application_fee_proof_submitted' => 'notify_header_application_fee_proof_submitted',
+            'application_fee_proof_rejected' => 'notify_header_application_fee_proof_rejected',
+            'registry_reviewed' => 'notify_header_registry_reviewed',
+            'approved' => 'notify_header_approved',
+            'rejected' => 'notify_header_rejected',
+            'admitted' => 'notify_header_admitted',
+            'accepted' => 'notify_header_accepted',
+            'tuition_paid' => 'notify_header_tuition_paid',
+            'enrolled' => 'notify_header_enrolled',
         ];
 
         $application->loadMissing(['applicant.user', 'programme', 'institution']);
@@ -316,18 +347,26 @@ class NotificationService
             'institution' => optional($application->institution)->name ?: '—',
         ], $replace);
 
-        $header = $headers[$status] ?? 'APPLICATION UPDATE';
+        $header = isset($headerKeys[$status])
+            ? $this->transForUser('admissions.'.$headerKeys[$status], [], $user)
+            : $this->transForUser('admissions.notify_header_update', [], $user);
         $title = $this->transForUser('admissions.notify_status_title', [], $user);
         $body = isset($keys[$status])
             ? $this->transForUser('admissions.'.$keys[$status], $replace, $user)
             : $title;
 
-        $message = $this->formatStructuredMessage(
+        $message = $this->formatter->format(
             $header,
-            $this->transForUser('admissions.notify_greeting', ['name' => $replace['name']], $user),
+            $this->formatter->greeting($replace['name']),
             [
-                $this->transForUser('admissions.notify_line_application', ['number' => $replace['number']], $user),
-                $this->transForUser('admissions.notify_line_programme', ['programme' => $replace['programme']], $user),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_application', [], $user),
+                    (string) $replace['number']
+                ),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_programme', [], $user),
+                    (string) $replace['programme']
+                ),
                 $body,
             ],
             optional($application->institution)->name
@@ -345,22 +384,6 @@ class NotificationService
             $this->sendStatusEmail($application, $header, $message);
             $this->sendStatusWhatsApp($application, $message, $user);
         }
-    }
-
-    protected function formatStructuredMessage(string $header, string $greeting, array $lines, string $footer = ''): string
-    {
-        $parts = ["*{$header}*", str_repeat('─', 24), '', $greeting, ''];
-        foreach ($lines as $line) {
-            if ($line) {
-                $parts[] = "• {$line}";
-            }
-        }
-        if ($footer) {
-            $parts[] = '';
-            $parts[] = "_{$footer}_";
-        }
-
-        return implode("\n", $parts);
     }
 
     protected function sendStatusEmail(Application $application, $subject, $message)
@@ -417,6 +440,7 @@ class NotificationService
 
     public function notifyDepartment(Application $application)
     {
+        $application->loadMissing(['institution', 'programme']);
         $departmentId = optional($application->programme)->department_id;
         $users = User::where('institution_id', $application->institution_id)
             ->where('department_id', $departmentId)
@@ -426,11 +450,24 @@ class NotificationService
             ->get();
 
         foreach ($users as $user) {
+            $message = $this->formatter->format(
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                null,
+                [
+                    $this->formatter->field(
+                        $this->transForUser('admissions.notify_field_application', [], $user),
+                        (string) $application->application_number
+                    ),
+                    $this->transForUser('admissions.notify_department_review_body', [], $user),
+                ],
+                optional($application->institution)->name
+            );
+
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
                 $this->transForUser('admissions.notify_status_title', [], $user),
-                $this->transForUser('admissions.notify_department_review', ['number' => $application->application_number], $user),
+                $message,
                 'admission'
             );
         }
@@ -466,14 +503,27 @@ class NotificationService
         $institution = $application->institution ?? \App\Institution::find($application->institution_id);
         $currency = strtoupper((string) ($institution->currency ?? 'USD'));
 
-        $message = $this->transForUser('admissions.notify_payment_proof_submitted', [
-            'number' => $application->application_number,
-            'amount' => number_format((float) $payment->amount, 2),
-            'currency' => $currency,
-        ]);
+        $application->loadMissing(['institution', 'programme', 'applicant']);
+        $title = $this->transForUser('admissions.notify_payment_proof_title');
+        $message = $this->formatter->format(
+            $this->transForUser('admissions.notify_header_application_fee_proof_submitted'),
+            null,
+            [
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_application'),
+                    (string) $application->application_number
+                ),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_amount'),
+                    $currency.' '.number_format((float) $payment->amount, 2)
+                ),
+                $this->transForUser('admissions.notify_payment_proof_submitted_body'),
+            ],
+            optional($application->institution)->name
+        );
 
-        $this->notifyRoleUsers('registry', $application, $this->transForUser('admissions.notify_payment_proof_title'), $message);
-        $this->notifyRoleUsers('finance-officer', $application, $this->transForUser('admissions.notify_payment_proof_title'), $message);
+        $this->notifyRoleUsers('registry', $application, $title, $message);
+        $this->notifyRoleUsers('finance-officer', $application, $title, $message);
     }
 
     public function notifyPaymentProofRejected(\App\Modules\Admissions\Models\ApplicationPayment $payment)
@@ -484,26 +534,40 @@ class NotificationService
             return;
         }
 
-        $message = $this->transForUser('admissions.notify_payment_proof_rejected', [
-            'number' => $application->application_number,
-            'reason' => $payment->review_notes ?: '—',
-        ], $user);
+        $application->loadMissing(['institution', 'programme', 'applicant.user']);
+        $title = $this->transForUser('admissions.notify_payment_proof_title', [], $user);
+        $message = $this->formatter->format(
+            $this->transForUser('admissions.notify_header_application_fee_proof_rejected', [], $user),
+            $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
+            [
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_application', [], $user),
+                    (string) $application->application_number
+                ),
+                $this->formatter->field(
+                    $this->transForUser('admissions.notify_field_reason', [], $user),
+                    $payment->review_notes ?: '—'
+                ),
+                $this->transForUser('admissions.notify_payment_proof_rejected_body', [], $user),
+            ],
+            optional($application->institution)->name
+        );
 
         $this->createInAppNotification(
             $application->applicant->user_id,
             $application->institution_id,
-            $this->transForUser('admissions.notify_payment_proof_title', [], $user),
+            $title,
             $message,
             'admission'
         );
 
-        $this->sendStatusEmail($application, $this->transForUser('admissions.notify_payment_proof_title', [], $user), $message);
+        $this->sendStatusEmail($application, $title, $message);
         $this->sendStatusWhatsApp($application, $message, $user);
     }
 
     public function notifyHodForCourseRegistration($student)
     {
-        $student->loadMissing('programme');
+        $student->loadMissing(['programme', 'institution']);
         $users = User::where('institution_id', $student->institution_id)
             ->where('department_id', optional($student->programme)->department_id)
             ->whereHas('roles', function ($q) {
@@ -512,11 +576,24 @@ class NotificationService
             ->get();
 
         foreach ($users as $user) {
+            $message = $this->formatter->format(
+                $this->transForUser('admissions.notify_status_title', [], $user),
+                null,
+                [
+                    $this->formatter->field(
+                        $this->transForUser('admissions.notify_field_registration', [], $user),
+                        (string) $student->registration_number
+                    ),
+                    $this->transForUser('admissions.notify_course_pending_body', [], $user),
+                ],
+                optional($student->institution)->name
+            );
+
             $this->createInAppNotification(
                 $user->id,
                 $student->institution_id,
                 $this->transForUser('admissions.notify_status_title', [], $user),
-                $this->transForUser('admissions.notify_course_pending', ['reg' => $student->registration_number], $user),
+                $message,
                 'admission'
             );
         }
@@ -524,6 +601,7 @@ class NotificationService
 
     protected function notifyRoleUsers($roleName, Application $application, $title, $message)
     {
+        $application->loadMissing(['institution', 'programme']);
         $users = User::where('institution_id', $application->institution_id)
             ->whereHas('roles', function ($q) use ($roleName) {
                 $q->where('name', $roleName);
@@ -531,11 +609,19 @@ class NotificationService
             ->get();
 
         foreach ($users as $user) {
+            $formatted = $this->formatter->isBranded((string) $message)
+                ? $message
+                : $this->formatter->wrap(
+                    (string) $message,
+                    (string) $title,
+                    optional($application->institution)->name
+                );
+
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
                 $this->transForUser('admissions.notify_status_title', [], $user),
-                $message,
+                $formatted,
                 'admission'
             );
         }

@@ -52,10 +52,10 @@ export const NotificationBell: React.FC = () => {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+        <div className="absolute right-0 mt-2 w-[22rem] sm:w-96 bg-white rounded-lg shadow-xl z-50 max-h-[28rem] overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 px-4 py-3 border-b bg-white flex justify-between items-center">
-            <h3 className="font-semibold text-gray-800">Notifications</h3>
+            <h3 className="text-base font-semibold text-gray-800">Notifications</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -70,7 +70,7 @@ export const NotificationBell: React.FC = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">
+            <div className="px-4 py-8 text-center text-base text-gray-500">
               No notifications
             </div>
           ) : (
@@ -80,28 +80,28 @@ export const NotificationBell: React.FC = () => {
                   <div
                     key={notification.id}
                     onClick={() => markAsRead(notification.id)}
-                    className={`px-4 py-3 cursor-pointer hover:bg-gray-50 border-l-4 transition-colors ${
+                    className={`px-4 py-3.5 cursor-pointer hover:bg-gray-50 border-l-4 transition-colors ${
                       notification.is_read ? 'border-gray-200' : 'border-blue-500'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getNotificationColor(
+                        className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base font-bold ${getNotificationColor(
                           notification.type
                         )}`}
                       >
                         {getNotificationIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold ${
+                        <p className={`text-base font-semibold leading-snug ${
                           notification.is_read ? 'text-gray-600' : 'text-gray-900'
                         }`}>
                           {notification.title}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                        <p className="text-[15px] leading-relaxed text-gray-700 mt-1.5 whitespace-pre-wrap line-clamp-6">
                           {notification.message}
                         </p>
-                        <span className="text-xs text-gray-400 mt-1">
+                        <span className="text-sm text-gray-400 mt-1.5 inline-block">
                           {new Date(notification.created_at).toLocaleDateString()}
                         </span>
                       </div>
@@ -115,7 +115,7 @@ export const NotificationBell: React.FC = () => {
                 <div className="sticky bottom-0 px-4 py-2 border-t bg-white">
                   <button
                     onClick={markAllAsRead}
-                    className="w-full text-sm text-blue-600 hover:text-blue-800 font-semibold py-2"
+                    className="w-full text-base text-blue-600 hover:text-blue-800 font-semibold py-2"
                   >
                     Mark all as read
                   </button>

@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { isAdminRole, isPlatformSuperAdminRole, resolveUserRoles } from '../../../utils/accessControl'
+import ColoredModuleTabsNav from '../../../components/ui/ColoredModuleTabsNav'
 
 type Tab = { to: string; label: string; permissions: string[]; end?: boolean }
 
@@ -33,22 +34,13 @@ export default function TimetableLayout() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-        {visible.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.end}
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`
-            }
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </div>
+      <ColoredModuleTabsNav
+        items={visible.map((tab) => ({
+          label: tab.label,
+          path: tab.to,
+          end: tab.end,
+        }))}
+      />
 
       <Outlet />
     </div>

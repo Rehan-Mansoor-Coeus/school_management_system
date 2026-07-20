@@ -1,8 +1,9 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
+import ColoredModuleTabsNav from '../../../components/ui/ColoredModuleTabsNav'
 
 const tabs = [
-  { label: 'Student Report', path: '/reports/students', icon: GraduationCap },
+  { label: 'Student Report', path: '/reports/students', icon: GraduationCap, color: 'navy' as const },
 ]
 
 export default function ReportsLayout() {
@@ -13,26 +14,7 @@ export default function ReportsLayout() {
         <p className="text-sm text-slate-500">Institutional reports and student records.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          return (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              className={({ isActive }) =>
-                `inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium ${
-                  isActive ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-            </NavLink>
-          )
-        })}
-      </div>
-
+      <ColoredModuleTabsNav items={tabs} />
       <Outlet />
     </div>
   )

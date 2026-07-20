@@ -37,6 +37,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('general-settings', 'Api\\GeneralSettingsController@show');
     Route::put('general-settings', 'Api\\GeneralSettingsController@update');
     Route::get('institution-requests', 'Api\\InstitutionRegistrationRequestController@index');
+    Route::get('institution-requests/hub', 'Api\\InstitutionRegistrationRequestController@hub');
     Route::post('institution-requests/{id}/approve', 'Api\\InstitutionRegistrationRequestController@approve');
     Route::post('institution-requests/{id}/reject', 'Api\\InstitutionRegistrationRequestController@reject');
     Route::get('app-notifications', 'Api\AppNotificationController@index');
@@ -53,6 +54,7 @@ Route::middleware(['auth:api', 'platform_super_admin'])->prefix('super-admin')->
     Route::post('schools', 'Api\SuperAdmin\SchoolController@storeSchool');
     Route::get('schools/{institution}', 'Api\SuperAdmin\SchoolController@show');
     Route::put('schools/{institution}/license', 'Api\SuperAdmin\SchoolController@updateLicense');
+    Route::post('schools/{institution}/license/payments', 'Api\SuperAdmin\SchoolController@recordLicensePayment');
     Route::post('schools/{institution}/admins', 'Api\SuperAdmin\SchoolController@storeAdmin');
     Route::post('schools/{institution}/students', 'Api\SuperAdmin\SchoolController@storeStudent');
     Route::get('users', 'Api\SuperAdmin\PlatformUserController@index');
@@ -60,17 +62,57 @@ Route::middleware(['auth:api', 'platform_super_admin'])->prefix('super-admin')->
     Route::get('context', 'Api\SuperAdmin\AdminContextController@current');
     Route::post('switch-institution/{institution}', 'Api\SuperAdmin\AdminContextController@switchInstitution');
     Route::post('return-to-platform', 'Api\SuperAdmin\AdminContextController@leaveInstitution');
+
+    // Licenses & Billing (Phase 1)
+    Route::get('license-plans', 'Api\SuperAdmin\Licensing\LicensePlanController@index');
+    Route::post('license-plans', 'Api\SuperAdmin\Licensing\LicensePlanController@store');
+    Route::post('license-plans/preview', 'Api\SuperAdmin\Licensing\LicensePlanController@preview');
+    Route::get('license-plans/{id}', 'Api\SuperAdmin\Licensing\LicensePlanController@show');
+    Route::put('license-plans/{id}', 'Api\SuperAdmin\Licensing\LicensePlanController@update');
+    Route::post('license-plans/{id}/duplicate', 'Api\SuperAdmin\Licensing\LicensePlanController@duplicate');
+    Route::put('license-plans/{id}/status', 'Api\SuperAdmin\Licensing\LicensePlanController@setStatus');
+    Route::get('module-pricing', 'Api\SuperAdmin\Licensing\ModuleCommercialController@index');
+    Route::put('module-pricing/{id}', 'Api\SuperAdmin\Licensing\ModuleCommercialController@update');
+    Route::get('institution-licenses', 'Api\SuperAdmin\Licensing\InstitutionLicenseController@index');
+    Route::post('institution-licenses/assign', 'Api\SuperAdmin\Licensing\InstitutionLicenseController@assign');
+    Route::get('schools/{institution}/current-license', 'Api\SuperAdmin\Licensing\InstitutionLicenseController@show');
+    Route::put('schools/{institution}/current-license', 'Api\SuperAdmin\Licensing\InstitutionLicenseController@update');
+
+    // Phase 2b–3: semester licenses + invoices/payments
+    Route::get('licensing/overview', 'Api\SuperAdmin\Licensing\LicenseBillingController@overview');
+    Route::get('semester-licenses', 'Api\SuperAdmin\Licensing\SemesterLicenseController@index');
+    Route::post('semester-licenses', 'Api\SuperAdmin\Licensing\SemesterLicenseController@store');
+    Route::get('semester-licenses/{id}', 'Api\SuperAdmin\Licensing\SemesterLicenseController@show');
+    Route::post('semester-licenses/{id}/sync-usage', 'Api\SuperAdmin\Licensing\SemesterLicenseController@syncUsage');
+    Route::post('semester-licenses/{id}/lock', 'Api\SuperAdmin\Licensing\SemesterLicenseController@lock');
+    Route::post('semester-licenses/{id}/reconcile', 'Api\SuperAdmin\Licensing\SemesterLicenseController@reconcile');
+    Route::post('semester-licenses/{id}/additional-students', 'Api\SuperAdmin\Licensing\SemesterLicenseController@additionalStudents');
+    Route::get('schools/{institution}/academic-years', 'Api\SuperAdmin\Licensing\SemesterLicenseController@academicYears');
+    Route::get('license-invoices', 'Api\SuperAdmin\Licensing\LicenseBillingController@invoices');
+    Route::get('license-invoices/{id}', 'Api\SuperAdmin\Licensing\LicenseBillingController@showInvoice');
+    Route::get('license-payments/pending', 'Api\SuperAdmin\Licensing\LicenseBillingController@pendingPayments');
+    Route::get('license-payments', 'Api\SuperAdmin\Licensing\LicenseBillingController@payments');
+    Route::post('license-payments', 'Api\SuperAdmin\Licensing\LicenseBillingController@recordPayment');
+    Route::post('license-payments/{id}/verify', 'Api\SuperAdmin\Licensing\LicenseBillingController@verifyPayment');
+    Route::get('license-audit-logs', 'Api\SuperAdmin\Licensing\LicenseBillingController@auditLogs');
+    Route::get('license-discounts', 'Api\SuperAdmin\Licensing\LicenseBillingController@discounts');
+    Route::post('license-discounts', 'Api\SuperAdmin\Licensing\LicenseBillingController@storeDiscount');
 });
 
 // School-scoped dashboard for the caller's own institution (school admins).
-Route::middleware(['auth:api', 'resolve_institution', 'institution_context'])->get('institution-dashboard', 'Api\AdminDashboardController@show');
+Route::middleware(['auth:api', 'resolve_institution', 'institution_context', 'license_active'])->get('institution-dashboard', 'Api\AdminDashboardController@show');
 
 Route::middleware(['auth:api', 'resolve_institution'])->group(function () {
+    // Institution Subscription & Billing portal (Phase 4–5)
+    Route::get('institution-billing', 'Api\InstitutionBillingController@summary');
+    Route::post('institution-billing/payment-proof', 'Api\InstitutionBillingController@uploadProof');
+    Route::post('institution-billing/request-change', 'Api\InstitutionBillingController@requestChange');
+
     Route::middleware(['module_enabled:users', 'permission:users.view|view_users|manage_users'])->get('users', 'Api\UserController@index');
     Route::middleware(['module_enabled:roles', 'permission:roles.view|view_roles|manage_roles|roles.manage'])->get('roles', 'Api\RoleController@index');
     Route::middleware(['module_enabled:permissions', 'permission:permissions.view|view_permissions|manage_roles|permissions.manage'])->get('permissions', 'Api\PermissionController@index');
 
-    Route::middleware(['module_enabled:users', 'permission:users.create|create_users|manage_users'])->post('users', 'Api\UserController@store');
+    Route::middleware(['module_enabled:users', 'within_user_limit:users', 'permission:users.create|create_users|manage_users'])->post('users', 'Api\UserController@store');
     Route::middleware(['module_enabled:users', 'permission:users.edit|edit_users|manage_users'])->put('users/{user}', 'Api\UserController@update');
     Route::middleware(['module_enabled:users', 'permission:users.delete|delete_users|manage_users'])->delete('users/{user}', 'Api\UserController@destroy');
     Route::middleware(['module_enabled:users', 'permission:users.edit|edit_users|manage_users'])->post('users/{user}/roles', 'Api\UserController@assignRoles');
@@ -78,7 +120,7 @@ Route::middleware(['auth:api', 'resolve_institution'])->group(function () {
     Route::middleware(['module_enabled:roles', 'permission:roles.view'])->get('roles', 'Api\RoleController@index');
     Route::middleware(['module_enabled:permissions', 'permission:permissions.view'])->get('permissions', 'Api\PermissionController@index');
 
-    Route::middleware(['module_enabled:users', 'permission:users.create'])->post('users', 'Api\UserController@store');
+    Route::middleware(['module_enabled:users', 'within_user_limit:users', 'permission:users.create'])->post('users', 'Api\UserController@store');
     Route::middleware(['module_enabled:users', 'permission:users.edit'])->put('users/{user}', 'Api\UserController@update');
     Route::middleware(['module_enabled:users', 'permission:users.delete'])->delete('users/{user}', 'Api\UserController@destroy');
     Route::middleware(['module_enabled:users', 'permission:users.edit'])->post('users/{user}/roles', 'Api\UserController@assignRoles');
@@ -102,6 +144,8 @@ Route::middleware(['auth:api', 'resolve_institution'])->group(function () {
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions', 'Api\InstitutionController@index');
     Route::middleware(['module_enabled:institutions', 'permission:institutions.view'])->get('institutions/{id}', 'Api\InstitutionController@show');
     Route::get('my-institution', 'Api\InstitutionController@myInstitution');
+    Route::get('my-institution/platform-settings', 'Api\InstitutionController@getPlatformSettings');
+    Route::put('my-institution/platform-settings', 'Api\InstitutionController@updatePlatformSettings');
 
     Route::prefix('timesheets')->group(function () {
         // Employee timesheet flow (simplified)
@@ -314,7 +358,7 @@ Route::middleware(['auth:api', 'resolve_institution'])->group(function () {
         Route::put('suppliers/{id}', 'Api\People\SupplierController@update');
         Route::delete('suppliers/{id}', 'Api\People\SupplierController@destroy');
         Route::get('students', 'Api\People\StudentController@index');
-        Route::post('students', 'Api\People\StudentController@store');
+        Route::post('students', 'Api\People\StudentController@store')->middleware('within_user_limit:students');
         Route::post('students/bulk-delete', 'Api\People\StudentController@bulkDestroy');
         Route::put('students/{id}', 'Api\People\StudentController@update');
         Route::delete('students/{id}', 'Api\People\StudentController@destroy');

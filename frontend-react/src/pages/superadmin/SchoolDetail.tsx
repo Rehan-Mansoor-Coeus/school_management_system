@@ -18,31 +18,41 @@ import {
   createSchoolStudent,
   fetchSchool,
   switchIntoInstitution,
-  updateSchoolLicense,
+  type LicenseInfo,
   type SchoolDetail as SchoolDetailType,
 } from '../../api/superadmin'
 import { formatApiError } from '../../utils/apiError'
 import { useAuth } from '../../context/AuthContext'
 import { profileFromAuthResponse } from '../../utils/authSession'
 
-const PLAN_OPTIONS = ['free', 'basic', 'standard', 'premium', 'enterprise']
-const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired']
-
 function fieldClass() {
   return 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20'
 }
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function toDateInput(value: string | null): string {
-  if (!value) return ''
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
+function planLabel(lic: LicenseInfo): string {
+  if (lic.plan && typeof lic.plan === 'object') {
+    return lic.plan.name || lic.plan.code || '—'
+  }
+  return lic.plan_name || lic.plan_code || (typeof lic.plan === 'string' ? lic.plan : 'free')
+}
+
+function licenseStatus(lic: LicenseInfo): string {
+  return lic.license_status || lic.status || 'active'
+}
+
+function paymentStatus(lic: LicenseInfo): string {
+  return lic.payment_status || '—'
+}
+
+function expiryOf(lic: LicenseInfo): string | null {
+  return lic.expiry_date || lic.expires_at || null
 }
 
 export default function SchoolDetail() {
@@ -54,10 +64,6 @@ export default function SchoolDetail() {
   const [detail, setDetail] = useState<SchoolDetailType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const [license, setLicense] = useState({ subscription_plan: 'free', subscription_status: 'active', subscription_expires_at: '', max_users: '', is_active: true })
-  const [savingLicense, setSavingLicense] = useState(false)
-  const [licenseMsg, setLicenseMsg] = useState('')
 
   const [adminForm, setAdminForm] = useState({ name: '', email: '', username: '', password: '', role: 'institution-admin' })
   const [creatingAdmin, setCreatingAdmin] = useState(false)
@@ -76,13 +82,6 @@ export default function SchoolDetail() {
     try {
       const res = await fetchSchool(schoolId)
       setDetail(res.data)
-      setLicense({
-        subscription_plan: res.data.license.plan || 'free',
-        subscription_status: res.data.license.status || 'active',
-        subscription_expires_at: toDateInput(res.data.license.expires_at),
-        max_users: res.data.license.max_users != null ? String(res.data.license.max_users) : '',
-        is_active: res.data.institution.is_active,
-      })
     } catch (err) {
       setError(formatApiError(err, 'Unable to load school.'))
     } finally {
@@ -93,26 +92,6 @@ export default function SchoolDetail() {
   useEffect(() => {
     load()
   }, [load])
-
-  async function saveLicense() {
-    setSavingLicense(true)
-    setLicenseMsg('')
-    try {
-      await updateSchoolLicense(schoolId, {
-        subscription_plan: license.subscription_plan,
-        subscription_status: license.subscription_status,
-        subscription_expires_at: license.subscription_expires_at || null,
-        max_users: license.max_users === '' ? null : Number(license.max_users),
-        is_active: license.is_active,
-      })
-      setLicenseMsg('License updated.')
-      await load()
-    } catch (err) {
-      setLicenseMsg(formatApiError(err, 'Could not update license.'))
-    } finally {
-      setSavingLicense(false)
-    }
-  }
 
   async function createAdmin() {
     setCreatingAdmin(true)
@@ -159,8 +138,8 @@ export default function SchoolDetail() {
         code: detail.institution.code,
         logo_url: detail.institution.logo_url,
         is_active: detail.institution.is_active,
-        subscription_status: detail.license.status,
-        subscription_expires_at: detail.license.expires_at,
+        subscription_status: licenseStatus(detail.license),
+        subscription_expires_at: expiryOf(detail.license),
       }
       setAuth({
         ...profile,
@@ -202,7 +181,8 @@ export default function SchoolDetail() {
     )
   }
 
-  const { institution, stats, license: lic } = detail
+  const { institution, stats } = detail
+  const lic = detail.current_license || detail.license
 
   const statCards = [
     { key: 'users', label: 'Total users', value: stats.total_users, icon: Users },
@@ -239,9 +219,10 @@ export default function SchoolDetail() {
               {institution.country ? `, ${institution.country}` : ''}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-white/15 px-2.5 py-1 capitalize">Plan: {lic.plan}</span>
-              <span className="rounded-full bg-white/15 px-2.5 py-1 capitalize">Status: {lic.status}</span>
-              <span className="rounded-full bg-white/15 px-2.5 py-1">Expiry: {formatDate(lic.expires_at)}</span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1 capitalize">Plan: {planLabel(lic)}</span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1 capitalize">License: {licenseStatus(lic)}</span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1 capitalize">Payment: {paymentStatus(lic)}</span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1">Expiry: {formatDate(expiryOf(lic))}</span>
               <span className={`rounded-full px-2.5 py-1 ${institution.is_active ? 'bg-emerald-400/20 text-emerald-100' : 'bg-rose-400/20 text-rose-100'}`}>
                 {institution.is_active ? 'Active' : 'Deactivated'}
               </span>
@@ -276,53 +257,114 @@ export default function SchoolDetail() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900">License &amp; plan</h2>
-          <p className="mt-1 text-sm text-slate-500">Adjust the subscription plan, status, expiry, and seat limit.</p>
-          {licenseMsg && <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">{licenseMsg}</div>}
-          <div className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Plan</label>
-                <select className={fieldClass()} value={license.subscription_plan} onChange={(e) => setLicense((p) => ({ ...p, subscription_plan: e.target.value }))}>
-                  {PLAN_OPTIONS.map((plan) => (
-                    <option key={plan} value={plan} className="capitalize">
-                      {plan}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
-                <select className={fieldClass()} value={license.subscription_status} onChange={(e) => setLicense((p) => ({ ...p, subscription_status: e.target.value }))}>
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status} className="capitalize">
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-slate-900">License summary</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Current license from the platform licensing record. Manage plans and billing under Licenses &amp; Billing.
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Expiry date</label>
-                <input type="date" className={fieldClass()} value={license.subscription_expires_at} onChange={(e) => setLicense((p) => ({ ...p, subscription_expires_at: e.target.value }))} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Max users</label>
-                <input type="number" min={0} placeholder="Unlimited" className={fieldClass()} value={license.max_users} onChange={(e) => setLicense((p) => ({ ...p, max_users: e.target.value }))} />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={license.is_active} onChange={(e) => setLicense((p) => ({ ...p, is_active: e.target.checked }))} />
-              School is active
-            </label>
             <button
               type="button"
-              onClick={saveLicense}
-              disabled={savingLicense}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2d4a73] disabled:opacity-60"
+              onClick={() => navigate(`/super-admin/licensing/assign?institution_id=${institution.id}`)}
+              className="shrink-0 rounded-xl bg-[#1e3a5f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2d4a73]"
             >
-              {savingLicense && <Loader2 className="h-4 w-4 animate-spin" />} Save license
+              Manage License
+            </button>
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-slate-500">Current plan</dt>
+              <dd className="font-medium text-slate-900">{planLabel(lic)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">License type</dt>
+              <dd className="font-medium capitalize text-slate-900">{lic.license_type || 'fixed_plan'}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Billing cycle</dt>
+              <dd className="font-medium capitalize text-slate-900">{lic.billing_cycle || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">License status</dt>
+              <dd className="font-medium capitalize text-slate-900">{licenseStatus(lic)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Payment status</dt>
+              <dd className="font-medium capitalize text-slate-900">{paymentStatus(lic)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Start date</dt>
+              <dd className="font-medium text-slate-900">{formatDate(lic.start_date || lic.started_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Expiry date</dt>
+              <dd className="font-medium text-slate-900">{formatDate(expiryOf(lic))}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Next billing</dt>
+              <dd className="font-medium text-slate-900">{formatDate(lic.next_billing_date)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Max users</dt>
+              <dd className="font-medium text-slate-900">
+                {lic.max_users != null ? `${lic.current_users ?? 0} / ${lic.max_users}` : `${lic.current_users ?? 0} / Unlimited`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Students</dt>
+              <dd className="font-medium text-slate-900">
+                {lic.max_students != null
+                  ? `${lic.current_students ?? 0} / ${lic.max_students}`
+                  : `${lic.current_students ?? 0} / —`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Amount paid</dt>
+              <dd className="font-medium text-slate-900">
+                {lic.currency || 'XAF'} {Number(lic.amount_paid || 0).toLocaleString()}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Outstanding</dt>
+              <dd className="font-medium text-slate-900">
+                {lic.currency || 'XAF'} {Number(lic.balance || 0).toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+          {(lic.enabled_modules?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Licensed modules</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {lic.enabled_modules.map((mod) => (
+                  <span key={mod.id || mod.key} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-700">
+                    {mod.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(`/super-admin/licensing/assign?institution_id=${institution.id}`)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Change Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/super-admin/licensing/plans')}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              License Plans
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/super-admin/licensing/institution-licenses?institution_id=${institution.id}`)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Institution Licenses
             </button>
           </div>
         </div>

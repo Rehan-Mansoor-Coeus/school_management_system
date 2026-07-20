@@ -3,8 +3,14 @@ import { CircleDollarSign, Check, Ban } from 'lucide-react'
 import { fetchLibraryFines, payLibraryFine, waiveLibraryFine, type LibraryFine } from '../../api/library'
 import { Button, EmptyState, PageHeader, Spinner, StatusBadge, TableWrap, tdClass, thClass } from '../../components/library/LibraryUi'
 import { useToast } from '../../components/ui/ToastProvider'
+import { ColoredTabsBar, type TabColor } from '../../components/ui/ColoredModuleTabsNav'
 
-const TABS = ['unpaid', 'paid', 'waived', 'all']
+const TABS: { id: string; color: TabColor }[] = [
+  { id: 'unpaid', color: 'amber' },
+  { id: 'paid', color: 'emerald' },
+  { id: 'waived', color: 'purple' },
+  { id: 'all', color: 'navy' },
+]
 
 export default function FinesManagement() {
   const { pushToast } = useToast()
@@ -42,18 +48,16 @@ export default function FinesManagement() {
     <div>
       <PageHeader title="Fines Management" subtitle="Track and settle library fines" icon={CircleDollarSign} />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {TABS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setTab(s)}
-            className={`rounded-xl px-3.5 py-1.5 text-sm font-medium capitalize transition ${
-              tab === s ? 'bg-[#1e3a5f] text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-4">
+        <ColoredTabsBar
+          items={TABS.map((s) => ({
+            id: s.id,
+            label: s.id.charAt(0).toUpperCase() + s.id.slice(1),
+            color: s.color,
+          }))}
+          activeId={tab}
+          onChange={setTab}
+        />
       </div>
 
       {loading ? (

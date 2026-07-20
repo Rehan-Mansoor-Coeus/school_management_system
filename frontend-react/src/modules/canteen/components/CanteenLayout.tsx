@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { useCanteenI18n } from '../../../hooks/useCanteenI18n'
+import ColoredModuleTabsNav from '../../../components/ui/ColoredModuleTabsNav'
 
 const linkDefs = [
   { path: '/canteen', labelKey: 'overview', end: true, permissions: ['canteen.view', 'canteen.manage', 'canteen.verify', 'canteen.reports'] },
@@ -19,7 +20,13 @@ export default function CanteenLayout() {
   const { canAccess } = useAuth()
   const { t } = useCanteenI18n()
 
-  const visibleLinks = linkDefs.filter((link) => canAccess({ permissions: link.permissions }))
+  const tabs = linkDefs
+    .filter((link) => canAccess({ permissions: link.permissions }))
+    .map((link) => ({
+      label: t(link.labelKey),
+      path: link.path,
+      end: link.end,
+    }))
 
   return (
     <div className="space-y-6">
@@ -28,25 +35,7 @@ export default function CanteenLayout() {
         <p className="mt-1 text-sm text-slate-500">{t('moduleSubtitle')}</p>
       </div>
 
-      {visibleLinks.length > 0 && (
-        <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-          {visibleLinks.map((link) => (
-            <NavLink
-              key={link.path}
-              to={link.path}
-              end={link.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  isActive ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              {t(link.labelKey)}
-            </NavLink>
-          ))}
-        </nav>
-      )}
-
+      <ColoredModuleTabsNav items={tabs} />
       <Outlet />
     </div>
   )

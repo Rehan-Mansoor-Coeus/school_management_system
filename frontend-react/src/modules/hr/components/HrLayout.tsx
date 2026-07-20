@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { useHrI18n } from '../../../hooks/useHrI18n'
+import ColoredModuleTabsNav from '../../../components/ui/ColoredModuleTabsNav'
 
 const tabs = [
   { path: '/hr', key: 'overview', end: true, permissions: ['hr.view', 'hr.manage'] },
@@ -22,7 +23,13 @@ export default function HrLayout() {
   const { canAccess } = useAuth()
   const { t } = useHrI18n()
 
-  const visibleTabs = tabs.filter((tab) => canAccess({ permissions: tab.permissions }))
+  const visibleTabs = tabs
+    .filter((tab) => canAccess({ permissions: tab.permissions }))
+    .map((tab) => ({
+      label: t(tab.key),
+      path: tab.path,
+      end: tab.end,
+    }))
 
   return (
     <div className="space-y-6">
@@ -31,25 +38,7 @@ export default function HrLayout() {
         <p className="mt-1 text-sm text-slate-500">{t('moduleSubtitle')}</p>
       </div>
 
-      {visibleTabs.length > 0 && (
-        <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-          {visibleTabs.map((tab) => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              end={tab.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  isActive ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`
-              }
-            >
-              {t(tab.key)}
-            </NavLink>
-          ))}
-        </nav>
-      )}
-
+      <ColoredModuleTabsNav items={visibleTabs} />
       <Outlet />
     </div>
   )

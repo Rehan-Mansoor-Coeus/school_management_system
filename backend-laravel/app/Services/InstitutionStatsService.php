@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Institution;
+use App\Modules\Licensing\Services\InstitutionLicenseService;
 use App\Support\PlatformAccess;
 use App\User;
 use Illuminate\Support\Carbon;
@@ -11,6 +12,11 @@ use Illuminate\Support\Facades\Schema;
 
 class InstitutionStatsService
 {
+    protected function licenseService(): InstitutionLicenseService
+    {
+        return app(InstitutionLicenseService::class);
+    }
+
     /**
      * Build a rich stats + licensing payload for a single institution.
      */
@@ -40,9 +46,12 @@ class InstitutionStatsService
 
         $stats = array_merge($stats, $this->optionalCounts($institutionId));
 
+        $currentLicense = $this->licensePayload($institution);
+
         return [
             'institution' => $this->institutionSummary($institution),
-            'license' => $this->licensePayload($institution),
+            'license' => $currentLicense,
+            'current_license' => $currentLicense,
             'stats' => $stats,
         ];
     }
@@ -78,7 +87,8 @@ class InstitutionStatsService
                 }
             }
 
-            $plan = $institution->subscription_plan ?: 'free';
+            $current = $this->licensePayload($institution);
+            $plan = $current['plan']['code'] ?? ($institution->subscription_plan ?: 'free');
             $planBreakdown[$plan] = ($planBreakdown[$plan] ?? 0) + 1;
         }
 
@@ -116,18 +126,43 @@ class InstitutionStatsService
 
     public function licensePayload(Institution $institution): array
     {
+        if (Schema::hasTable('institution_licenses') && Schema::hasTable('license_plans')) {
+            try {
+                $payload = $this->licenseService()->toCurrentLicensePayload($institution);
+
+                // Legacy flat aliases expected by older UI:
+                return array_merge($payload, [
+                    'plan' => $payload['plan_code'] ?? ($payload['plan']['code'] ?? 'free'),
+                    'status' => $payload['license_status'] ?? 'active',
+                    'started_at' => $payload['start_date'] ?? null,
+                    'expires_at' => $payload['expiry_date'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                // Fall through to legacy columns if licensing tables are empty/mid-migrate.
+            }
+        }
+
         $expiresAt = $institution->subscription_expires_at;
         $daysRemaining = $expiresAt ? Carbon::now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false) : null;
 
         return [
+            'id' => null,
             'plan' => $institution->subscription_plan ?: 'free',
+            'plan_code' => $institution->subscription_plan ?: 'free',
+            'plan_name' => ucfirst($institution->subscription_plan ?: 'free'),
             'status' => $institution->subscription_status ?: 'active',
+            'license_status' => $institution->subscription_status ?: 'active',
+            'payment_status' => 'paid',
             'started_at' => $institution->subscription_started_at,
+            'start_date' => optional($institution->subscription_started_at)->toDateString(),
             'expires_at' => $expiresAt,
+            'expiry_date' => optional($expiresAt)->toDateString(),
             'max_users' => $institution->max_users,
             'license_key' => $institution->license_key,
             'is_expired' => $institution->is_expired,
             'days_remaining' => $daysRemaining,
+            'currency' => $institution->currency ?: 'XAF',
+            'enabled_modules' => [],
         ];
     }
 

@@ -5,7 +5,9 @@ namespace App\Services\Fees;
 use App\Fee;
 use App\FeeReminder;
 use App\Http\Controllers\Api\Letters\AnnouncementRecipientSearchController;
+use App\Institution;
 use App\Services\Fees\FeeStatusService;
+use App\Services\Messaging\NotificationMessageFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -62,10 +64,23 @@ class FeeReminderProcessor
                 continue;
             }
 
+            $formatter = new NotificationMessageFormatter();
+            $message = $formatter->format(
+                strtoupper($status).' TUITION REMINDER',
+                null,
+                [
+                    $formatter->field('Balance', (string) $fee->balance),
+                    $formatter->field('Status', (string) $status),
+                    $formatter->field('Pay before', (string) $fee->latest_payment_date),
+                    'Please settle your semester fee balance before the due date.',
+                ],
+                optional(Institution::find($fee->institution_id))->name
+            );
+
             FeeReminder::create([
                 'institution_id' => $fee->institution_id,
                 'title' => ucfirst($status).' tuition reminder',
-                'message' => "Your semester fee balance of {$fee->balance} is {$status}. Please pay before {$fee->latest_payment_date}.",
+                'message' => $message,
                 'reminder_type' => $status === 'overdue' ? 'overdue' : 'due_date',
                 'status' => 'scheduled',
                 'scheduled_at' => now(),

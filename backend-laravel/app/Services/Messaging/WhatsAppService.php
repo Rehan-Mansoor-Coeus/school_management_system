@@ -66,11 +66,16 @@ class WhatsAppService
 
     public function sendOtp(string $toPhone, string $otp, ?string $context = null): array
     {
-        $message = 'Your verification code is: '.$otp;
+        $formatter = new NotificationMessageFormatter();
+        $lines = [
+            $formatter->field('Verification code', $otp),
+        ];
         if ($context) {
-            $message .= "\n\n".$context;
+            $lines[] = $context;
         }
-        $message .= "\n\nThis code expires in 3 minutes. Do not share it.";
+        $lines[] = 'This code expires in 3 minutes. Do not share it.';
+
+        $message = $formatter->format('VERIFICATION CODE', null, $lines);
 
         return $this->sendTextMessage($toPhone, $message, 'otp');
     }

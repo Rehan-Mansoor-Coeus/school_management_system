@@ -20,18 +20,32 @@ class LandingController extends Controller
     public function settings()
     {
         $settings = GeneralSetting::current();
+        $fee = (float) ($settings->per_student_license_fee ?? 0);
+        $currency = $settings->per_student_license_currency ?: ($settings->registration_fee_currency ?: 'USD');
+        $period = $settings->per_student_license_period ?: ($settings->registration_fee_period ?: 'per_semester');
+
+        // Fall back to legacy columns only if license fee has not been configured yet.
+        if ($fee <= 0 && (float) $settings->student_registration_fee > 0) {
+            $fee = (float) $settings->student_registration_fee;
+        }
 
         return response()->json([
-            'student_registration_fee' => (float) $settings->student_registration_fee,
-            'registration_fee_currency' => $settings->registration_fee_currency,
-            'registration_fee_period' => $settings->registration_fee_period,
-            'registration_fee_label' => $this->formatFeeLabel($settings),
+            'per_student_license_fee' => $fee,
+            'per_student_license_currency' => $currency,
+            'per_student_license_period' => $period,
+            'per_student_license_label' => $this->formatLicenseFeeLabel($period),
+            // Backward-compatible aliases for older landing clients.
+            'student_registration_fee' => $fee,
+            'registration_fee_currency' => $currency,
+            'registration_fee_period' => $period,
+            'registration_fee_label' => $this->formatLicenseFeeLabel($period),
         ]);
     }
 
     public function institutions(Request $request)
     {
         $query = Institution::query()
+            ->with('settings')
             ->where('is_active', true)
             ->orderBy('name');
 
@@ -225,13 +239,27 @@ class LandingController extends Controller
 
     protected function resolveRegistrationFee(Institution $institution): array
     {
-        $fee = 0;
-        $currency = $institution->currency ?: 'USD';
-        $settings = $institution->settings;
-        $feeStructure = $settings ? ($settings->fee_structure ?: []) : [];
+        $settings = $institution->relationLoaded('settings')
+            ? $institution->settings
+            : $institution->settings()->first();
 
-        if (is_array($feeStructure)) {
-            foreach ($feeStructure as $item) {
+        $fee = $settings ? (float) ($settings->student_registration_fee ?? 0) : 0;
+        $currency = ($settings && $settings->registration_fee_currency)
+            ? $settings->registration_fee_currency
+            : ($institution->currency ?: 'USD');
+        $period = ($settings && $settings->registration_fee_period)
+            ? $settings->registration_fee_period
+            : 'per_semester';
+
+        if ($fee <= 0) {
+            $feeStructure = $settings ? ($settings->fee_structure ?: []) : [];
+            $items = [];
+            if (is_array($feeStructure)) {
+                $items = isset($feeStructure['fees']) && is_array($feeStructure['fees'])
+                    ? $feeStructure['fees']
+                    : $feeStructure;
+            }
+            foreach ($items as $item) {
                 if (is_array($item) && ($item['key'] ?? '') === 'registration_fee') {
                     $fee = (float) ($item['amount'] ?? 0);
                     break;
@@ -253,6 +281,7 @@ class LandingController extends Controller
         return [
             'amount' => $fee,
             'currency' => $currency,
+            'period' => $period,
             'label' => 'Registration Fee',
         ];
     }
@@ -289,11 +318,9 @@ class LandingController extends Controller
         return array_values(array_unique($requirements));
     }
 
-    protected function formatFeeLabel(GeneralSetting $settings): string
+    protected function formatLicenseFeeLabel(string $period): string
     {
-        $period = str_replace('_', ' ', $settings->registration_fee_period ?: 'per_semester');
-
-        return ucwords($period);
+        return ucwords(str_replace('_', ' ', $period ?: 'per_semester'));
     }
 
     protected function notifyAlphaBridge(string $subject, string $body): void

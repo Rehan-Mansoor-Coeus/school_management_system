@@ -74,6 +74,18 @@ class Institution extends Model
             ->withTimestamps();
     }
 
+    public function licenses()
+    {
+        return $this->hasMany(\App\Modules\Licensing\Models\InstitutionLicense::class);
+    }
+
+    public function currentLicense()
+    {
+        return $this->hasOne(\App\Modules\Licensing\Models\InstitutionLicense::class)
+            ->where('is_current', true)
+            ->latest('id');
+    }
+
     public function settings()
     {
         return $this->hasOne(InstitutionSetting::class);

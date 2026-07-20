@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Institution;
 use App\InstitutionSetting;
 use App\Role;
+use App\Modules\Licensing\Services\InstitutionLicenseService;
 use App\Services\InstitutionModuleService;
 use App\Services\InstitutionStatsService;
 use App\Support\PlatformAccess;
@@ -115,6 +116,7 @@ class SchoolController extends Controller
 
         InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], []);
         app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
+        app(InstitutionLicenseService::class)->ensureFromLegacy($institution->fresh());
 
         return response()->json([
             'message' => 'School created successfully.',
@@ -124,17 +126,20 @@ class SchoolController extends Controller
 
     /**
      * Adjust plan, status, expiry, seat limit and activation for a school.
+     * Writes through InstitutionLicenseService (current_license) and syncs legacy columns.
      */
     public function updateLicense(Request $request, Institution $institution)
     {
         $validator = Validator::make($request->all(), [
+            'license_plan_id' => 'nullable|integer|exists:license_plans,id',
             'subscription_plan' => 'nullable|string|max:100',
-            'subscription_status' => 'nullable|in:active,trial,suspended,expired',
+            'subscription_status' => 'nullable|in:active,trial,suspended,expired,grace_period,overdue,pending_payment,draft',
             'subscription_started_at' => 'nullable|date',
             'subscription_expires_at' => 'nullable|date',
             'max_users' => 'nullable|integer|min:0',
             'license_key' => 'nullable|string|max:100',
             'is_active' => 'nullable|boolean',
+            'payment_status' => 'nullable|string|max:40',
         ]);
 
         if ($validator->fails()) {
@@ -143,18 +148,77 @@ class SchoolController extends Controller
 
         $data = $validator->validated();
 
-        // Empty strings from form inputs should clear the date, not fail casting.
         foreach (['subscription_started_at', 'subscription_expires_at', 'max_users', 'license_key'] as $nullable) {
             if (array_key_exists($nullable, $data) && $data[$nullable] === '') {
                 $data[$nullable] = null;
             }
         }
 
-        $institution->update($data);
+        $payload = [
+            'license_plan_id' => $data['license_plan_id'] ?? null,
+            'plan_code' => $data['subscription_plan'] ?? null,
+            'license_status' => $data['subscription_status'] ?? null,
+            'start_date' => $data['subscription_started_at'] ?? null,
+            'expiry_date' => $data['subscription_expires_at'] ?? null,
+            'max_users_override' => array_key_exists('max_users', $data) ? $data['max_users'] : null,
+            'license_key' => array_key_exists('license_key', $data) ? $data['license_key'] : null,
+            'is_active' => array_key_exists('is_active', $data) ? $data['is_active'] : null,
+            'payment_status' => $data['payment_status'] ?? null,
+        ];
+
+        $license = app(InstitutionLicenseService::class)->assignOrUpdate(
+            $institution,
+            array_filter($payload, function ($value) {
+                return $value !== null;
+            }),
+            optional($request->user())->id,
+            $request->ip()
+        );
+
+        $fresh = $institution->fresh();
+        $school = $this->stats->forInstitution($fresh);
 
         return response()->json([
             'message' => 'License updated successfully.',
-            'school' => $this->stats->forInstitution($institution->fresh()),
+            'school' => $school,
+            'current_license' => app(InstitutionLicenseService::class)->toCurrentLicensePayload($fresh, $license),
+        ]);
+    }
+
+    /**
+     * Record a full or partial license payment for an institution.
+     */
+    public function recordLicensePayment(Request $request, Institution $institution)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $license = app(InstitutionLicenseService::class)->recordPayment(
+                $institution,
+                (float) $validator->validated()['amount'],
+                $request->get('note'),
+                optional($request->user())->id,
+                $request->ip()
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        $fresh = $institution->fresh();
+
+        return response()->json([
+            'message' => 'Payment recorded.',
+            'school' => $this->stats->forInstitution($fresh),
+            'current_license' => app(InstitutionLicenseService::class)->toCurrentLicensePayload($fresh, $license),
         ]);
     }
 

@@ -10,6 +10,7 @@ import {
   fetchRoles,
   updateRole,
 } from '../api/admin'
+import { ColoredTabsBar } from '../components/ui/ColoredModuleTabsNav'
 
 interface Permission {
   id: number
@@ -135,22 +136,14 @@ export default function RolesAndPermissionsPage() {
         <p className="text-sm text-slate-500">Manage user access levels and system permissions.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-        <button
-          type="button"
-          onClick={() => setTab('roles')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === 'roles' ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-        >
-          User Roles
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('permissions')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === 'permissions' ? 'bg-[#1e3a5f] text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-        >
-          Role Permissions
-        </button>
-      </div>
+      <ColoredTabsBar
+        items={[
+          { id: 'roles', label: 'User Roles', color: 'navy' },
+          { id: 'permissions', label: 'Role Permissions', color: 'amber' },
+        ]}
+        activeId={tab}
+        onChange={(id) => setTab(id as Tab)}
+      />
 
       {tab === 'roles' ? (
         <div className="space-y-4">

@@ -120,6 +120,15 @@ trait HandlesUserPeopleCrud
 
         $this->syncCategoryRoles($user, $request);
 
+        if ($this->categoryRole() === 'student' && $user->institution_id) {
+            try {
+                app(\App\Modules\Licensing\Services\SemesterLicenseService::class)
+                    ->syncOpenSemestersForInstitution((int) $user->institution_id);
+            } catch (\Throwable $e) {
+                // non-blocking
+            }
+        }
+
         if ($plainPassword) {
             (new UserAccountNotificationService())->notifyAccountCreated($user, $plainPassword, [
                 'category' => 'academic',

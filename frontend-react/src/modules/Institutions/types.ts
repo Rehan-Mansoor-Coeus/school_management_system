@@ -41,6 +41,9 @@ export type InstitutionSettings = {
   grading_system?: any
   academic_calendar?: any
   payment_settings?: any
+  student_registration_fee?: number | null
+  registration_fee_currency?: string | null
+  registration_fee_period?: string | null
 }
 
 export type PaginatedResponse<T> = {

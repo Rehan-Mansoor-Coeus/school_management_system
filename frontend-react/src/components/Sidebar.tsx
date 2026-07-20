@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Home,
   KeyRound,
+  Layers,
   LayoutDashboard,
   Library,
   Mail,
@@ -51,6 +52,8 @@ const navItems: SidebarItem[] = [
 
 const systemItems: SidebarItem[] = [
   { label: 'General Settings', path: '/system/general-settings', icon: Settings, permissions: ['manage_modules', 'modules.view'] },
+  { label: 'Platform Settings', path: '/system/institution-settings', icon: Settings, permissions: ['institutions.edit', 'institutions.settings', 'institutions.view'] },
+  { label: 'Subscription & Billing', path: '/system/billing', icon: CreditCard, permissions: ['institutions.edit', 'institutions.settings', 'institutions.view'] },
 ]
 
 const accessItems: SidebarItem[] = [
@@ -118,6 +121,15 @@ const platformNavItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/super-admin/dashboard', icon: LayoutDashboard },
   { label: 'Institutions', path: '/super-admin/institutions', icon: Building2 },
   { label: 'Users', path: '/super-admin/users', icon: Users },
+  { label: 'Licenses & Billing', path: '/super-admin/licensing', icon: CreditCard },
+  { label: 'License Plans', path: '/super-admin/licensing/plans', icon: Layers },
+  { label: 'Module Pricing', path: '/super-admin/licensing/module-pricing', icon: Puzzle },
+  { label: 'Assign License', path: '/super-admin/licensing/assign', icon: FileText },
+  { label: 'Institution Licenses', path: '/super-admin/licensing/institution-licenses', icon: FileText },
+  { label: 'Semester Licenses', path: '/super-admin/licensing/semester-licenses', icon: FileText },
+  { label: 'Invoices', path: '/super-admin/licensing/invoices', icon: CreditCard },
+  { label: 'Payments', path: '/super-admin/licensing/payments', icon: CreditCard },
+  { label: 'Licensing Reports', path: '/super-admin/licensing/reports', icon: Layers },
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2 },
   { label: 'Roles & Permissions', path: '/roles-permissions', icon: UserCog },
   { label: 'Platform Settings', path: '/system/general-settings', icon: Settings },
@@ -221,7 +233,16 @@ export default function Sidebar() {
   const visibleModuleItems = moduleItems.filter((item) => canUseModule(item.key))
   const showModulesSection = visibleModuleItems.length > 0
 
-  const visibleSystemItems = systemItems.filter((item) => canAccess({ permissions: item.permissions }))
+  const visibleSystemItems = systemItems.filter((item) => {
+    if (item.path === '/system/general-settings') {
+      return isPlatformSuperAdmin || userRoles.includes('super-admin') || userRoles.includes('system-super-admin')
+    }
+    if (item.path === '/system/institution-settings' || item.path === '/system/billing') {
+      if (isPlatformContext && isPlatformSuperAdmin) return false
+      return canAccess({ permissions: item.permissions })
+    }
+    return canAccess({ permissions: item.permissions })
+  })
   const showSystemSection = visibleSystemItems.length > 0
 
   const [accessOpen, setAccessOpen] = useSidebarSection(false, ['/users', '/roles-permissions', '/roles', '/permissions', '/modules'])

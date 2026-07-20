@@ -2,9 +2,11 @@
 
 namespace App\Library\Services;
 
+use App\Institution;
 use App\Jobs\SendWhatsAppMessageJob;
 use App\Library\LibraryNotification;
 use App\Library\LibrarySetting;
+use App\Services\Messaging\NotificationMessageFormatter;
 use App\User;
 use Illuminate\Support\Facades\Log;
 
@@ -18,6 +20,13 @@ use Illuminate\Support\Facades\Log;
  */
 class LibraryNotificationService
 {
+    protected $formatter;
+
+    public function __construct()
+    {
+        $this->formatter = new NotificationMessageFormatter();
+    }
+
     public function notificationsEnabled(int $institutionId): bool
     {
         $settings = LibrarySetting::where('institution_id', $institutionId)->first();
@@ -131,48 +140,96 @@ class LibraryNotificationService
 
     // ----- Message templates -------------------------------------------------
 
-    public function requestToLibrarian(string $userName, string $bookTitle, string $fromDate, string $toDate): string
+    protected function institutionName(int $institutionId): ?string
     {
-        return "New library request: {$userName} requested \"{$bookTitle}\" from {$fromDate} to {$toDate}.";
+        return optional(Institution::find($institutionId))->name;
     }
 
-    public function requestToUser(string $name, string $bookTitle): string
-    {
-        return "Dear {$name}, your request to borrow \"{$bookTitle}\" has been submitted and is awaiting approval.";
+    protected function libraryMessage(
+        int $institutionId,
+        string $header,
+        ?string $name,
+        array $lines
+    ): string {
+        return $this->formatter->format(
+            $header,
+            $this->formatter->greeting($name),
+            $lines,
+            $this->institutionName($institutionId)
+        );
     }
 
-    public function approvedToUser(string $name, string $bookTitle): string
+    public function requestToLibrarian(int $institutionId, string $userName, string $bookTitle, string $fromDate, string $toDate): string
     {
-        return "Dear {$name}, your request to borrow \"{$bookTitle}\" has been approved. Please present this approval notice / QR code at the library.";
+        return $this->libraryMessage($institutionId, 'LIBRARY REQUEST', null, [
+            $this->formatter->field('Requester', $userName),
+            $this->formatter->field('Book', $bookTitle),
+            $this->formatter->field('Period', "{$fromDate} to {$toDate}"),
+            'A new borrow request needs your review.',
+        ]);
     }
 
-    public function rejectedToUser(string $name, string $bookTitle, ?string $reason): string
+    public function requestToUser(int $institutionId, string $name, string $bookTitle): string
     {
-        $msg = "Dear {$name}, your request to borrow \"{$bookTitle}\" has been rejected.";
+        return $this->libraryMessage($institutionId, 'LIBRARY REQUEST SUBMITTED', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            'Your borrow request has been submitted and is awaiting approval.',
+        ]);
+    }
+
+    public function approvedToUser(int $institutionId, string $name, string $bookTitle): string
+    {
+        return $this->libraryMessage($institutionId, 'LIBRARY REQUEST APPROVED', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            'Your borrow request has been approved. Please present this approval notice / QR code at the library.',
+        ]);
+    }
+
+    public function rejectedToUser(int $institutionId, string $name, string $bookTitle, ?string $reason): string
+    {
+        $lines = [
+            $this->formatter->field('Book', $bookTitle),
+            'Your borrow request has been rejected.',
+        ];
         if ($reason) {
-            $msg .= " Reason: {$reason}.";
+            $lines[] = $this->formatter->field('Reason', $reason);
         }
 
-        return $msg;
+        return $this->libraryMessage($institutionId, 'LIBRARY REQUEST REJECTED', $name, $lines);
     }
 
-    public function issuedToUser(string $name, string $bookTitle, string $returnDate): string
+    public function issuedToUser(int $institutionId, string $name, string $bookTitle, string $returnDate): string
     {
-        return "Dear {$name}, you have signed out \"{$bookTitle}\". Please return it by {$returnDate}.";
+        return $this->libraryMessage($institutionId, 'BOOK ISSUED', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            $this->formatter->field('Return by', $returnDate),
+            'Please return the book on time.',
+        ]);
     }
 
-    public function reminderToUser(string $name, string $bookTitle, string $returnDate): string
+    public function reminderToUser(int $institutionId, string $name, string $bookTitle, string $returnDate): string
     {
-        return "Dear {$name}, this is a reminder to return \"{$bookTitle}\" by {$returnDate}.";
+        return $this->libraryMessage($institutionId, 'RETURN REMINDER', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            $this->formatter->field('Return by', $returnDate),
+            'This is a reminder to return your borrowed book.',
+        ]);
     }
 
-    public function overdueToUser(string $name, string $bookTitle, string $returnDate): string
+    public function overdueToUser(int $institutionId, string $name, string $bookTitle, string $returnDate): string
     {
-        return "Dear {$name}, \"{$bookTitle}\" was due on {$returnDate}. Please return it to avoid or settle fines.";
+        return $this->libraryMessage($institutionId, 'BOOK OVERDUE', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            $this->formatter->field('Was due', $returnDate),
+            'Please return it to avoid or settle fines.',
+        ]);
     }
 
-    public function returnedToUser(string $name, string $bookTitle): string
+    public function returnedToUser(int $institutionId, string $name, string $bookTitle): string
     {
-        return "Dear {$name}, we have recorded the return of \"{$bookTitle}\". Thank you.";
+        return $this->libraryMessage($institutionId, 'BOOK RETURNED', $name, [
+            $this->formatter->field('Book', $bookTitle),
+            'We have recorded the return of your book. Thank you.',
+        ]);
     }
 }

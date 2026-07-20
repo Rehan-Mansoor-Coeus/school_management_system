@@ -34,6 +34,8 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             app(\App\Modules\Contracts\Services\DocumentExpiryProcessor::class)->processDue();
         })->dailyAt('07:00');
+        $schedule->command('licensing:process-semester-jobs')->dailyAt('01:15');
+        $schedule->command('licensing:process-institution-jobs')->dailyAt('01:30');
     }
 
     /**

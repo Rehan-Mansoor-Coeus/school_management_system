@@ -10,12 +10,24 @@ import PublicInstitutionsPage from './landing/pages/PublicInstitutionsPage'
 import RequestInstitutionPage from './landing/pages/RequestInstitutionPage'
 import ContactPage from './landing/pages/ContactPage'
 import GeneralSettingsPage from './pages/GeneralSettingsPage'
+import InstitutionPlatformSettingsPage from './pages/InstitutionPlatformSettingsPage'
 import SystemLayout from './components/system/SystemLayout'
+import SystemIndexRedirect from './components/system/SystemIndexRedirect'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
 import DashboardPage from './pages/Dashboard'
 import SchoolDetailPage from './pages/superadmin/SchoolDetail'
 import InstitutionsPage from './pages/superadmin/InstitutionsPage'
 import PlatformUsersPage from './pages/superadmin/PlatformUsersPage'
+import LicensingOverviewPage from './pages/superadmin/licensing/LicensingOverviewPage'
+import LicensePlansPage from './pages/superadmin/licensing/LicensePlansPage'
+import InstitutionLicensesPage from './pages/superadmin/licensing/InstitutionLicensesPage'
+import ModulePricingPage from './pages/superadmin/licensing/ModulePricingPage'
+import AssignLicenseWizardPage from './pages/superadmin/licensing/AssignLicenseWizardPage'
+import SemesterLicensesPage from './pages/superadmin/licensing/SemesterLicensesPage'
+import LicenseInvoicesPage from './pages/superadmin/licensing/LicenseInvoicesPage'
+import LicensePaymentsPage from './pages/superadmin/licensing/LicensePaymentsPage'
+import LicensingReportsPage from './pages/superadmin/licensing/LicensingReportsPage'
+import InstitutionBillingPage from './pages/InstitutionBillingPage'
 import RolesAndPermissionsPage from './pages/RolesAndPermissions'
 import LibraryLayout from './components/library/LibraryLayout'
 import TimesheetEmployeeLayout from './components/timesheets/TimesheetEmployeeLayout'
@@ -229,10 +241,21 @@ export default function App(){
           <Route path="super-admin/institutions/:id" element={<SchoolDetailPage />} />
           <Route path="super-admin/schools/:id" element={<SchoolDetailPage />} />
           <Route path="super-admin/users" element={<PlatformUsersPage />} />
+          <Route path="super-admin/licensing" element={<LicensingOverviewPage />} />
+          <Route path="super-admin/licensing/plans" element={<LicensePlansPage />} />
+          <Route path="super-admin/licensing/module-pricing" element={<ModulePricingPage />} />
+          <Route path="super-admin/licensing/assign" element={<AssignLicenseWizardPage />} />
+          <Route path="super-admin/licensing/institution-licenses" element={<InstitutionLicensesPage />} />
+          <Route path="super-admin/licensing/semester-licenses" element={<SemesterLicensesPage />} />
+          <Route path="super-admin/licensing/invoices" element={<LicenseInvoicesPage />} />
+          <Route path="super-admin/licensing/payments" element={<LicensePaymentsPage />} />
+          <Route path="super-admin/licensing/reports" element={<LicensingReportsPage />} />
           <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
           <Route path="system" element={<SystemLayout />}>
             <Route path="general-settings" element={<GeneralSettingsPage />} />
-            <Route index element={<Navigate to="general-settings" replace />} />
+            <Route path="institution-settings" element={<InstitutionPlatformSettingsPage />} />
+            <Route path="billing" element={<InstitutionBillingPage />} />
+            <Route index element={<SystemIndexRedirect />} />
           </Route>
           <Route path="institution-requests" element={<InstitutionRequestsPage />} />
           <Route path="users" element={<UsersLayout />}>

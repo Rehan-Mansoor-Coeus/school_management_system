@@ -44,6 +44,20 @@ class EnsureModuleEnabled
             return response()->json(['message' => 'Module is disabled for this institution.'], 403);
         }
 
+        // Phase 5: also enforce that the module is included in the current license.
+        $institution = \App\Institution::find($institutionId);
+        if ($institution) {
+            $licensed = app(\App\Modules\Licensing\Services\LicenseAccessService::class)
+                ->evaluate($institution, $moduleKey);
+            if (! $licensed['allowed']) {
+                return response()->json([
+                    'message' => $licensed['message'],
+                    'error_code' => $licensed['code'],
+                    'access_mode' => $licensed['mode'],
+                ], 403);
+            }
+        }
+
         return $next($request);
     }
 }

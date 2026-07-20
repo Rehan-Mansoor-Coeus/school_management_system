@@ -1,14 +1,12 @@
 import api from './client'
+import type { CurrentLicense } from './licensing'
 
-export type LicenseInfo = {
-  plan: string
+export type LicenseInfo = CurrentLicense & {
+  // Flat legacy fields still returned by the API for compatibility
+  plan: string | CurrentLicense['plan']
   status: string
   started_at: string | null
   expires_at: string | null
-  max_users: number | null
-  license_key: string | null
-  is_expired: boolean
-  days_remaining: number | null
 }
 
 export type SchoolStats = {
@@ -69,6 +67,7 @@ export type PlatformOverview = {
 export type SchoolDetail = {
   institution: SchoolSummary
   license: LicenseInfo
+  current_license?: LicenseInfo
   stats: SchoolStats
   admins: SchoolAdmin[]
   modules: { key: string; name: string; enabled: boolean }[]
@@ -111,6 +110,10 @@ export function createSchool(payload: Record<string, unknown>) {
 
 export function updateSchoolLicense(id: number, payload: Record<string, unknown>) {
   return api.put(`/super-admin/schools/${id}/license`, payload)
+}
+
+export function recordSchoolLicensePayment(id: number, payload: { amount: number; note?: string }) {
+  return api.post(`/super-admin/schools/${id}/license/payments`, payload)
 }
 
 export function createSchoolAdmin(id: number, payload: Record<string, unknown>) {

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 export type TabColor =
   | 'blue'
@@ -14,6 +14,8 @@ export type TabColor =
   | 'teal'
   | 'cyan'
   | 'slate'
+  | 'navy'
+  | 'gold'
 
 export type ColoredTabItem = {
   label: string
@@ -24,34 +26,82 @@ export type ColoredTabItem = {
   badge?: number
 }
 
+/** Accent colors for inactive outlined tabs (active is always navy). */
 const inactiveStyles: Record<TabColor, string> = {
-  blue: 'border-blue-100 bg-blue-50/80 text-blue-800 hover:bg-blue-100',
-  indigo: 'border-indigo-100 bg-indigo-50/80 text-indigo-800 hover:bg-indigo-100',
-  violet: 'border-violet-100 bg-violet-50/80 text-violet-800 hover:bg-violet-100',
-  purple: 'border-purple-100 bg-purple-50/80 text-purple-800 hover:bg-purple-100',
-  pink: 'border-pink-100 bg-pink-50/80 text-pink-800 hover:bg-pink-100',
-  rose: 'border-rose-100 bg-rose-50/80 text-rose-800 hover:bg-rose-100',
-  orange: 'border-orange-100 bg-orange-50/80 text-orange-800 hover:bg-orange-100',
-  amber: 'border-amber-100 bg-amber-50/80 text-amber-800 hover:bg-amber-100',
-  emerald: 'border-emerald-100 bg-emerald-50/80 text-emerald-800 hover:bg-emerald-100',
-  teal: 'border-teal-100 bg-teal-50/80 text-teal-800 hover:bg-teal-100',
-  cyan: 'border-cyan-100 bg-cyan-50/80 text-cyan-800 hover:bg-cyan-100',
-  slate: 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100',
+  navy: 'border-[#1e3a5f] bg-white text-[#1e3a5f] hover:bg-slate-50',
+  gold: 'border-[#A67C00] bg-white text-[#A67C00] hover:bg-amber-50',
+  blue: 'border-blue-500 bg-white text-blue-700 hover:bg-blue-50',
+  indigo: 'border-indigo-500 bg-white text-indigo-700 hover:bg-indigo-50',
+  violet: 'border-violet-500 bg-white text-violet-700 hover:bg-violet-50',
+  purple: 'border-[#6F42C1] bg-white text-[#6F42C1] hover:bg-purple-50',
+  pink: 'border-pink-500 bg-white text-pink-700 hover:bg-pink-50',
+  rose: 'border-rose-500 bg-white text-rose-700 hover:bg-rose-50',
+  orange: 'border-orange-500 bg-white text-orange-700 hover:bg-orange-50',
+  amber: 'border-[#A67C00] bg-white text-[#A67C00] hover:bg-amber-50',
+  emerald: 'border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50',
+  teal: 'border-teal-500 bg-white text-teal-700 hover:bg-teal-50',
+  cyan: 'border-cyan-500 bg-white text-cyan-700 hover:bg-cyan-50',
+  slate: 'border-slate-400 bg-white text-slate-700 hover:bg-slate-50',
 }
 
-const activeStyles: Record<TabColor, string> = {
-  blue: 'bg-blue-600 text-white shadow-md shadow-blue-200',
-  indigo: 'bg-indigo-600 text-white shadow-md shadow-indigo-200',
-  violet: 'bg-violet-600 text-white shadow-md shadow-violet-200',
-  purple: 'bg-purple-600 text-white shadow-md shadow-purple-200',
-  pink: 'bg-pink-600 text-white shadow-md shadow-pink-200',
-  rose: 'bg-rose-600 text-white shadow-md shadow-rose-200',
-  orange: 'bg-orange-600 text-white shadow-md shadow-orange-200',
-  amber: 'bg-amber-600 text-white shadow-md shadow-amber-200',
-  emerald: 'bg-emerald-600 text-white shadow-md shadow-emerald-200',
-  teal: 'bg-teal-600 text-white shadow-md shadow-teal-200',
-  cyan: 'bg-cyan-600 text-white shadow-md shadow-cyan-200',
-  slate: 'bg-[#1e3a5f] text-white shadow-md shadow-slate-300',
+const ACTIVE_STYLE = 'border-transparent bg-[#1e3a5f] text-white shadow-sm'
+
+const COLOR_CYCLE: TabColor[] = [
+  'emerald',
+  'amber',
+  'purple',
+  'blue',
+  'indigo',
+  'teal',
+  'rose',
+  'orange',
+  'cyan',
+  'violet',
+  'pink',
+  'gold',
+]
+
+export function tabColorAt(index: number): TabColor {
+  return COLOR_CYCLE[index % COLOR_CYCLE.length]
+}
+
+export function coloredTabClass(color: TabColor | undefined, isActive: boolean): string {
+  const tone = color || 'slate'
+  return [
+    'inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all',
+    isActive ? ACTIVE_STYLE : inactiveStyles[tone],
+  ].join(' ')
+}
+
+export function ColoredTabsBar({
+  items,
+  activeId,
+  onChange,
+}: {
+  items: Array<{ id: string; label: string; color?: TabColor; icon?: ComponentType<{ className?: string }> }>
+  activeId: string
+  onChange: (id: string) => void
+}) {
+  return (
+    <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+      {items.map((item, index) => {
+        const color = item.color || tabColorAt(index)
+        const Icon = item.icon
+        const isActive = item.id === activeId
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onChange(item.id)}
+            className={coloredTabClass(color, isActive)}
+          >
+            {Icon ? <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'opacity-95' : 'opacity-90'}`} /> : null}
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  )
 }
 
 export default function ColoredModuleTabsNav({ items }: { items: ColoredTabItem[] }) {
@@ -59,8 +109,8 @@ export default function ColoredModuleTabsNav({ items }: { items: ColoredTabItem[
 
   return (
     <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
-      {items.map((item) => {
-        const color = item.color || 'slate'
+      {items.map((item, index) => {
+        const color = item.color || tabColorAt(index)
         const Icon = item.icon
 
         return (
@@ -68,20 +118,16 @@ export default function ColoredModuleTabsNav({ items }: { items: ColoredTabItem[
             key={item.path}
             to={item.path}
             end={item.end}
-            className={({ isActive }) =>
-              `inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all ${
-                isActive ? activeStyles[color] : inactiveStyles[color]
-              }`
-            }
+            className={({ isActive }) => coloredTabClass(color, isActive)}
           >
             {({ isActive }) => (
               <>
-                {Icon ? <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'opacity-95' : 'opacity-80'}`} /> : null}
+                {Icon ? <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'opacity-95' : 'opacity-90'}`} /> : null}
                 <span>{item.label}</span>
                 {typeof item.badge === 'number' && item.badge > 0 ? (
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
-                      isActive ? 'bg-white/25 text-white' : 'bg-white/70 text-slate-700'
+                      isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700'
                     }`}
                   >
                     {item.badge}
@@ -94,4 +140,17 @@ export default function ColoredModuleTabsNav({ items }: { items: ColoredTabItem[
       })}
     </nav>
   )
+}
+
+/** Optional helper when a page needs a non-nav decorative label. */
+export function ColoredTabLabel({
+  color,
+  active,
+  children,
+}: {
+  color?: TabColor
+  active?: boolean
+  children: ReactNode
+}) {
+  return <span className={coloredTabClass(color, !!active)}>{children}</span>
 }

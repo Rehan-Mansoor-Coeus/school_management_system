@@ -3,19 +3,24 @@
 namespace App\Modules\Tasks\Services;
 
 use App\Contracts\Messaging\WhatsAppMessagingProvider;
+use App\Institution;
 use App\Modules\Tasks\Models\Task;
 use App\Modules\Tasks\Models\TaskAssignment;
 use App\Modules\Tasks\Models\TaskCc;
 use App\Modules\Tasks\Models\TaskNotificationQueue;
 use App\Modules\Tasks\Models\TaskReminder;
+use App\Services\Messaging\NotificationMessageFormatter;
 
 class TaskNotificationService
 {
     protected $whatsApp;
 
+    protected $formatter;
+
     public function __construct(WhatsAppMessagingProvider $whatsApp)
     {
         $this->whatsApp = $whatsApp;
+        $this->formatter = new NotificationMessageFormatter();
     }
 
     public function getInvite(string $token)
@@ -168,9 +173,19 @@ class TaskNotificationService
                     continue;
                 }
 
-                $message = 'Reminder: '.$reminder->task->title.' deadline is '
-                    .($reminder->task->deadline ? $reminder->task->deadline->format('Y-m-d') : 'not set')
-                    .'. Please update your progress.';
+                $message = $this->formatter->format(
+                    'TASK REMINDER',
+                    $this->formatter->greeting(optional($assignee)->name),
+                    [
+                        $this->formatter->field('Task', (string) $reminder->task->title),
+                        $this->formatter->field(
+                            'Deadline',
+                            $reminder->task->deadline ? $reminder->task->deadline->format('Y-m-d') : 'not set'
+                        ),
+                        'Please update your progress.',
+                    ],
+                    optional(Institution::find($reminder->task->institution_id))->name
+                );
 
                 $result = $this->sendMessage($phone, $message);
                 if ($result['success']) {
@@ -195,10 +210,21 @@ class TaskNotificationService
         }
 
         $who = $assignment->user ? $assignment->user->name : 'Assignee';
-        $message = 'Progress update for '.$assignment->task->title.': '.$who.' is now '.$progress.'% ('.$status.')';
+        $lines = [
+            $this->formatter->field('Task', (string) $assignment->task->title),
+            $this->formatter->field('Assignee', $who),
+            $this->formatter->field('Progress', $progress.'% ('.$status.')'),
+        ];
         if ($comment) {
-            $message .= ' - '.$comment;
+            $lines[] = $this->formatter->field('Comment', (string) $comment);
         }
+
+        $message = $this->formatter->format(
+            'TASK PROGRESS UPDATE',
+            null,
+            $lines,
+            optional(Institution::find($assignment->task->institution_id))->name
+        );
 
         return $this->sendMessage($phone, $message);
     }
@@ -228,7 +254,7 @@ class TaskNotificationService
         $template = $messageTemplate ?: ($task->notification_template ?: 'New task: {subject} - deadline {deadline}. Link: {login_link}');
         $loginLink = rtrim((string) config('app.frontend_url', config('app.url')), '/').'/task-invite/'.$assignment->invite_token;
 
-        $message = str_replace(
+        $raw = str_replace(
             ['{name}', '{subject}', '{priority}', '{description}', '{deadline}', '{login_link}'],
             [
                 $assignee->name,
@@ -241,16 +267,33 @@ class TaskNotificationService
             $template
         );
 
+        $institutionName = optional(Institution::find($task->institution_id))->name;
+        $message = $this->formatter->wrap($raw, 'NEW TASK', $institutionName);
+
         $result = $this->sendMessage($phone, $message);
         if (! $result['success']) {
             return $result;
         }
 
         foreach ($task->attachments as $attachment) {
-            $this->sendMessage($phone, 'Attachment: '.$attachment->public_url);
+            $this->sendMessage(
+                $phone,
+                $this->formatter->wrap('Attachment: '.$attachment->public_url, 'TASK ATTACHMENT', $institutionName)
+            );
         }
 
-        $this->notifyCc($task->id, 'Task "'.$task->title.'" was assigned to '.$assignee->name.'.');
+        $this->notifyCc(
+            $task->id,
+            $this->formatter->format(
+                'TASK ASSIGNED',
+                null,
+                [
+                    $this->formatter->field('Task', (string) $task->title),
+                    $this->formatter->field('Assignee', (string) $assignee->name),
+                ],
+                $institutionName
+            )
+        );
 
         return ['success' => true, 'data' => ['assignment_id' => $assignment->id]];
     }

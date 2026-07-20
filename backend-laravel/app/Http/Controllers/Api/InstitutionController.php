@@ -318,6 +318,9 @@ class InstitutionController extends Controller
             'grading_system' => 'nullable|array',
             'academic_calendar' => 'nullable|array',
             'payment_settings' => 'nullable|array',
+            'student_registration_fee' => 'nullable|numeric|min:0',
+            'registration_fee_currency' => 'nullable|string|max:10',
+            'registration_fee_period' => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -330,6 +333,9 @@ class InstitutionController extends Controller
             'grading_system',
             'academic_calendar',
             'payment_settings',
+            'student_registration_fee',
+            'registration_fee_currency',
+            'registration_fee_period',
         ])->filter(function ($value) {
             return $value !== null;
         })->all();
@@ -339,10 +345,113 @@ class InstitutionController extends Controller
             $settingsPayload
         );
 
+        if (! empty($settingsPayload['registration_fee_currency'])) {
+            $institution->update(['currency' => $settingsPayload['registration_fee_currency']]);
+        }
+
         return response()->json([
             'message' => 'Institution settings updated successfully.',
             'settings' => $settings,
         ]);
+    }
+
+    public function getPlatformSettings(Request $request)
+    {
+        $institution = $this->resolveManagedInstitution($request);
+        if ($institution instanceof \Illuminate\Http\JsonResponse) {
+            return $institution;
+        }
+
+        $settings = InstitutionSetting::firstOrCreate(
+            ['institution_id' => $institution->id],
+            [
+                'student_registration_fee' => 0,
+                'registration_fee_currency' => $institution->currency ?: 'USD',
+                'registration_fee_period' => 'per_semester',
+            ]
+        );
+
+        return response()->json([
+            'institution_id' => $institution->id,
+            'institution_name' => $institution->name,
+            'student_registration_fee' => (float) ($settings->student_registration_fee ?? 0),
+            'registration_fee_currency' => $settings->registration_fee_currency ?: ($institution->currency ?: 'USD'),
+            'registration_fee_period' => $settings->registration_fee_period ?: 'per_semester',
+            'currency' => $settings->registration_fee_currency ?: ($institution->currency ?: 'USD'),
+        ]);
+    }
+
+    public function updatePlatformSettings(Request $request)
+    {
+        $institution = $this->resolveManagedInstitution($request);
+        if ($institution instanceof \Illuminate\Http\JsonResponse) {
+            return $institution;
+        }
+
+        $user = $request->user();
+        $canManage = $user
+            && (
+                $user->hasAnyRole(['institution-admin', 'admin', 'super-admin', 'system-super-admin'])
+                || $user->can('institutions.edit')
+                || $user->can('institutions.settings')
+            );
+
+        if (! $canManage) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'student_registration_fee' => 'required|numeric|min:0',
+            'registration_fee_currency' => 'required|string|max:10',
+            'registration_fee_period' => 'nullable|string|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $settings = InstitutionSetting::updateOrCreate(
+            ['institution_id' => $institution->id],
+            [
+                'student_registration_fee' => $data['student_registration_fee'],
+                'registration_fee_currency' => strtoupper($data['registration_fee_currency']),
+                'registration_fee_period' => $data['registration_fee_period'] ?? 'per_semester',
+            ]
+        );
+
+        $institution->update([
+            'currency' => strtoupper($data['registration_fee_currency']),
+        ]);
+
+        return response()->json([
+            'message' => 'Institution platform settings updated.',
+            'data' => [
+                'institution_id' => $institution->id,
+                'student_registration_fee' => (float) $settings->student_registration_fee,
+                'registration_fee_currency' => $settings->registration_fee_currency,
+                'registration_fee_period' => $settings->registration_fee_period,
+                'currency' => $institution->fresh()->currency,
+            ],
+        ]);
+    }
+
+    /**
+     * @return Institution|\Illuminate\Http\JsonResponse
+     */
+    private function resolveManagedInstitution(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->institution_id) {
+            return response()->json(['message' => 'No institution assigned to this user.'], 404);
+        }
+
+        $institution = Institution::find($user->institution_id);
+        if (! $institution) {
+            return response()->json(['message' => 'Institution not found.'], 404);
+        }
+
+        return $institution;
     }
 
     public function uploadLogo(Request $request, $id)

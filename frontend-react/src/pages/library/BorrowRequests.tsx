@@ -14,8 +14,15 @@ import Modal from '../../components/ui/Modal'
 import QrImage from '../../components/library/QrImage'
 import { useToast } from '../../components/ui/ToastProvider'
 import { useAuth } from '../../context/AuthContext'
+import { ColoredTabsBar, type TabColor } from '../../components/ui/ColoredModuleTabsNav'
 
-const STATUS_TABS = ['pending', 'approved', 'issued', 'rejected', 'all']
+const STATUS_TABS: { id: string; color: TabColor }[] = [
+  { id: 'pending', color: 'amber' },
+  { id: 'approved', color: 'emerald' },
+  { id: 'issued', color: 'blue' },
+  { id: 'rejected', color: 'rose' },
+  { id: 'all', color: 'navy' },
+]
 
 export default function BorrowRequests() {
   const { pushToast } = useToast()
@@ -143,18 +150,16 @@ export default function BorrowRequests() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {STATUS_TABS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setTab(s)}
-            className={`rounded-xl px-3.5 py-1.5 text-sm font-medium capitalize transition ${
-              tab === s ? 'bg-[#1e3a5f] text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-4">
+        <ColoredTabsBar
+          items={STATUS_TABS.map((s) => ({
+            id: s.id,
+            label: s.id.charAt(0).toUpperCase() + s.id.slice(1),
+            color: s.color,
+          }))}
+          activeId={tab}
+          onChange={setTab}
+        />
       </div>
 
       {loading ? (

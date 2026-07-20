@@ -16,11 +16,14 @@ class AnnouncementMessagingService
     protected $workflow;
     protected $messageLogs;
 
+    protected $formatter;
+
     public function __construct(WhatsAppService $whatsapp, LetterWorkflowService $workflow, MessageLogService $messageLogs)
     {
         $this->whatsapp = $whatsapp;
         $this->workflow = $workflow;
         $this->messageLogs = $messageLogs;
+        $this->formatter = new NotificationMessageFormatter();
     }
 
     public function dispatch(Announcement $announcement, $institutionName = null): array
@@ -237,8 +240,9 @@ class AnnouncementMessagingService
 
         $html = implode("\n\n", $parts);
         $text = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], "\n", $html)));
+        $text = $text !== '' ? $text : ($announcement->title ?: 'Announcement');
 
-        return $text !== '' ? $text : ($announcement->title ?: 'Announcement');
+        return $this->formatter->appendBrand($text, $institutionName);
     }
 
     protected function personalize($template, Announcement $announcement, AnnouncementRecipient $recipient, $institutionName = null): string

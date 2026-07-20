@@ -91,8 +91,17 @@ class AuthOtpService
             return ['success' => false, 'message' => 'This account has no username on file. Contact your administrator.'];
         }
 
-        $institutionName = optional($user->institution)->name ?: 'School Management System';
-        $message = "Username recovery for {$institutionName}:\n\nYour username is: {$username}\n\nIf you did not request this, ignore this message.";
+        $institutionName = optional($user->institution)->name;
+        $formatter = new NotificationMessageFormatter();
+        $message = $formatter->format(
+            'USERNAME RECOVERY',
+            $formatter->greeting($user->name),
+            [
+                $formatter->field('Username', $username),
+                'If you did not request this, ignore this message.',
+            ],
+            $institutionName
+        );
 
         $send = $this->whatsapp->sendTextMessage($targetPhone, $message);
 

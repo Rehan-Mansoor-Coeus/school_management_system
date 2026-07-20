@@ -153,8 +153,8 @@ class LibraryBorrowController extends Controller
         $fromLabel = Carbon::parse($from)->toDayDateTimeString();
         $toLabel = Carbon::parse($expectedReturn)->toFormattedDateString();
 
-        $this->notifier()->notifyUser($user, $institutionId, 'requested', $this->notifier()->requestToUser($user->name, $bookTitle), $borrow->id);
-        $this->notifier()->notifyLibrarians($institutionId, 'requested', $this->notifier()->requestToLibrarian($user->name, $bookTitle, $fromLabel, $toLabel), $borrow->id);
+        $this->notifier()->notifyUser($user, $institutionId, 'requested', $this->notifier()->requestToUser($institutionId, $user->name, $bookTitle), $borrow->id);
+        $this->notifier()->notifyLibrarians($institutionId, 'requested', $this->notifier()->requestToLibrarian($institutionId, $user->name, $bookTitle, $fromLabel, $toLabel), $borrow->id);
 
         return response()->json($this->transform($borrow->fresh(['book', 'copy', 'user'])), 201);
     }
@@ -235,7 +235,7 @@ class LibraryBorrowController extends Controller
         });
 
         $user = User::find($borrow->user_id);
-        $this->notifier()->notifyUser($user, $institutionId, 'approved', $this->notifier()->approvedToUser(optional($user)->name ?? '', $book->title), $borrow->id);
+        $this->notifier()->notifyUser($user, $institutionId, 'approved', $this->notifier()->approvedToUser($institutionId, optional($user)->name ?? '', $book->title), $borrow->id);
 
         return response()->json($this->transform($borrow->fresh(['book', 'copy', 'user'])));
     }
@@ -264,7 +264,7 @@ class LibraryBorrowController extends Controller
 
         $book = LibraryBook::find($borrow->book_id);
         $user = User::find($borrow->user_id);
-        $this->notifier()->notifyUser($user, $institutionId, 'rejected', $this->notifier()->rejectedToUser(optional($user)->name ?? '', optional($book)->title ?? '', $data['reason'] ?? null), $borrow->id);
+        $this->notifier()->notifyUser($user, $institutionId, 'rejected', $this->notifier()->rejectedToUser($institutionId, optional($user)->name ?? '', optional($book)->title ?? '', $data['reason'] ?? null), $borrow->id);
 
         return response()->json($this->transform($borrow->fresh(['book', 'copy', 'user'])));
     }
@@ -349,7 +349,7 @@ class LibraryBorrowController extends Controller
             $user,
             $institutionId,
             'issued',
-            $this->notifier()->issuedToUser(optional($user)->name ?? '', optional($book)->title ?? '', Carbon::parse($dueDate)->toFormattedDateString()),
+            $this->notifier()->issuedToUser($institutionId, optional($user)->name ?? '', optional($book)->title ?? '', Carbon::parse($dueDate)->toFormattedDateString()),
             $borrow->id
         );
 
@@ -415,7 +415,7 @@ class LibraryBorrowController extends Controller
 
         $book = LibraryBook::find($borrow->book_id);
         $user = User::find($borrow->user_id);
-        $this->notifier()->notifyUser($user, $institutionId, 'returned', $this->notifier()->returnedToUser(optional($user)->name ?? '', optional($book)->title ?? ''), $borrow->id);
+        $this->notifier()->notifyUser($user, $institutionId, 'returned', $this->notifier()->returnedToUser($institutionId, optional($user)->name ?? '', optional($book)->title ?? ''), $borrow->id);
 
         return response()->json([
             'request' => $this->transform($borrow->fresh(['book', 'copy', 'user'])),
@@ -608,8 +608,8 @@ class LibraryBorrowController extends Controller
         $isOverdue = $dueDate && $dueDate->lt(Carbon::now()->startOfDay());
 
         $message = $isOverdue
-            ? $this->notifier()->overdueToUser(optional($user)->name ?? '', optional($book)->title ?? '', $dueDate ? $dueDate->toFormattedDateString() : '')
-            : $this->notifier()->reminderToUser(optional($user)->name ?? '', optional($book)->title ?? '', $dueDate ? $dueDate->toFormattedDateString() : '');
+            ? $this->notifier()->overdueToUser($institutionId, optional($user)->name ?? '', optional($book)->title ?? '', $dueDate ? $dueDate->toFormattedDateString() : '')
+            : $this->notifier()->reminderToUser($institutionId, optional($user)->name ?? '', optional($book)->title ?? '', $dueDate ? $dueDate->toFormattedDateString() : '');
 
         $this->notifier()->notifyUser($user, $institutionId, $isOverdue ? 'overdue' : 'reminder', $message, $borrow->id);
     }

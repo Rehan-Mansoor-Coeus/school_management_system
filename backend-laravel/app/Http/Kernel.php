@@ -70,6 +70,9 @@ class Kernel extends HttpKernel
         'platform_super_admin' => \App\Http\Middleware\EnsurePlatformSuperAdmin::class,
         'resolve_institution' => \App\Http\Middleware\ResolveActiveInstitution::class,
         'institution_context' => \App\Http\Middleware\EnsureInstitutionContext::class,
+        'license_active' => \App\Http\Middleware\EnsureLicenseActive::class,
+        'module_licensed' => \App\Http\Middleware\EnsureModuleLicensed::class,
+        'within_user_limit' => \App\Http\Middleware\EnsureWithinUserLimit::class,
     ];
 
     /**

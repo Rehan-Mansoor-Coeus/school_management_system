@@ -5,9 +5,9 @@ import { useAuth } from '../../context/AuthContext'
 import ColoredModuleTabsNav from '../ui/ColoredModuleTabsNav'
 
 const employeeTabs = [
-  { labelKey: 'createActivity', path: '/timesheets/activities/create', permissions: ['create_timesheet_activity', 'timesheets.create_entry', 'timesheets.manage'], icon: ClipboardList, color: 'emerald' as const },
-  { labelKey: 'fillTimeSheet', path: '/timesheets/fill', permissions: ['fill_timesheet', 'timesheets.create_entry', 'timesheets.view_own'], icon: CalendarDays, color: 'blue' as const },
-  { labelKey: 'workingWeek', path: '/timesheets/working-week', permissions: ['manage_own_working_week', 'timesheets.manage'], icon: Clock, color: 'violet' as const },
+  { labelKey: 'createActivity', path: '/timesheets/activities/create', permissions: ['create_timesheet_activity', 'timesheets.create_entry', 'timesheets.manage'], icon: ClipboardList, color: 'navy' as const },
+  { labelKey: 'fillTimeSheet', path: '/timesheets/fill', permissions: ['fill_timesheet', 'timesheets.create_entry', 'timesheets.view_own'], icon: CalendarDays, color: 'amber' as const },
+  { labelKey: 'workingWeek', path: '/timesheets/working-week', permissions: ['manage_own_working_week', 'timesheets.manage'], icon: Clock, color: 'purple' as const },
 ]
 
 export default function TimesheetEmployeeLayout() {

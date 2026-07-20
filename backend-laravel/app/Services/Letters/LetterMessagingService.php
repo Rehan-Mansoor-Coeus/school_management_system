@@ -8,6 +8,7 @@ use App\Letter;
 use App\LetterRecipient;
 use App\MessageQueue;
 use App\Services\Messaging\MessageLogService;
+use App\Services\Messaging\NotificationMessageFormatter;
 use App\Services\Messaging\WhatsAppService;
 
 class LetterMessagingService
@@ -15,6 +16,8 @@ class LetterMessagingService
     protected $pdf;
     protected $whatsapp;
     protected $messageLogs;
+
+    protected $formatter;
 
     public function __construct(
         LetterPdfService $pdf,
@@ -24,6 +27,7 @@ class LetterMessagingService
         $this->pdf = $pdf;
         $this->whatsapp = $whatsapp;
         $this->messageLogs = $messageLogs;
+        $this->formatter = new NotificationMessageFormatter();
     }
 
     public function queueLetterDelivery(Letter $letter, ?int $senderId = null): array
@@ -94,7 +98,10 @@ class LetterMessagingService
             return $this->failQueue($queue, $upload['error'] ?? 'Unable to prepare PDF attachment.', $letter, $recipient, $pdfPath);
         }
 
-        $caption = trim($letter->reference.': '.$letter->subject);
+        $caption = $this->formatter->appendBrand(
+            trim($letter->reference.': '.$letter->subject),
+            optional($institution)->name
+        );
         $result = $this->whatsapp->sendDocumentMessage(
             $normalized,
             $documentUrl,

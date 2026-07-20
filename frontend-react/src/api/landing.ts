@@ -1,10 +1,24 @@
 import api from './client'
 
 export type PublicSettings = {
+  per_student_license_fee: number
+  per_student_license_currency: string
+  per_student_license_period: string
+  per_student_license_label: string
+  /** @deprecated Use per_student_license_* — kept for older clients */
+  student_registration_fee?: number
+  registration_fee_currency?: string
+  registration_fee_period?: string
+  registration_fee_label?: string
+}
+
+export type InstitutionPlatformSettings = {
+  institution_id: number
+  institution_name?: string
   student_registration_fee: number
   registration_fee_currency: string
   registration_fee_period: string
-  registration_fee_label: string
+  currency?: string
 }
 
 export type PublicInstitutionSummary = {
@@ -62,12 +76,76 @@ export function updateGeneralSettings(payload: Record<string, unknown>) {
   return api.put('/general-settings', payload)
 }
 
+export function fetchInstitutionPlatformSettings() {
+  return api.get<InstitutionPlatformSettings>('/my-institution/platform-settings')
+}
+
+export function updateInstitutionPlatformSettings(payload: {
+  student_registration_fee: number
+  registration_fee_currency: string
+  registration_fee_period?: string
+}) {
+  return api.put('/my-institution/platform-settings', payload)
+}
+
+export type InstitutionRequestHubTab = 'all' | 'awaiting' | 'pending_payment' | 'approved'
+
+export type InstitutionRequestHubRow = {
+  kind: 'request' | 'institution'
+  id: number
+  request_id?: number | null
+  institution_id?: number | null
+  name: string
+  code?: string | null
+  contact_person?: string | null
+  email?: string | null
+  phone?: string | null
+  city?: string | null
+  country?: string | null
+  student_population?: number | null
+  status?: string | null
+  is_active?: boolean
+  license?: {
+    license_status?: string
+    payment_status?: string
+    total_amount?: number
+    amount_paid?: number
+    balance?: number
+    currency?: string
+    plan_name?: string
+    plan?: { name?: string; code?: string; license_type?: string }
+    license_type?: string
+  } | null
+  created_at?: string | null
+}
+
+export type InstitutionRequestHubResponse = {
+  data: InstitutionRequestHubRow[]
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+  tab: InstitutionRequestHubTab
+}
+
 export function fetchInstitutionRequests(params?: { status?: string; page?: number }) {
   return api.get('/institution-requests', { params })
 }
 
-export function approveInstitutionRequest(id: number, admin_notes?: string) {
-  return api.post(`/institution-requests/${id}/approve`, { admin_notes })
+export function fetchInstitutionRequestsHub(params: {
+  tab: InstitutionRequestHubTab
+  page?: number
+  search?: string
+  per_page?: number
+}) {
+  return api.get<InstitutionRequestHubResponse>('/institution-requests/hub', { params })
+}
+
+export function approveInstitutionRequest(
+  id: number,
+  payload: { license_plan_id: number; admin_notes?: string; type?: string },
+) {
+  return api.post(`/institution-requests/${id}/approve`, payload)
 }
 
 export function rejectInstitutionRequest(id: number, admin_notes?: string) {

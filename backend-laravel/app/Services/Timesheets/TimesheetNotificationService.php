@@ -2,6 +2,8 @@
 
 namespace App\Services\Timesheets;
 
+use App\Institution;
+use App\Services\Messaging\NotificationMessageFormatter;
 use App\TimesheetNotification;
 use App\User;
 
@@ -13,8 +15,15 @@ class TimesheetNotificationService
         $previous = app()->getLocale();
         app()->setLocale($locale);
         $title = __("timesheets.notifications.{$eventKey}.title", $replace);
-        $message = __("timesheets.notifications.{$eventKey}.message", $replace);
+        $body = __("timesheets.notifications.{$eventKey}.message", $replace);
         app()->setLocale($previous);
+
+        $formatter = new NotificationMessageFormatter();
+        $message = $formatter->wrap(
+            $body,
+            $title,
+            optional(Institution::find($user->institution_id))->name
+        );
 
         return TimesheetNotification::create([
             'institution_id' => $user->institution_id,
