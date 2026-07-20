@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Institution;
 use App\Role;
 use App\Support\ProtectedSystemAccounts;
 use App\User;
@@ -26,17 +25,10 @@ class EnsureSystemAdmin extends Command
             : ProtectedSystemAccounts::protectedEmails();
 
         $password = (string) ($this->option('password') ?: ProtectedSystemAccounts::defaultPassword());
-        $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
+        $platformRole = Role::where('name', 'system-super-admin')->where('guard_name', 'api')->first();
 
-        if (! $superAdmin) {
-            $this->error('super-admin role not found. Run database seeders first.');
-
-            return 1;
-        }
-
-        $institution = Institution::query()->orderBy('id')->first();
-        if (! $institution) {
-            $this->error('No institution found.');
+        if (! $platformRole) {
+            $this->error('system-super-admin role not found. Run database seeders first.');
 
             return 1;
         }
@@ -49,9 +41,14 @@ class EnsureSystemAdmin extends Command
             $user = User::withTrashed()->where('email', $email)->first();
 
             if (! $user) {
+                $username = (stripos($email, 'okusoma') !== false || $email === 'admin@test.com')
+                    ? 'admin'
+                    : ('platform_' . substr(md5($email), 0, 8));
+
                 $user = User::create([
-                    'institution_id' => $institution->id,
-                    'name' => 'Test Admin',
+                    'institution_id' => null,
+                    'name' => 'Platform Super Admin',
+                    'username' => $username,
                     'email' => $email,
                     'password' => Hash::make($password),
                     'api_token' => Str::random(60),
@@ -73,6 +70,7 @@ class EnsureSystemAdmin extends Command
 
                 $user->password = Hash::make($password);
                 $user->status = 'active';
+                $user->institution_id = null;
                 if (! $user->api_token) {
                     $user->api_token = Str::random(60);
                 }
@@ -80,9 +78,9 @@ class EnsureSystemAdmin extends Command
                 $this->info("Updated {$email} (id {$user->id}).");
             }
 
-            if (! $user->hasRole($superAdmin)) {
-                $user->assignRole($superAdmin);
-                $this->info("Assigned super-admin to {$email}.");
+            if (! $user->hasRole($platformRole)) {
+                $user->assignRole($platformRole);
+                $this->info("Assigned system-super-admin to {$email}.");
             }
         }
 

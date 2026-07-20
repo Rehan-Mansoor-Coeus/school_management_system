@@ -334,9 +334,14 @@ class AuthController extends Controller
         $user->save();
 
         if (ProtectedSystemAccounts::isProtected($user)) {
-            $superAdmin = Role::where('name', 'super-admin')->where('guard_name', 'api')->first();
-            if ($superAdmin && ! $user->hasRole($superAdmin)) {
-                $user->assignRole($superAdmin);
+            $platformRole = Role::where('name', 'system-super-admin')->where('guard_name', 'api')->first();
+            if ($platformRole && ! $user->hasRole($platformRole)) {
+                $user->assignRole($platformRole);
+            }
+            // Platform operators must not inherit a default institution scope.
+            if ($user->institution_id) {
+                $user->institution_id = null;
+                $user->save();
             }
         }
 
