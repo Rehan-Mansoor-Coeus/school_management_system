@@ -68,8 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const incoming = 'enabledModules' in next || 'roleType' in next || 'contextType' in next
         ? {
             user: ('user' in next ? next.user : current.user) as AuthUser,
-            permissions: ('permissions' in next && next.permissions) ? next.permissions : current.permissions,
-            enabledModules: ('enabledModules' in next && next.enabledModules) ? next.enabledModules : current.enabledModules,
+            permissions: ('permissions' in next && Array.isArray(next.permissions)) ? next.permissions : current.permissions,
+            enabledModules: ('enabledModules' in next && Array.isArray(next.enabledModules)) ? next.enabledModules : current.enabledModules,
             institution: ('institution' in next ? next.institution : current.institution) as AuthInstitution,
             roleType: ('roleType' in next && next.roleType) ? String(next.roleType) : current.roleType,
             contextType: ('contextType' in next && next.contextType) ? String(next.contextType) : current.contextType,

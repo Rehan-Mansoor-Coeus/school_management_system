@@ -49,7 +49,7 @@ export default function SchoolDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const schoolId = Number(id)
-  const { setAuth, enterInstitutionContext } = useAuth()
+  const { setAuth } = useAuth()
 
   const [detail, setDetail] = useState<SchoolDetailType | null>(null)
   const [loading, setLoading] = useState(true)
@@ -153,7 +153,7 @@ export default function SchoolDetail() {
     try {
       const res = await switchIntoInstitution(detail.institution.id)
       const profile = profileFromAuthResponse(res.data as Record<string, unknown>)
-      enterInstitutionContext({
+      const institution = {
         id: detail.institution.id,
         name: detail.institution.name,
         code: detail.institution.code,
@@ -161,8 +161,16 @@ export default function SchoolDetail() {
         is_active: detail.institution.is_active,
         subscription_status: detail.license.status,
         subscription_expires_at: detail.license.expires_at,
-      }, profile.enabledModules)
-      setAuth(profile)
+      }
+      setAuth({
+        ...profile,
+        contextType: 'institution',
+        actingAsSuperAdmin: true,
+        activeInstitution: profile.activeInstitution || institution,
+        activeInstitutionId: detail.institution.id,
+        institution: profile.institution || institution,
+        roleType: profile.roleType || 'platform_super_admin',
+      })
       navigate('/dashboard')
     } catch (err) {
       setError(formatApiError(err, 'Unable to switch into this institution.'))

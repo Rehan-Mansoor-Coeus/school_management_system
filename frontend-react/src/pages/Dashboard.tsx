@@ -4,35 +4,46 @@ import StaffDashboardOverview from '../components/dashboard/StaffDashboardOvervi
 import StudentAdmissionsStats from '../modules/admissions/components/StudentAdmissionsStats'
 import SuperAdminDashboard from './superadmin/SuperAdminDashboard'
 import AdminDashboard from './AdminDashboard'
-import { PLATFORM_SUPER_ADMIN_ROLES } from '../utils/accessControl'
+import { PLATFORM_SUPER_ADMIN_ROLES, INSTITUTION_SUPER_ADMIN_ROLES, ADMIN_ROLES } from '../utils/accessControl'
 
 export default function Dashboard() {
-  const { hasAnyRole, canAccess, isPlatformSuperAdmin, isPlatformContext, isInstitutionContext } = useAuth()
+  const {
+    hasAnyRole,
+    isPlatformSuperAdmin,
+    isPlatformContext,
+    isInstitutionContext,
+    actingAsSuperAdmin,
+    roleType,
+    activeInstitutionId,
+  } = useAuth()
+
+  const isElevatedAdmin =
+    isPlatformSuperAdmin
+    || actingAsSuperAdmin
+    || roleType === 'platform_super_admin'
+    || hasAnyRole([...PLATFORM_SUPER_ADMIN_ROLES, ...INSTITUTION_SUPER_ADMIN_ROLES, ...ADMIN_ROLES])
 
   // Platform super admins in platform context use the dedicated platform home.
-  if (isPlatformSuperAdmin && isPlatformContext) {
+  if (isPlatformSuperAdmin && isPlatformContext && !actingAsSuperAdmin) {
     if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
       return <Navigate to="/super-admin/dashboard" replace />
     }
     return <SuperAdminDashboard />
   }
 
-  // Super admin who switched into an institution gets the school dashboard.
-  if (isPlatformSuperAdmin && isInstitutionContext) {
+  // Super admin switched into an institution, or any school admin.
+  if ((isPlatformSuperAdmin && (isInstitutionContext || actingAsSuperAdmin || activeInstitutionId))
+    || (actingAsSuperAdmin && activeInstitutionId)
+    || hasAnyRole(['admin', 'institution-admin', ...INSTITUTION_SUPER_ADMIN_ROLES])) {
     return <AdminDashboard />
   }
 
-  if (hasAnyRole([...PLATFORM_SUPER_ADMIN_ROLES])) {
+  if (isPlatformSuperAdmin || roleType === 'platform_super_admin') {
     return <SuperAdminDashboard />
   }
 
-  if (hasAnyRole(['admin', 'institution-admin'])) {
-    return <AdminDashboard />
-  }
-
-  const isStudent = hasAnyRole(['student']) || canAccess({ permissions: ['admissions.apply'] })
-
-  if (isStudent) {
+  // Only true students — never treat elevated admins as students via admissions.apply.
+  if (!isElevatedAdmin && hasAnyRole(['student'])) {
     return (
       <div className="space-y-6 p-6">
         <div>
