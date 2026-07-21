@@ -153,6 +153,7 @@ export default function Sidebar() {
   } = useAuth()
   const location = useLocation()
 
+  // Platform operators never see school modules (Timetable, etc.) until they switch into a school.
   if (isPlatformSuperAdmin && isPlatformContext) {
     return (
       <aside className="flex h-full flex-col overflow-hidden bg-[#1e3a5f] px-4 py-6 text-white">
@@ -200,15 +201,17 @@ export default function Sidebar() {
     permissions: ['documents.view', 'documents.manage', 'documents.generate', 'documents.types.view', 'documents.templates.manage'],
   })
   const timetablePermissions = MODULE_MENU_PERMISSIONS.timetable
+  // Platform SA roles must not unlock school Timetable unless acting inside an institution.
   const canViewTimetable =
     isAdmin() ||
-    userRoles.includes('super-admin') ||
-    userRoles.includes('system-super-admin') ||
+    (actingAsSuperAdmin && (userRoles.includes('super-admin') || userRoles.includes('system-super-admin'))) ||
+    (!isPlatformSuperAdmin && userRoles.includes('super-admin')) ||
     hasAnyPermission(timetablePermissions)
-  // Admins with timetable access should see the menu even if cached enabled_modules is stale.
   const showTimetable =
     canViewTimetable &&
-    (safeEnabledModules.includes('timetable') || isAdmin() || userRoles.includes('super-admin') || userRoles.includes('system-super-admin'))
+    (safeEnabledModules.includes('timetable')
+      || (actingAsSuperAdmin && isPlatformSuperAdmin)
+      || (!isPlatformSuperAdmin && (isAdmin() || userRoles.includes('super-admin'))))
   const timetableActive = location.pathname.startsWith('/timetable')
   const showOperations = showTimesheetEmployee || showTimesheetAdmin || showTaskManager
 

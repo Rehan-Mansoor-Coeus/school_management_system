@@ -1,4 +1,5 @@
 import api from '../api/client'
+import { PLATFORM_SUPER_ADMIN_ROLES, resolveUserRoles } from './accessControl'
 
 export type AuthInstitution = {
   id?: number
@@ -140,18 +141,54 @@ export function profileFromAuthResponse(data: Record<string, unknown>): AuthProf
   return normalizeProfile(data)
 }
 
+export function profileHasPlatformSuperAdminRole(profile: Pick<AuthProfile, 'user' | 'roleType'>): boolean {
+  if (profile.roleType === 'platform_super_admin') return true
+  const roles = resolveUserRoles(profile.user as Parameters<typeof resolveUserRoles>[0])
+  return roles.some((role) =>
+    PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number])
+  )
+}
+
+/** Platform SA home unless explicitly switched into a school. */
+export function isPlatformHomeProfile(profile: AuthProfile): boolean {
+  if (!profileHasPlatformSuperAdminRole(profile)) return false
+  const switched = Boolean(profile.actingAsSuperAdmin && profile.activeInstitutionId)
+  return !switched
+}
+
 function normalizeProfile(data: Record<string, unknown>): AuthProfile {
   const user = (data.user ?? data) as Record<string, unknown> | null
   const permissions = (data.permissions as string[] | undefined) ?? []
-  const enabledModules = (data.enabled_modules as string[] | undefined) ?? []
-  const roleType = String(data.role_type || '')
-  const contextType = String(data.context_type || (roleType === 'platform_super_admin' ? 'platform' : 'institution'))
-  const actingAsSuperAdmin = Boolean(data.acting_as_super_admin)
-  const activeInstitution = (data.active_institution as AuthInstitution)
+  let enabledModules = (data.enabled_modules as string[] | undefined) ?? []
+  let roleType = String(data.role_type || '')
+  const roles = resolveUserRoles(user as Parameters<typeof resolveUserRoles>[0])
+  const isPlatformSa =
+    roleType === 'platform_super_admin'
+    || roles.some((role) =>
+      PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number])
+    )
+  if (isPlatformSa) {
+    roleType = 'platform_super_admin'
+  }
+
+  let contextType = String(data.context_type || (isPlatformSa ? 'platform' : 'institution'))
+  let actingAsSuperAdmin = Boolean(data.acting_as_super_admin)
+  let activeInstitution = (data.active_institution as AuthInstitution)
     ?? (contextType === 'institution' ? ((data.institution as AuthInstitution) ?? null) : null)
-  const activeInstitutionId = data.active_institution_id != null
+  let activeInstitutionId = data.active_institution_id != null
     ? Number(data.active_institution_id)
     : (activeInstitution?.id != null ? Number(activeInstitution.id) : null)
+
+  // Platform operators only enter school UI after an explicit switch (acting + institution id).
+  const switchedIntoSchool = isPlatformSa && actingAsSuperAdmin && !!activeInstitutionId && activeInstitutionId > 0
+  if (isPlatformSa && !switchedIntoSchool) {
+    contextType = 'platform'
+    actingAsSuperAdmin = false
+    activeInstitution = null
+    activeInstitutionId = null
+    enabledModules = []
+  }
+
   const institution = contextType === 'platform'
     ? null
     : ((data.institution as AuthInstitution) ?? activeInstitution ?? (user?.institution as AuthInstitution) ?? null)
@@ -191,7 +228,7 @@ export async function fetchAuthProfile(): Promise<AuthProfile> {
 }
 
 export function homePathForProfile(profile: AuthProfile): string {
-  if (profile.roleType === 'platform_super_admin' && profile.contextType === 'platform') {
+  if (isPlatformHomeProfile(profile)) {
     return '/super-admin/dashboard'
   }
   return '/dashboard'

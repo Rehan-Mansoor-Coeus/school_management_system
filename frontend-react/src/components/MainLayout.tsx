@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, KeyRound, LogOut, UserCircle2 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import api from '../api/client'
@@ -11,8 +11,34 @@ import { useAuth } from '../context/AuthContext'
 import { NotificationBell } from '../modules/admissions/components/NotificationBell'
 import ChangePasswordModal from './ui/ChangePasswordModal'
 
+const SCHOOL_ONLY_PREFIXES = [
+  '/timetable',
+  '/attendance',
+  '/results',
+  '/fees',
+  '/hr',
+  '/assets',
+  '/hostel',
+  '/canteen',
+  '/library',
+  '/admissions',
+  '/timesheets',
+  '/tasks',
+  '/letters',
+  '/contracts',
+  '/documents',
+  '/users',
+  '/roles',
+  '/permissions',
+  '/modules',
+  '/reports',
+  '/audit',
+  '/notifications',
+]
+
 export default function MainLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { pushToast } = useToast()
   const { locale, setAppLocale } = useTimesheetI18n()
   const {
@@ -44,6 +70,15 @@ export default function MainLayout() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // Keep platform SA on the Super Admin shell (never school Timetable/modules).
+  useEffect(() => {
+    if (!(isPlatformSuperAdmin && isPlatformContext)) return
+    const path = location.pathname
+    if (path === '/dashboard' || SCHOOL_ONLY_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+      navigate('/super-admin/dashboard', { replace: true })
+    }
+  }, [isPlatformSuperAdmin, isPlatformContext, location.pathname, navigate])
 
   const logout = async () => {
     try {

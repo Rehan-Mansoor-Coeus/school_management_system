@@ -52,8 +52,15 @@ function applyAuthHeader(config: { headers?: Record<string, unknown>; url?: stri
     return config
   }
 
+  // Only attach institution scope when explicitly acting as a school (not a stale id).
+  let actingAs = false
+  try {
+    actingAs = JSON.parse(localStorage.getItem('acting_as_super_admin') || 'false') === true
+  } catch {
+    actingAs = localStorage.getItem('acting_as_super_admin') === 'true'
+  }
   const activeInstitutionId = localStorage.getItem('active_institution_id')
-  if (activeInstitutionId && activeInstitutionId !== 'null') {
+  if (actingAs && activeInstitutionId && activeInstitutionId !== 'null') {
     config.headers['X-Active-Institution-Id'] = activeInstitutionId
   } else if (config.headers['X-Active-Institution-Id']) {
     delete config.headers['X-Active-Institution-Id']

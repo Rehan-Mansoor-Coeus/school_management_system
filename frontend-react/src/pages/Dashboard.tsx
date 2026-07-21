@@ -23,18 +23,18 @@ export default function Dashboard() {
     || roleType === 'platform_super_admin'
     || hasAnyRole([...PLATFORM_SUPER_ADMIN_ROLES, ...INSTITUTION_SUPER_ADMIN_ROLES, ...ADMIN_ROLES])
 
-  // Platform super admins in platform context use the dedicated platform home.
-  if (isPlatformSuperAdmin && isPlatformContext && !actingAsSuperAdmin) {
+  // Platform super admins always use the platform home unless explicitly switched into a school.
+  if (isPlatformSuperAdmin && isPlatformContext) {
     if (typeof window !== 'undefined' && window.location.pathname === '/dashboard') {
       return <Navigate to="/super-admin/dashboard" replace />
     }
     return <SuperAdminDashboard />
   }
 
-  // Super admin switched into an institution, or any school admin.
-  if ((isPlatformSuperAdmin && (isInstitutionContext || actingAsSuperAdmin || activeInstitutionId))
+  // Super admin switched into an institution, or any school admin (not platform SA).
+  if ((isPlatformSuperAdmin && isInstitutionContext)
     || (actingAsSuperAdmin && activeInstitutionId)
-    || hasAnyRole(['admin', 'institution-admin', ...INSTITUTION_SUPER_ADMIN_ROLES])) {
+    || (!isPlatformSuperAdmin && hasAnyRole(['admin', 'institution-admin', ...INSTITUTION_SUPER_ADMIN_ROLES]))) {
     return <AdminDashboard />
   }
 

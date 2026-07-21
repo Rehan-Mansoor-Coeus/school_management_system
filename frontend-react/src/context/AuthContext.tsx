@@ -144,6 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       PLATFORM_SUPER_ADMIN_ROLES.includes(role as (typeof PLATFORM_SUPER_ADMIN_ROLES)[number])
     ) || state.roleType === 'platform_super_admin'
 
+    // School shell only while explicitly acting as an institution (never by stale context_type alone).
+    const switchedIntoSchool = isPlatformSuperAdmin
+      && Boolean(state.actingAsSuperAdmin)
+      && Boolean(state.activeInstitutionId)
+    const isPlatformContext = isPlatformSuperAdmin && !switchedIntoSchool
+
     return {
       ...state,
       userRoles,
@@ -152,8 +158,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       enterInstitutionContext,
       leaveInstitutionContext,
       isPlatformSuperAdmin,
-      isPlatformContext: isPlatformSuperAdmin && state.contextType === 'platform',
-      isInstitutionContext: state.contextType === 'institution',
+      isPlatformContext,
+      isInstitutionContext: switchedIntoSchool || (!isPlatformSuperAdmin && state.contextType === 'institution'),
       hasPermission: (permission: string) => state.permissions.includes(permission),
       hasAnyPermission: (permissions: string[]) => permissions.some((p) => state.permissions.includes(p)),
       hasRole: (role: string) => userRoles.includes(role),

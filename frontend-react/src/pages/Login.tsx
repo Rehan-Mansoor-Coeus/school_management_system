@@ -25,6 +25,7 @@ import {
   homePathForProfile,
   persistProfile,
   profileFromAuthResponse,
+  profileHasPlatformSuperAdminRole,
   readCachedProfile,
 } from '../utils/authSession'
 import { formatApiError } from '../utils/apiError'
@@ -126,30 +127,47 @@ export default function LoginPage() {
       let profile = profileFromAuthResponse(res.data as Record<string, unknown>)
 
       // Platform SA always starts with no institution selected.
-      if (profile.roleType === 'platform_super_admin') {
+      if (profileHasPlatformSuperAdminRole(profile)) {
         profile = {
           ...profile,
+          roleType: 'platform_super_admin',
           contextType: 'platform',
           actingAsSuperAdmin: false,
           activeInstitution: null,
           activeInstitutionId: null,
           institution: null,
+          enabledModules: [],
         }
       }
 
       if (!profile.user) {
         profile = await fetchAuthProfile()
-      } else {
-        persistProfile(profile)
       }
+      if (profileHasPlatformSuperAdminRole(profile)) {
+        profile = {
+          ...profile,
+          roleType: 'platform_super_admin',
+          contextType: 'platform',
+          actingAsSuperAdmin: false,
+          activeInstitution: null,
+          activeInstitutionId: null,
+          institution: null,
+          enabledModules: [],
+        }
+      }
+      persistProfile(profile)
 
       bumpAuthEpoch()
       setAuth(profile)
 
       const redirect = searchParams.get('redirect')
       const defaultHome = homePathForProfile(profile)
+      // Never send platform SA into a school deep-link after login.
       const safeRedirect =
-        redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+        redirect
+        && redirect.startsWith('/')
+        && !redirect.startsWith('//')
+        && !(profileHasPlatformSuperAdminRole(profile) && !redirect.startsWith('/super-admin'))
           ? redirect
           : defaultHome
 

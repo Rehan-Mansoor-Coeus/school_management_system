@@ -349,8 +349,16 @@ class AuthController extends Controller
         }
 
         // Platform super admins always start in platform context (no institution selected).
+        // Drop institution-level "super-admin" so school menus are not unlocked by dual roles.
         if (PlatformAccess::isPlatformSuperAdmin($user)) {
             $request->headers->set(AdminContext::HEADER, '');
+            if ($user->hasRole('super-admin')) {
+                $user->removeRole('super-admin');
+            }
+            if ($user->institution_id) {
+                $user->institution_id = null;
+                $user->save();
+            }
         }
 
         return response()->json(array_merge([
