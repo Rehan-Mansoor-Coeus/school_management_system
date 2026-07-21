@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { canAccessMenu, isAdminRole, PLATFORM_SUPER_ADMIN_ROLES, resolveUserRoles } from '../utils/accessControl'
 import {
+  bumpAuthEpoch,
   clearStoredSession,
   persistProfile,
   readCachedProfile,
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const enterInstitutionContext = useCallback((institution: NonNullable<AuthInstitution>, enabledModules?: string[]) => {
     const id = Number(institution.id)
+    bumpAuthEpoch()
     setStoredActiveInstitutionId(id)
     setAuth({
       contextType: 'institution',
@@ -124,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setAuth])
 
   const leaveInstitutionContext = useCallback(() => {
+    bumpAuthEpoch()
     setStoredActiveInstitutionId(null)
     setAuth({
       contextType: 'platform',

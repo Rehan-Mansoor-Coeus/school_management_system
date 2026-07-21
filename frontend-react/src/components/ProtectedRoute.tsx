@@ -5,6 +5,7 @@ import {
   applyToken,
   clearStoredSession,
   fetchAuthProfile,
+  getAuthEpoch,
   readCachedProfile,
 } from '../utils/authSession'
 
@@ -30,6 +31,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
 
       applyToken(token)
       const cached = readCachedProfile()
+      const epochAtStart = getAuthEpoch()
 
       // Show the app immediately when we have a cached profile; refresh in background.
       if (cached.user) {
@@ -41,17 +43,36 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
       try {
         const profile = await fetchAuthProfile()
         if (cancelled) return
+        // Switch / return / login bumped context while this request was in flight — do not overwrite.
+        if (getAuthEpoch() !== epochAtStart) {
+          setAuthed(true)
+          return
+        }
         setAuth(profile)
         setAuthed(true)
         setSessionExpired(false)
         setBootstrapError(null)
       } catch (error: any) {
         if (cancelled) return
+        if (getAuthEpoch() !== epochAtStart) {
+          setAuthed(Boolean(localStorage.getItem('token')))
+          return
+        }
 
         const status = error?.response?.status
         if (status === 401) {
           clearStoredSession()
-          setAuth({ user: null, permissions: [], enabledModules: [], institution: null })
+          setAuth({
+            user: null,
+            permissions: [],
+            enabledModules: [],
+            institution: null,
+            roleType: '',
+            contextType: 'platform',
+            actingAsSuperAdmin: false,
+            activeInstitution: null,
+            activeInstitutionId: null,
+          })
           setAuthed(false)
           setSessionExpired(true)
           return

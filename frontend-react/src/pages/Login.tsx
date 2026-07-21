@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BookOpen,
@@ -18,9 +18,14 @@ import {
 import { useAuth } from '../context/AuthContext'
 import {
   applyToken,
+  bumpAuthEpoch,
+  clearOrphanedSessionIfNoToken,
+  clearStoredSession,
   fetchAuthProfile,
+  homePathForProfile,
   persistProfile,
   profileFromAuthResponse,
+  readCachedProfile,
 } from '../utils/authSession'
 import { formatApiError } from '../utils/apiError'
 import { FormField, formInputClass } from '../components/ui/FormField'
@@ -74,7 +79,24 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const sessionExpired = searchParams.get('session') === 'expired'
   const signupSuccess = searchParams.get('signup') === 'success'
-  const { setAuth } = useAuth()
+  const { setAuth, clearAuth, user } = useAuth()
+
+  useEffect(() => {
+    // Stale profile keys after partial expiry break the next login (CORS / wrong portal).
+    if (sessionExpired || !localStorage.getItem('token')) {
+      clearOrphanedSessionIfNoToken()
+      if (sessionExpired) {
+        clearStoredSession()
+        clearAuth()
+      }
+    }
+
+    const token = localStorage.getItem('token')
+    if (token && user) {
+      const cached = readCachedProfile()
+      navigate(homePathForProfile(cached), { replace: true })
+    }
+  }, [sessionExpired, clearAuth, navigate, user])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -83,6 +105,10 @@ export default function LoginPage() {
     setError('')
 
     try {
+      // Ensure no leftover institution context from a previous SA switch.
+      clearStoredSession()
+      clearAuth()
+
       const res = await api.post('/auth/login', {
         login: login.trim(),
         password,
@@ -99,19 +125,29 @@ export default function LoginPage() {
 
       let profile = profileFromAuthResponse(res.data as Record<string, unknown>)
 
+      // Platform SA always starts with no institution selected.
+      if (profile.roleType === 'platform_super_admin') {
+        profile = {
+          ...profile,
+          contextType: 'platform',
+          actingAsSuperAdmin: false,
+          activeInstitution: null,
+          activeInstitutionId: null,
+          institution: null,
+        }
+      }
+
       if (!profile.user) {
         profile = await fetchAuthProfile()
       } else {
         persistProfile(profile)
       }
 
+      bumpAuthEpoch()
       setAuth(profile)
 
       const redirect = searchParams.get('redirect')
-      const defaultHome =
-        profile.roleType === 'platform_super_admin' && profile.contextType === 'platform'
-          ? '/super-admin/dashboard'
-          : '/dashboard'
+      const defaultHome = homePathForProfile(profile)
       const safeRedirect =
         redirect && redirect.startsWith('/') && !redirect.startsWith('//')
           ? redirect
@@ -119,16 +155,6 @@ export default function LoginPage() {
 
       navigate(safeRedirect)
     } catch (err: unknown) {
-      const apiErr = err as {
-        response?: { data?: { errors?: Record<string, string[]>; message?: string } }
-        code?: string
-        message?: string
-      }
-      const data = apiErr?.response?.data
-      const validation = data?.errors
-        ? Object.values(data.errors).flat().join(' ')
-        : null
-
       setError(formatApiError(err, 'Login failed'))
     } finally {
       setSubmitting(false)
@@ -199,7 +225,7 @@ export default function LoginPage() {
               <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Use your email, username, or phone number and password.
+                Use your email, username, or phone number and password. Your portal opens from your account roles.
               </p>
 
               {signupSuccess && (

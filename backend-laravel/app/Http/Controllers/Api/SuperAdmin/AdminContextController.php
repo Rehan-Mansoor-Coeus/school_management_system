@@ -18,6 +18,13 @@ class AdminContextController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
+        if (! $institution->is_active) {
+            return response()->json([
+                'message' => 'Cannot switch into an inactive institution. Activate it first.',
+                'error_code' => 'INSTITUTION_INACTIVE',
+            ], 422);
+        }
+
         PlatformAuditLog::record($user->id, 'switch_institution', $institution->id, [
             'institution_name' => $institution->name,
             'institution_code' => $institution->code,

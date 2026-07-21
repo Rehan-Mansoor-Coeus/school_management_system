@@ -324,11 +324,14 @@ class AuthController extends Controller
         }
 
         // Create a new session token so concurrent logins (testing / multiple devices) stay signed in.
+        // Absolute lifetime 12h; idle timeout of 2h enforced in MultiTokenUserProvider.
         $plainToken = Str::random(60);
         UserApiToken::create([
             'user_id' => $user->id,
             'token' => $plainToken,
             'label' => substr((string) $request->userAgent(), 0, 120) ?: null,
+            'expires_at' => now()->addHours(12),
+            'last_used_at' => now(),
         ]);
         $user->api_token = $plainToken;
         $user->save();

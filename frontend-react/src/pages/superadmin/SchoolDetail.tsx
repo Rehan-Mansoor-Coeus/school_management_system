@@ -23,7 +23,7 @@ import {
 } from '../../api/superadmin'
 import { formatApiError } from '../../utils/apiError'
 import { useAuth } from '../../context/AuthContext'
-import { profileFromAuthResponse } from '../../utils/authSession'
+import { bumpAuthEpoch, profileFromAuthResponse } from '../../utils/authSession'
 
 function fieldClass() {
   return 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20'
@@ -127,6 +127,10 @@ export default function SchoolDetail() {
 
   async function switchIntoSchool() {
     if (!detail) return
+    if (!detail.institution.is_active) {
+      setError('This institution is inactive. Activate it before switching.')
+      return
+    }
     setSwitching(true)
     setError('')
     try {
@@ -141,6 +145,7 @@ export default function SchoolDetail() {
         subscription_status: licenseStatus(detail.license),
         subscription_expires_at: expiryOf(detail.license),
       }
+      bumpAuthEpoch()
       setAuth({
         ...profile,
         contextType: 'institution',

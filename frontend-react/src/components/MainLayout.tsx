@@ -4,7 +4,7 @@ import { ChevronDown, KeyRound, LogOut, UserCircle2 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import api from '../api/client'
 import { returnToPlatform } from '../api/superadmin'
-import { clearStoredSession, profileFromAuthResponse } from '../utils/authSession'
+import { bumpAuthEpoch, clearStoredSession, profileFromAuthResponse } from '../utils/authSession'
 import { useToast } from './ui/ToastProvider'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAuth } from '../context/AuthContext'
@@ -53,11 +53,12 @@ export default function MainLayout() {
     }
     clearStoredSession()
     clearAuth()
-    navigate('/')
+    navigate('/admin')
     pushToast('Logged out successfully.', 'info')
   }
 
   const returnToSuperAdmin = async () => {
+    bumpAuthEpoch()
     try {
       const res = await returnToPlatform()
       const profile = profileFromAuthResponse(res.data as Record<string, unknown>)
@@ -76,7 +77,7 @@ export default function MainLayout() {
   const headerSubtitle = isPlatformSuperAdmin && isPlatformContext
     ? 'Platform Administration · No institution selected'
     : managingInstitution
-      ? 'Managed by Super Admin'
+      ? 'Acting as this school (Super Admin)'
       : 'Manage users, roles, and permissions.'
 
   return (
@@ -87,14 +88,18 @@ export default function MainLayout() {
         </div>
         <div className="min-w-0 flex-1">
           {managingInstitution && (
-            <div className="flex items-center justify-between gap-3 bg-amber-500 px-6 py-2.5 text-sm font-semibold text-slate-900">
-              <span>You are managing: {managingInstitution}</span>
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-amber-500 px-6 py-2.5 text-sm font-semibold text-slate-900">
+              <span>
+                Acting as {managingInstitution}
+                {' '}
+                <span className="font-normal">(Super Admin)</span>
+              </span>
               <button
                 type="button"
                 onClick={returnToSuperAdmin}
                 className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
               >
-                Return to Super Admin
+                Return to platform
               </button>
             </div>
           )}

@@ -8,12 +8,50 @@ const api = axios.create({
   },
 })
 
-function applyAuthHeader(config: { headers?: Record<string, unknown> }) {
+const SESSION_KEYS = [
+  'token',
+  'me',
+  'permissions',
+  'enabled_modules',
+  'institution',
+  'role_type',
+  'context_type',
+  'acting_as_super_admin',
+  'active_institution',
+  'active_institution_id',
+]
+
+/** Public auth endpoints must never carry a stale institution header (breaks CORS / login). */
+function isPublicAuthRequest(url: string): boolean {
+  const path = url.split('?')[0] || ''
+  return /\/auth\/(login|register|signup|forgot-password|forgot-username)/i.test(path)
+    || /\/auth\/signup\//i.test(path)
+    || /\/auth\/forgot-password\//i.test(path)
+}
+
+function wipeLocalSession() {
+  for (const key of SESSION_KEYS) {
+    localStorage.removeItem(key)
+  }
+  delete api.defaults.headers.common['Authorization']
+  delete api.defaults.headers.common['X-Active-Institution-Id']
+}
+
+function applyAuthHeader(config: { headers?: Record<string, unknown>; url?: string }) {
   const token = localStorage.getItem('token')
   config.headers = config.headers || {}
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+
+  const url = String(config.url || '')
+  if (isPublicAuthRequest(url)) {
+    if (config.headers['X-Active-Institution-Id']) {
+      delete config.headers['X-Active-Institution-Id']
+    }
+    return config
+  }
+
   const activeInstitutionId = localStorage.getItem('active_institution_id')
   if (activeInstitutionId && activeInstitutionId !== 'null') {
     config.headers['X-Active-Institution-Id'] = activeInstitutionId
@@ -39,11 +77,11 @@ api.interceptors.response.use(
       hasResponse &&
       status === 401 &&
       (!message || /unauthenticated/i.test(message)) &&
-      !url.includes('/auth/login')
+      !isPublicAuthRequest(url)
 
     if (isSessionExpired) {
-      localStorage.removeItem('token')
-      delete api.defaults.headers.common['Authorization']
+      // Full wipe — leaving active_institution_id causes CORS/login failures next time.
+      wipeLocalSession()
 
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin') && !redirectingToLogin) {
         redirectingToLogin = true

@@ -31,7 +31,7 @@ class HandleCors
         $headers = [
             'Access-Control-Allow-Origin' => $allowOrigin,
             'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Cache-Control, Pragma',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept, Cache-Control, Pragma, X-Active-Institution-Id',
             'Access-Control-Max-Age' => '86400',
         ];
 

@@ -12,7 +12,7 @@ import {
 import { fetchLicensePlans, type LicensePlan } from '../../api/licensing'
 import { formatApiError } from '../../utils/apiError'
 import { useAuth } from '../../context/AuthContext'
-import { profileFromAuthResponse } from '../../utils/authSession'
+import { bumpAuthEpoch, profileFromAuthResponse } from '../../utils/authSession'
 
 const STATUS_OPTIONS = ['active', 'trial', 'suspended', 'expired', 'pending_payment', 'grace_period', 'overdue']
 
@@ -212,6 +212,10 @@ export default function InstitutionsPage() {
   }
 
   async function switchIntoSchool(school: SchoolSummary) {
+    if (!school.is_active) {
+      setError('This institution is inactive. Activate it before switching.')
+      return
+    }
     setSwitchingId(school.id)
     setError('')
     try {
@@ -226,6 +230,7 @@ export default function InstitutionsPage() {
         subscription_status: school.license.status,
         subscription_expires_at: school.license.expires_at,
       }
+      bumpAuthEpoch()
       setAuth({
         ...profile,
         contextType: 'institution',

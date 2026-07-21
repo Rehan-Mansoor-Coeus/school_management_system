@@ -27,6 +27,18 @@ export type AuthProfile = {
 const ACTIVE_INSTITUTION_KEY = 'active_institution_id'
 const AUTH_TIMEOUT_MS = 30_000
 
+/** Bumped on login / switch / return so in-flight /auth/user cannot overwrite newer context. */
+let authEpoch = 0
+
+export function getAuthEpoch(): number {
+  return authEpoch
+}
+
+export function bumpAuthEpoch(): number {
+  authEpoch += 1
+  return authEpoch
+}
+
 export function getStoredActiveInstitutionId(): number | null {
   try {
     const raw = localStorage.getItem(ACTIVE_INSTITUTION_KEY)
@@ -100,6 +112,20 @@ export function clearStoredSession() {
   localStorage.removeItem(ACTIVE_INSTITUTION_KEY)
   delete api.defaults.headers.common['Authorization']
   delete api.defaults.headers.common['X-Active-Institution-Id']
+  bumpAuthEpoch()
+}
+
+/** Wipe leftover profile keys when there is no token (e.g. after partial 401 cleanup). */
+export function clearOrphanedSessionIfNoToken() {
+  if (localStorage.getItem('token')) return
+  const hasOrphans = Boolean(
+    localStorage.getItem('me')
+    || localStorage.getItem(ACTIVE_INSTITUTION_KEY)
+    || localStorage.getItem('permissions'),
+  )
+  if (hasOrphans) {
+    clearStoredSession()
+  }
 }
 
 export function applyToken(token: string | null) {
