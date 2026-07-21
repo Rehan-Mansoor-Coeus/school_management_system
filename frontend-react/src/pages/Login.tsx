@@ -110,12 +110,18 @@ export default function LoginPage() {
       clearStoredSession()
       clearAuth()
 
-      const res = await api.post('/auth/login', {
+      // Always hit same-origin API (avoids stale localhost baseURL in old bundles / bad env).
+      const loginUrl = `${window.location.origin}/api/auth/login`
+      const res = await api.post(loginUrl, {
         login: login.trim(),
         password,
       }, {
-        // Login builds a large permission payload; give the API more headroom than the default 30s.
+        baseURL: '',
         timeout: 60_000,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
       })
 
       const token = res.data.token

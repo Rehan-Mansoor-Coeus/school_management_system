@@ -1,8 +1,21 @@
 import axios from 'axios'
 
+/** Prefer same-origin /api in the browser so a bad Vite env (localhost) cannot break production login. */
+function resolveApiBase(): string {
+  const configured = String((import.meta as any).env?.VITE_API_BASE || '').trim()
+  if (typeof window !== 'undefined') {
+    // Never call localhost from a public HTTPS page.
+    if (!configured || /localhost|127\.0\.0\.1/i.test(configured)) {
+      return `${window.location.origin}/api`
+    }
+    return configured
+  }
+  return configured || '/api'
+}
+
 const api = axios.create({
-  baseURL: (import.meta as any).env?.VITE_API_BASE || '/api',
-  timeout: 30_000,
+  baseURL: resolveApiBase(),
+  timeout: 45_000,
   headers: {
     Accept: 'application/json',
   },

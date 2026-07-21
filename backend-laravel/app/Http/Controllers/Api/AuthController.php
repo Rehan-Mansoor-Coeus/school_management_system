@@ -12,7 +12,7 @@ use App\Support\AdminContext;
 use App\Support\PlatformAccess;
 use App\Support\ProtectedSystemAccounts;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -274,30 +274,12 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $login = trim($request->login);
-        $password = $request->password;
-        $authenticated = false;
+        $login = trim((string) $request->login);
+        $password = (string) $request->password;
 
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            $authenticated = Auth::attempt(['email' => $login, 'password' => $password]);
-        } elseif ($this->looksLikePhone($login)) {
-            $user = $this->authOtp->findUserByLogin($login);
-            if ($user && Hash::check($password, $user->password)) {
-                Auth::login($user);
-                $authenticated = true;
-            }
-        } else {
-            $authenticated = Auth::attempt(['username' => $login, 'password' => $password]);
-            if (! $authenticated) {
-                $user = User::where('email', $login)->first();
-                if ($user && Hash::check($password, $user->password)) {
-                    Auth::login($user);
-                    $authenticated = true;
-                }
-            }
-        }
-
-        if (! $authenticated) {
+        // Token-only API login — never Auth::attempt/login (those start file sessions and can hang under load).
+        $user = $this->findUserForLogin($login);
+        if (! $user || ! Hash::check($password, $user->password)) {
             if (config('app.debug')) {
                 Log::warning('Login failed', [
                     'login' => $login,
@@ -309,22 +291,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $user = Auth::user();
-
-        if ($user->status === 'inactive') {
-            Auth::logout();
-
+        if ($user->status === 'inactive' || $user->is_active === false || $user->is_active === 0) {
             return response()->json(['message' => 'This account is inactive. Contact your administrator.'], 403);
         }
 
-        if ($user->trashed()) {
-            Auth::logout();
-
+        if (method_exists($user, 'trashed') && $user->trashed()) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        // Create a new session token so concurrent logins (testing / multiple devices) stay signed in.
-        // Absolute lifetime 12h; idle timeout of 2h enforced in MultiTokenUserProvider.
+        // Create a new API token (absolute 12h; idle 2h in MultiTokenUserProvider).
         $plainToken = Str::random(60);
         UserApiToken::create([
             'user_id' => $user->id,
@@ -340,8 +315,8 @@ class AuthController extends Controller
             $platformRole = Role::where('name', 'system-super-admin')->where('guard_name', 'api')->first();
             if ($platformRole && ! $user->hasRole($platformRole)) {
                 $user->assignRole($platformRole);
+                Cache::forget($this->permissionCacheKey($user));
             }
-            // Platform operators must not inherit a default institution scope.
             if ($user->institution_id) {
                 $user->institution_id = null;
                 $user->save();
@@ -349,11 +324,11 @@ class AuthController extends Controller
         }
 
         // Platform super admins always start in platform context (no institution selected).
-        // Drop institution-level "super-admin" so school menus are not unlocked by dual roles.
         if (PlatformAccess::isPlatformSuperAdmin($user)) {
-            $request->headers->set(AdminContext::HEADER, '');
+            $request->headers->remove(AdminContext::HEADER);
             if ($user->hasRole('super-admin')) {
                 $user->removeRole('super-admin');
+                Cache::forget($this->permissionCacheKey($user));
             }
             if ($user->institution_id) {
                 $user->institution_id = null;
@@ -396,29 +371,61 @@ class AuthController extends Controller
         return strlen($digits) >= 8 && (strpos($login, '+') === 0 || ctype_digit(str_replace(['+', ' ', '-', '(', ')'], '', $login)));
     }
 
+    protected function findUserForLogin(string $login): ?User
+    {
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            return User::where('email', $login)->first();
+        }
+
+        if ($this->looksLikePhone($login)) {
+            return $this->authOtp->findUserByLogin($login);
+        }
+
+        return User::where('username', $login)->first()
+            ?: User::where('email', $login)->first();
+    }
+
+    protected function permissionCacheKey(User $user): string
+    {
+        return 'auth.permissions.'.$user->id;
+    }
+
+    protected function permissionNamesFor(User $user)
+    {
+        return Cache::remember($this->permissionCacheKey($user), 600, function () use ($user) {
+            return $user->getAllPermissions()->pluck('name')->values()->all();
+        });
+    }
+
     protected function buildAuthPayload(User $user, Request $request = null): array
     {
-        $user->load(['roles', 'institution']);
+        $user->loadMissing(['roles', 'institution']);
         $request = $request ?: request();
 
-        $permissions = $user->getAllPermissions()->pluck('name')->values();
+        $permissions = $this->permissionNamesFor($user);
         $context = AdminContext::authContextPayload($request, $user);
 
-        // Avoid serializing nested role.permissions (can be 50KB+ and slow login clients).
-        $user->roles->each(function ($role) {
-            $role->unsetRelation('permissions');
-            $role->makeHidden(['permissions']);
-        });
-
-        $userPayload = $user->toArray();
-        $userPayload['roles'] = $user->roles->map(function ($role) {
+        // Never embed nested role.permissions in JSON (was ~95KB and stalled browsers).
+        $roles = $user->roles->map(function ($role) {
             return [
                 'id' => $role->id,
                 'name' => $role->name,
                 'guard_name' => $role->guard_name,
             ];
         })->values()->all();
-        unset($userPayload['permissions']);
+
+        $userPayload = [
+            'id' => $user->id,
+            'institution_id' => $user->institution_id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'email' => $user->email,
+            'phone_number' => $user->phone_number,
+            'status' => $user->status,
+            'is_active' => $user->is_active,
+            'locale' => $user->locale,
+            'roles' => $roles,
+        ];
 
         return array_merge([
             'user' => $userPayload,
