@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  BookOpen,
-  Building2,
-  GraduationCap,
-  ShieldCheck,
-  Users,
-  Wallet,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, MessageCircle, User } from 'lucide-react'
 
 import api from '../api/client'
 import {
@@ -29,50 +22,25 @@ import {
   readCachedProfile,
 } from '../utils/authSession'
 import { formatApiError } from '../utils/apiError'
-import { FormField, formInputClass } from '../components/ui/FormField'
 
-const systemFeatures = [
-  {
-    icon: GraduationCap,
-    title: 'Admissions & enrollment',
-    description:
-      'Apply online, upload documents, pay fees, and track approval through registry, department, and finance.',
-  },
-  {
-    icon: Users,
-    title: 'Students & staff',
-    description:
-      'Manage users, roles, permissions, and institution-wide access from one secure platform.',
-  },
-  {
-    icon: Wallet,
-    title: 'Fees & finance',
-    description:
-      'Track registration fees, tuition, semester balances, and payment verification.',
-  },
-  {
-    icon: BookOpen,
-    title: 'Academics',
-    description:
-      'Programmes, subjects, semesters, and course registration with HOD approval.',
-  },
-  {
-    icon: Building2,
-    title: 'Institution operations',
-    description:
-      'Hostel, canteen, library, letters, timesheets, and other modules configured per institution.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Secure access',
-    description:
-      'Role-based dashboards, audit-ready workflows, and bilingual support (English / French).',
-  },
-]
+function OkusomaSpinLogo() {
+  return (
+    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-[3px] border-[#1e3a5f]/25 bg-white p-2 shadow-sm">
+      <div className="okusoma-logo-spin flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73]">
+        <img
+          src="/alpha-bridge-logo.png"
+          alt="Okusoma"
+          className="h-14 w-14 object-contain brightness-0 invert"
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function LoginPage() {
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -83,7 +51,6 @@ export default function LoginPage() {
   const { setAuth, clearAuth, user } = useAuth()
 
   useEffect(() => {
-    // Stale profile keys after partial expiry break the next login (CORS / wrong portal).
     if (sessionExpired || !localStorage.getItem('token')) {
       clearOrphanedSessionIfNoToken()
       if (sessionExpired) {
@@ -106,11 +73,9 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // Ensure no leftover institution context from a previous SA switch.
       clearStoredSession()
       clearAuth()
 
-      // Always hit same-origin API (avoids stale localhost baseURL in old bundles / bad env).
       const loginUrl = `${window.location.origin}/api/auth/login`
       const res = await api.post(loginUrl, {
         login: login.trim(),
@@ -135,7 +100,6 @@ export default function LoginPage() {
 
       let profile = profileFromAuthResponse(res.data as Record<string, unknown>)
 
-      // Platform SA always starts with no institution selected.
       if (profileHasPlatformSuperAdminRole(profile)) {
         profile = {
           ...profile,
@@ -171,7 +135,6 @@ export default function LoginPage() {
 
       const redirect = searchParams.get('redirect')
       const defaultHome = homePathForProfile(profile)
-      // Never send platform SA into a school deep-link after login.
       const safeRedirect =
         redirect
         && redirect.startsWith('/')
@@ -189,152 +152,123 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-2">
-        <div className="hidden flex-col justify-between bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73] p-10 text-white lg:flex">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-200">
-              School Management System
-            </p>
-
-            <h1 className="mt-4 text-3xl font-bold leading-tight">
-              One platform for admissions, academics, and campus operations
-            </h1>
-
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
-              Sign in to manage applications, review documents, verify payments,
-              register courses, and access modules enabled for your institution.
-            </p>
-          </div>
-
-          <div className="mt-10 space-y-4">
-            {systemFeatures.map((feature) => {
-              const Icon = feature.icon
-
-              return (
-                <div key={feature.title} className="flex gap-3 rounded-2xl bg-white/10 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                    <Icon className="h-5 w-5" />
-                  </div>
-
-                  <div>
-                    <h2 className="font-semibold">{feature.title}</h2>
-                    <p className="mt-1 text-sm text-blue-100">{feature.description}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <p className="mt-8 text-xs text-blue-200">
-            Need help? Contact your institution administrator for account access.
-          </p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#16375f] px-4 py-10">
+      <div className="w-full max-w-[420px] overflow-hidden rounded-3xl bg-white shadow-2xl shadow-black/25">
+        <div className="px-8 pb-5 pt-8 text-center">
+          <OkusomaSpinLogo />
+          <h1 className="mt-5 text-2xl font-extrabold tracking-wide text-[#1e3a5f]">
+            OKUSOMA
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-500">Sign in to the dashboard</p>
         </div>
 
-        <div className="flex items-center justify-center p-6">
-          <div className="w-full max-w-md">
-            <div className="mb-6 lg:hidden">
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#1e3a5f]">
-                School Management System
-              </p>
+        <div className="mx-8 border-t border-[#1e3a5f]/20" />
 
-              <h1 className="mt-2 text-2xl font-bold text-slate-900">Sign in to continue</h1>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Admissions, fees, academics, hostel, canteen, library, and more — all in one place.
-              </p>
+        <form onSubmit={submit} className="px-8 pb-6 pt-6">
+          {signupSuccess && (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              Account created successfully. Sign in with your username or phone and password.
             </div>
+          )}
 
-            <form
-              onSubmit={submit}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          {sessionExpired && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Your session has expired. Please sign in again.
+            </div>
+          )}
+
+          {searchParams.get('reset') === 'success' && (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              Password updated successfully. Sign in with your new password.
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          )}
+
+          <label className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f3efe6] px-4 py-3.5 focus-within:ring-2 focus-within:ring-[#1e3a5f]/30">
+            <User className="h-5 w-5 shrink-0 text-[#1e3a5f]" aria-hidden="true" />
+            <input
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              placeholder="Username"
+              className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              required
+              autoComplete="username"
+            />
+          </label>
+
+          <label className="mb-5 flex items-center gap-3 rounded-2xl bg-[#f3efe6] px-4 py-3.5 focus-within:ring-2 focus-within:ring-[#1e3a5f]/30">
+            <Lock className="h-5 w-5 shrink-0 text-[#1e3a5f]" aria-hidden="true" />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="shrink-0 text-slate-400 hover:text-slate-600"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              <h2 className="text-xl font-semibold text-slate-900">Sign in</h2>
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </label>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Use your email, username, or phone number and password. Your portal opens from your account roles.
-              </p>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1e3a5f] py-3.5 text-sm font-bold text-white transition hover:bg-[#162d4a] disabled:opacity-60"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/15">
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+            {submitting ? 'Signing in…' : 'Sign In'}
+          </button>
 
-              {signupSuccess && (
-                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  Account created successfully. Sign in with your username or phone and password.
-                </div>
-              )}
-
-              {sessionExpired && (
-                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Your session has expired. Please sign in again.
-                </div>
-              )}
-
-              {searchParams.get('reset') === 'success' && (
-                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  Password updated successfully. Sign in with your new password.
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {error}
-                </div>
-              )}
-
-              <div className="mt-5 space-y-4">
-                <FormField label="Email, username, or phone" required>
-                  <input
-                    value={login}
-                    onChange={(e) => setLogin(e.target.value)}
-                    placeholder="admin@test.com"
-                    className={formInputClass}
-                    required
-                    autoComplete="username"
-                  />
-                </FormField>
-
-                <FormField label="Password" required>
-                  <input
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    type="password"
-                    className={formInputClass}
-                    required
-                    autoComplete="current-password"
-                  />
-                </FormField>
-              </div>
-
-              <div className="mt-4 text-sm">
-                <Link to="/forgot-password" className="font-medium text-[#1e3a5f] hover:underline">
-                  Forgot username or password?
-                </Link>
-              </div>
-
-              <p className="mt-4 text-center text-sm text-slate-600">
-                New student?{' '}
-                <Link to="/signup" className="font-medium text-[#1e3a5f] hover:underline">
-                  Create an account
-                </Link>
-              </p>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-6 w-full rounded-lg bg-[#1e3a5f] py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-60"
-              >
-                {submitting ? 'Signing in...' : 'Sign in'}
-              </button>
-            </form>
-
-            <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">
-              <span className="font-medium text-slate-600">{appVersionLabel()}</span>
-              <br />
-              {appDevelopedByLabel()}
-              <br />
-              {appCopyrightLabel()}
-            </p>
+          <div className="mt-5 text-center">
+            <Link
+              to="/forgot-password"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1e3a5f] hover:underline"
+            >
+              Forgot password? Reset via WhatsApp
+              <MessageCircle className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+            </Link>
           </div>
-        </div>
+
+          <p className="mt-3 text-center text-sm text-slate-500">
+            New student?{' '}
+            <Link to="/signup" className="font-semibold text-[#1e3a5f] hover:underline">
+              Create an account
+            </Link>
+          </p>
+
+          <div className="mt-5 text-center">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1e3a5f] hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to Homepage
+            </Link>
+          </div>
+        </form>
       </div>
+
+      <p className="mt-8 max-w-[420px] text-center text-[11px] leading-relaxed text-blue-100/90">
+        <span className="font-semibold text-white">{appVersionLabel()}</span>
+        <br />
+        {appDevelopedByLabel()}
+        <br />
+        {appCopyrightLabel()}
+      </p>
     </div>
   )
 }

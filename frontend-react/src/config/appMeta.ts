@@ -4,7 +4,7 @@ export const APP_VERSION =
 
 export const APP_DEVELOPER = 'Alpha Bridge Technologies'
 
-export const APP_COPYRIGHT_YEAR = 2025
+export const APP_COPYRIGHT_YEAR = new Date().getFullYear()
 
 export function appVersionLabel() {
   return `v${APP_VERSION}`
