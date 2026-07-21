@@ -233,6 +233,10 @@ export default function LoginPage() {
             {submitting ? 'Signing in…' : 'Sign In'}
           </button>
 
+          <p className="mt-3 text-center text-sm font-semibold tracking-wide text-[#1e3a5f]">
+            {appVersionLabel()}
+          </p>
+
           <div className="mt-5 text-center">
             <Link
               to="/forgot-password"
@@ -263,8 +267,6 @@ export default function LoginPage() {
       </div>
 
       <p className="mt-8 max-w-[420px] text-center text-[11px] leading-relaxed text-blue-100/90">
-        <span className="font-semibold text-white">{appVersionLabel()}</span>
-        <br />
         {appDevelopedByLabel()}
         <br />
         {appCopyrightLabel()}

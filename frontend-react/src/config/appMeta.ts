@@ -1,13 +1,16 @@
 /** Application metadata shown in UI (login footer, about, etc.). */
 export const APP_VERSION =
-  (import.meta.env.VITE_APP_VERSION as string | undefined)?.trim() || '1.0.0'
+  (import.meta.env.VITE_APP_VERSION as string | undefined)?.trim() || '2.1.0'
+
+export const APP_NAME = 'ASSMS'
 
 export const APP_DEVELOPER = 'Alpha Bridge Technologies'
 
 export const APP_COPYRIGHT_YEAR = new Date().getFullYear()
 
+/** e.g. ASSMS V2.1.0 */
 export function appVersionLabel() {
-  return `v${APP_VERSION}`
+  return `${APP_NAME} V${APP_VERSION}`
 }
 
 export function appDevelopedByLabel() {
