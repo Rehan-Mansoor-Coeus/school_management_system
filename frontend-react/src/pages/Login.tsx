@@ -113,6 +113,9 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', {
         login: login.trim(),
         password,
+      }, {
+        // Login builds a large permission payload; give the API more headroom than the default 30s.
+        timeout: 60_000,
       })
 
       const token = res.data.token

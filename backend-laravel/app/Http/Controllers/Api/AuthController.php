@@ -404,8 +404,24 @@ class AuthController extends Controller
         $permissions = $user->getAllPermissions()->pluck('name')->values();
         $context = AdminContext::authContextPayload($request, $user);
 
+        // Avoid serializing nested role.permissions (can be 50KB+ and slow login clients).
+        $user->roles->each(function ($role) {
+            $role->unsetRelation('permissions');
+            $role->makeHidden(['permissions']);
+        });
+
+        $userPayload = $user->toArray();
+        $userPayload['roles'] = $user->roles->map(function ($role) {
+            return [
+                'id' => $role->id,
+                'name' => $role->name,
+                'guard_name' => $role->guard_name,
+            ];
+        })->values()->all();
+        unset($userPayload['permissions']);
+
         return array_merge([
-            'user' => $user,
+            'user' => $userPayload,
             'permissions' => $permissions,
         ], $context);
     }
