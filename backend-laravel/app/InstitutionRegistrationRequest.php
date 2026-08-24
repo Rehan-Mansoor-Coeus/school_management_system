@@ -23,9 +23,16 @@ class InstitutionRegistrationRequest extends Model
         'reviewed_by',
         'reviewed_at',
         'admin_notes',
+        'admin_setup_token_hash',
+        'admin_setup_token_expires_at',
+        'admin_setup_completed_at',
     ];
 
-    protected $dates = ['reviewed_at'];
+    protected $dates = ['reviewed_at', 'admin_setup_token_expires_at', 'admin_setup_completed_at'];
+
+    protected $hidden = [
+        'admin_setup_token_hash',
+    ];
 
     public function institution()
     {

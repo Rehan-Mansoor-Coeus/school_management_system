@@ -45,6 +45,9 @@ return [
         'session_id' => env('WASENDER_SESSION_ID'),
     ],
 
+    // Platform WhatsApp for new institution applications (approve link).
+    'platform_notify_whatsapp' => env('PLATFORM_NOTIFY_WHATSAPP', env('ASSMS_WHATSAPP', '+250794006160')),
+
     'flutterwave' => [
         'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
         'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),

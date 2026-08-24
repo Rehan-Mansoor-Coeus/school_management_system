@@ -1,40 +1,21 @@
 import { Link } from 'react-router-dom'
-import { ASSMS, LANDING_NAV_LINKS } from '../assmsConfig'
-import AlphaBridgeLogo, { landingCopyright } from './AlphaBridgeLogo'
+import { ASSMS } from '../assmsConfig'
+import { appVersionLabel } from '../../config/appMeta'
 
+/** Compact OGERA-style credit bar — keep landing pages short. */
 export default function LandingFooter() {
   return (
-    <footer className="border-t border-slate-200 bg-[#0f2744] text-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-4 lg:col-span-2">
-          <AlphaBridgeLogo />
-          <p className="max-w-md text-sm leading-relaxed text-white/75">
-            <strong className="text-white">{ASSMS.name}</strong> — a complete multi-institution platform
-            for admissions, finance, library, timesheets, letters, and more across modern campuses.
-          </p>
-        </div>
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#f0c14b]">Quick Links</h3>
-          <ul className="space-y-2 text-sm text-white/80">
-            {LANDING_NAV_LINKS.map((link) => (
-              <li key={link.to}>
-                <a href={link.to} className="hover:text-white">{link.label}</a>
-              </li>
-            ))}
-            <li><Link to="/admin" className="hover:text-white">Admin Portal</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#f0c14b]">Contact</h3>
-          <ul className="space-y-2 text-sm text-white/80">
-            <li><a href={`mailto:${ASSMS.email}`} className="hover:text-white">{ASSMS.email}</a></li>
-            <li><a href={`tel:${ASSMS.phone}`} className="hover:text-white">{ASSMS.phoneDisplay}</a></li>
-            <li><a href={ASSMS.website} target="_blank" rel="noreferrer" className="hover:text-white">{ASSMS.website.replace('https://', '')}</a></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-white/10 px-4 py-6 text-center text-xs text-white/60 sm:px-6">
-        {landingCopyright()}
+    <footer className="border-t border-[#c9a227]/40 bg-[#0f2744] text-white">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-3 text-center text-[11px] leading-relaxed text-white/85 sm:px-6 sm:text-xs">
+        <span>© {new Date().getFullYear()} {ASSMS.shortName}. All rights reserved.</span>
+        <span className="hidden text-[#c9a227]/70 sm:inline" aria-hidden="true">|</span>
+        <span>Developed By: Alpha Bridge Technologies</span>
+        <span className="hidden text-[#c9a227]/70 sm:inline" aria-hidden="true">|</span>
+        <a href={`tel:${ASSMS.phone}`} className="hover:text-white">{ASSMS.phoneDisplay}</a>
+        <span className="hidden text-[#c9a227]/70 sm:inline" aria-hidden="true">|</span>
+        <span className="font-semibold tracking-wide text-[#f0c14b]">{appVersionLabel().replace(' ', '_')}</span>
+        <span className="hidden text-[#c9a227]/70 sm:inline" aria-hidden="true">|</span>
+        <Link to="/admin" className="hover:text-white">Admin</Link>
       </div>
     </footer>
   )

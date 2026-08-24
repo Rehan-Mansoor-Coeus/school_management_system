@@ -10,6 +10,7 @@ use App\Programme;
 use App\ProgramSubject;
 use App\Subject;
 use App\SupportTicket;
+use App\Services\InstitutionRegistrationWhatsAppNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -168,6 +169,15 @@ class LandingController extends Controller
         ));
 
         $this->notifyAlphaBridge('New institution registration request', $this->formatInstitutionRequestEmail($record));
+
+        try {
+            app(InstitutionRegistrationWhatsAppNotifier::class)->notifyPlatformOfNewRequest($record);
+        } catch (\Throwable $e) {
+            Log::warning('Institution request WhatsApp notify failed', [
+                'request_id' => $record->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Your request has been submitted. Our team will review it and contact you.',

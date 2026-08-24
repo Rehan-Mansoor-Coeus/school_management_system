@@ -4,8 +4,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, MessageCircle, User } from 'l
 
 import api from '../api/client'
 import {
-  appCopyrightLabel,
-  appDevelopedByLabel,
+  appCompactCreditLine,
   appVersionLabel,
 } from '../config/appMeta'
 import { useAuth } from '../context/AuthContext'
@@ -266,10 +265,8 @@ export default function LoginPage() {
         </form>
       </div>
 
-      <p className="mt-8 max-w-[420px] text-center text-[11px] leading-relaxed text-blue-100/90">
-        {appDevelopedByLabel()}
-        <br />
-        {appCopyrightLabel()}
+      <p className="mt-8 max-w-[420px] px-2 text-center text-[11px] leading-relaxed text-blue-100/90">
+        {appCompactCreditLine()}
       </p>
     </div>
   )

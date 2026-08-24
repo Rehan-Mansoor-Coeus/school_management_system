@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { MoreHorizontal } from 'lucide-react'
 import {
   approveInstitutionRequest,
@@ -45,7 +45,12 @@ function planActivatesImmediately(plan?: LicensePlan | null) {
 
 export default function InstitutionRequestsPage() {
   const { pushToast } = useToast()
-  const [tab, setTab] = useState<InstitutionRequestHubTab>('awaiting')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') as InstitutionRequestHubTab) || 'awaiting'
+  const highlightId = searchParams.get('request_id')
+  const [tab, setTab] = useState<InstitutionRequestHubTab>(
+    TABS.some((t) => t.id === initialTab) ? initialTab : 'awaiting'
+  )
   const [items, setItems] = useState<InstitutionRequestHubRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -86,6 +91,19 @@ export default function InstitutionRequestsPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
+
+  useEffect(() => {
+    if (!highlightId || loading || items.length === 0) return
+    const row = items.find((item) => String(item.request_id || item.id) === String(highlightId))
+    if (row && row.kind === 'request' && row.status === 'pending') {
+      setApproveRow(row)
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('request_id')
+        return next
+      }, { replace: true })
+    }
+  }, [highlightId, loading, items, setSearchParams])
 
   useEffect(() => {
     fetchLicensePlans({ active_only: true })
@@ -249,7 +267,10 @@ export default function InstitutionRequestsPage() {
               </tr>
             ) : (
               items.map((row) => (
-                <tr key={`${row.kind}-${row.id}`} className="border-t">
+                <tr
+                  key={`${row.kind}-${row.id}`}
+                  className={`border-t ${highlightId && String(row.request_id || row.id) === String(highlightId) ? 'bg-amber-50' : ''}`}
+                >
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{row.name}</div>
                     {row.code ? <div className="text-xs text-slate-500">{row.code}</div> : null}

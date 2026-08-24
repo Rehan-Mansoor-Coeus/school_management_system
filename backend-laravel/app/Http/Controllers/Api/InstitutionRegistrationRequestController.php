@@ -9,9 +9,11 @@ use App\InstitutionSetting;
 use App\Modules\Licensing\Models\LicensePlan;
 use App\Modules\Licensing\Services\InstitutionLicenseService;
 use App\Services\InstitutionModuleService;
+use App\Services\InstitutionRegistrationWhatsAppNotifier;
 use App\Services\InstitutionStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -156,11 +158,21 @@ class InstitutionRegistrationRequestController extends Controller
             ];
         });
 
+        try {
+            app(InstitutionRegistrationWhatsAppNotifier::class)
+                ->issueAdminSetupInvite($result['request']->fresh());
+        } catch (\Throwable $e) {
+            Log::warning('Institution approval WhatsApp invite failed', [
+                'request_id' => $result['request']->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return response()->json([
             'message' => $result['requires_upfront_payment']
-                ? 'Request approved. Institution created and awaiting payment.'
-                : 'Request approved. Institution created and activated.',
-            'data' => $result['request'],
+                ? 'Request approved. Institution created and awaiting payment. Applicant notified to set up admin login.'
+                : 'Request approved. Institution created and activated. Applicant notified to set up admin login.',
+            'data' => $result['request']->fresh(),
             'institution' => app(InstitutionStatsService::class)->forInstitution($result['institution']),
             'requires_upfront_payment' => $result['requires_upfront_payment'],
         ]);

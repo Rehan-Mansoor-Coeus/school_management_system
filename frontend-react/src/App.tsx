@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/Login'
 import StudentSignupPage from './pages/StudentSignupPage'
 import ForgotPasswordPage from './pages/ForgotPassword'
+import SetupInstitutionAdminPage from './pages/SetupInstitutionAdminPage'
 import LandingPage from './landing/LandingPage'
 import LandingShell from './landing/LandingShell'
 import RegisterPage from './landing/pages/RegisterPage'
@@ -224,6 +225,7 @@ export default function App(){
         </Route>
 
         <Route path="/admin" element={<LoginPage />} />
+        <Route path="/setup-institution-admin/:token" element={<SetupInstitutionAdminPage />} />
         <Route path="/signup" element={<StudentSignupPage />} />
         <Route path="/login" element={<Navigate to="/admin" replace />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

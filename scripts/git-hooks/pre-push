@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Auto-bump VERSION (patch) on every push and commit it.
-# First push is aborted after the bump commit; run git push again to publish.
+# Auto-bump VERSION (patch) on every push, commit it, then push including the bump.
 set -euo pipefail
 
 if [ "${SKIP_VERSION_BUMP:-}" = "1" ]; then
   exit 0
 fi
 
+remote="${1:-origin}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
@@ -26,7 +26,7 @@ if ! git diff --cached --quiet; then
   exit 0
 fi
 
-# Skip if the tip commit is already a version bump (second push after bump).
+# Second pass after bump commit — allow the push through.
 if git log -1 --pretty=%s | grep -qE '^chore: bump version to '; then
   exit 0
 fi
@@ -40,11 +40,7 @@ if git diff --cached --quiet; then
 fi
 
 git commit -m "chore: bump version to ${next}"
-
-cat >&2 <<EOF
-
-Version bumped: ${before} -> ${next}
-Run git push again to publish (includes the version commit).
-
-EOF
+echo "pre-push: bumped ${before} -> ${next}; publishing with version commit..."
+SKIP_VERSION_BUMP=1 git push "$remote" HEAD
+# Abort the original push (it would omit the new commit). Nested push already published HEAD.
 exit 1

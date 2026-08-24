@@ -29,6 +29,8 @@ Route::prefix('public')->group(function () {
     Route::get('institutions/{id}/programmes/{programmeId}/courses', 'Api\\Landing\\LandingController@programmeCourses');
     Route::post('institution-requests', 'Api\\Landing\\LandingController@storeInstitutionRequest');
     Route::post('support-tickets', 'Api\\Landing\\LandingController@storeSupportTicket');
+    Route::get('institution-admin-setup/{token}', 'Api\\InstitutionAdminSetupController@show');
+    Route::post('institution-admin-setup/{token}', 'Api\\InstitutionAdminSetupController@store');
 });
 
 Route::middleware('auth:api')->get('me', 'Api\AuthController@me');
