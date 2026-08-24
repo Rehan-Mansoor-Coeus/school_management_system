@@ -3,10 +3,15 @@
 namespace App\Services\Messaging;
 
 /**
- * Shared WhatsApp / email / in-app layout (Mulema-style).
+ * Mulema-style WhatsApp / email / in-app layout.
  *
- * Title: {Institution} | {Subject}
- * Fields: ▫️ Label: *value*
+ * *INSTITUTION*
+ * ✅ *SUJET FR / SUBJECT EN*
+ * ────────────────────
+ * Bonjour *NAME*, / Hello *NAME*,
+ * ▫️ Libellé / Label: *value*
+ * 👉 Suite FR / Next EN
+ * 🌐 Okusoma
  */
 class NotificationMessageFormatter
 {
@@ -15,26 +20,34 @@ class NotificationMessageFormatter
     public const RULE = '────────────────────';
 
     /**
-     * Build a structured notification message.
-     *
-     * @param  string  $header  Subject, e.g. APPLICATION RECEIVED
-     * @param  string|null  $greeting  e.g. Hello *Nasrah*,
-     * @param  array<int, string|array{label?:string,value?:string,emoji?:string,action?:string}|null>  $lines
-     * @param  string|null  $institution  Institution display name
-     * @param  string|null  $emoji  Title emoji; inferred from the subject when omitted
+     * @param  string  $header  English subject
+     * @param  string|null  $greeting
+     * @param  array<int, string|array|null>  $lines
+     * @param  string|null  $institution
+     * @param  string|null  $emoji
+     * @param  string|null  $headerFr  French subject
      */
     public function format(
         string $header,
         ?string $greeting = null,
         array $lines = [],
         ?string $institution = null,
-        ?string $emoji = null
+        ?string $emoji = null,
+        ?string $headerFr = null
     ): string {
-        $parts = [];
-        $titleEmoji = $emoji !== null && $emoji !== '' ? $emoji : $this->emojiForHeader($header);
-        $title = $this->title($header, $institution);
+        $institution = trim((string) $institution);
+        $banner = $institution !== '' ? $institution : self::BRAND;
+        $titleEmoji = $emoji !== null && $emoji !== '' ? $emoji : $this->emojiForHeader($header.' '.$headerFr);
+        $subject = $this->joinLocales(
+            $this->statusSubject((string) $headerFr),
+            $this->statusSubject($header)
+        );
 
-        $parts[] = $titleEmoji.' *'.$title.'*';
+        $parts = [];
+        $parts[] = '*'.mb_strtoupper($banner, 'UTF-8').'*';
+        if ($subject !== '') {
+            $parts[] = $titleEmoji.' *'.$subject.'*';
+        }
         $parts[] = self::RULE;
         $parts[] = '';
 
@@ -44,7 +57,11 @@ class NotificationMessageFormatter
             $parts[] = '';
         }
 
-        $bodyLines = [];
+        $summaries = [];
+        $fields = [];
+        $others = [];
+        $actions = [];
+
         foreach ($lines as $line) {
             if ($line === null || $line === '') {
                 continue;
@@ -52,12 +69,25 @@ class NotificationMessageFormatter
 
             if (is_array($line)) {
                 if (! empty($line['action'])) {
-                    $bodyLines[] = '👉 '.trim((string) $line['action']);
-                    $bodyLines[] = '';
+                    $actions[] = '👉 '.$this->joinLocales(
+                        (string) ($line['action_fr'] ?? ''),
+                        (string) $line['action']
+                    );
                     continue;
                 }
 
-                $label = trim((string) ($line['label'] ?? ''));
+                if (! empty($line['summary'])) {
+                    $summaries[] = $this->joinLocales(
+                        (string) ($line['summary_fr'] ?? ''),
+                        (string) $line['summary']
+                    );
+                    continue;
+                }
+
+                $label = $this->joinLocales(
+                    (string) ($line['label_fr'] ?? ''),
+                    (string) ($line['label'] ?? '')
+                );
                 $value = trim((string) ($line['value'] ?? ''));
                 $bullet = trim((string) ($line['emoji'] ?? '▫️'));
                 if ($bullet === '') {
@@ -65,11 +95,9 @@ class NotificationMessageFormatter
                 }
 
                 if ($label !== '' && $value !== '') {
-                    $bodyLines[] = $bullet.' '.$label.': *'.$this->stripWrappingBold($value).'*';
-                    $bodyLines[] = '';
+                    $fields[] = $bullet.' '.$label.': *'.$this->stripWrappingBold($value).'*';
                 } elseif ($value !== '') {
-                    $bodyLines[] = $value;
-                    $bodyLines[] = '';
+                    $others[] = $value;
                 }
                 continue;
             }
@@ -80,26 +108,46 @@ class NotificationMessageFormatter
             }
 
             if (preg_match('/^\*(.+?):\*\s*(.+)$/u', $text, $m)) {
-                $bodyLines[] = '▫️ '.trim($m[1]).': *'.$this->stripWrappingBold(trim($m[2])).'*';
-                $bodyLines[] = '';
+                $fields[] = '▫️ '.trim($m[1]).': *'.$this->stripWrappingBold(trim($m[2])).'*';
                 continue;
             }
 
-            $bodyLines[] = $text;
-            $bodyLines[] = '';
+            $others[] = $text;
         }
 
-        while (! empty($bodyLines) && end($bodyLines) === '') {
-            array_pop($bodyLines);
-        }
-
-        if (! empty($bodyLines)) {
-            foreach ($bodyLines as $bodyLine) {
-                $parts[] = $bodyLine;
+        foreach ([$summaries, $others] as $block) {
+            if ($block === []) {
+                continue;
+            }
+            foreach ($block as $item) {
+                if ($item !== '') {
+                    $parts[] = $item;
+                }
             }
             $parts[] = '';
         }
 
+        if ($fields !== []) {
+            foreach ($fields as $field) {
+                $parts[] = $field;
+            }
+            $parts[] = '';
+        }
+
+        if ($actions !== []) {
+            foreach ($actions as $action) {
+                if ($action !== '👉 ') {
+                    $parts[] = $action;
+                }
+            }
+            $parts[] = '';
+        }
+
+        while (! empty($parts) && end($parts) === '') {
+            array_pop($parts);
+        }
+
+        $parts[] = '';
         $parts[] = self::RULE;
         $parts[] = '🌐 '.self::BRAND;
 
@@ -107,11 +155,14 @@ class NotificationMessageFormatter
     }
 
     /**
-     * Display title: Institution | Subject
+     * In-app / email title: Institution | Subject
      */
-    public function title(string $header, ?string $institution = null): string
+    public function title(string $header, ?string $institution = null, ?string $headerFr = null): string
     {
-        $subject = $this->displaySubject($header);
+        $subject = $this->joinLocales(
+            $this->displaySubject((string) $headerFr),
+            $this->displaySubject($header)
+        );
         $institution = trim((string) $institution);
 
         if ($institution !== '' && $subject !== '') {
@@ -121,9 +172,6 @@ class NotificationMessageFormatter
         return $institution !== '' ? $institution : $subject;
     }
 
-    /**
-     * Wrap free-form content with the branded layout.
-     */
     public function wrap(string $body, ?string $header = null, ?string $institution = null): string
     {
         $body = trim($body);
@@ -138,9 +186,6 @@ class NotificationMessageFormatter
         return $this->format((string) $header, null, [$body], $institution);
     }
 
-    /**
-     * Append a light brand footer to user-authored content.
-     */
     public function appendBrand(string $body, ?string $institution = null): string
     {
         $body = rtrim($body);
@@ -162,37 +207,54 @@ class NotificationMessageFormatter
     {
         $name = trim((string) $name);
         if ($name === '') {
-            return 'Hello,';
+            return 'Bonjour, / Hello,';
         }
 
-        return 'Hello *'.$name.'*,';
+        $bold = '*'.mb_strtoupper($name, 'UTF-8').'*';
+
+        return 'Bonjour '.$bold.', / Hello '.$bold.',';
     }
 
     /**
-     * @return array{label:string,value:string,emoji:string}
+     * @return array{label:string,label_fr:string,value:string,emoji:string}
      */
-    public function field(string $label, string $value, string $emoji = '▫️'): array
+    public function field(string $label, string $value, string $emoji = '▫️', ?string $labelFr = null): array
     {
         return [
             'label' => $label,
+            'label_fr' => (string) $labelFr,
             'value' => $value,
             'emoji' => $emoji,
         ];
     }
 
     /**
-     * @return array{action:string}
+     * @return array{summary:string,summary_fr:string}
      */
-    public function action(string $text): array
+    public function summary(string $text, ?string $textFr = null): array
     {
-        return ['action' => $text];
+        return [
+            'summary' => $text,
+            'summary_fr' => (string) $textFr,
+        ];
+    }
+
+    /**
+     * @return array{action:string,action_fr:string}
+     */
+    public function action(string $text, ?string $textFr = null): array
+    {
+        return [
+            'action' => $text,
+            'action_fr' => (string) $textFr,
+        ];
     }
 
     public function emojiForHeader(string $header): string
     {
         $h = mb_strtolower(trim($header), 'UTF-8');
 
-        if (preg_match('/otp|verif|username|auth|password|mot de passe/u', $h)) {
+        if (preg_match('/otp|verif|username|auth|password|mot de passe|authentification/u', $h)) {
             return '🔐';
         }
 
@@ -206,6 +268,10 @@ class NotificationMessageFormatter
 
         if (preg_match('/overdue|reminder|rappel|en retard/u', $h)) {
             return '⏰';
+        }
+
+        if (preg_match('/payment received|paiement reçu|tuition payment|scolarité reçus|fully paid|verified|confirmé|confirmed/u', $h)) {
+            return '✅';
         }
 
         if (preg_match('/payment|paiement|tuition|scolarité|invoice|facture|fee|frais/u', $h)) {
@@ -225,6 +291,38 @@ class NotificationMessageFormatter
         }
 
         return '📌';
+    }
+
+    public function joinLocales(?string $french, ?string $english): string
+    {
+        $french = trim((string) $french);
+        $english = trim((string) $english);
+
+        if ($french === '' && $english === '') {
+            return '';
+        }
+
+        if ($french === '' || $this->samePhrase($french, $english)) {
+            return $english !== '' ? $english : $french;
+        }
+
+        if ($english === '') {
+            return $french;
+        }
+
+        return $french.' / '.$english;
+    }
+
+    protected function samePhrase(string $left, string $right): bool
+    {
+        return mb_strtolower($left, 'UTF-8') === mb_strtolower($right, 'UTF-8');
+    }
+
+    protected function statusSubject(string $header): string
+    {
+        $header = trim($header);
+
+        return $header === '' ? '' : mb_strtoupper($header, 'UTF-8');
     }
 
     protected function displaySubject(string $header): string

@@ -41,16 +41,17 @@ class NotificationService
             $this->createInAppNotification(
                 $application->applicant->user_id,
                 $application->institution_id,
-                $this->transForUser('admissions.notify_admission_letter_title', [], $user),
-                $this->formatter->format(
-                    $this->transForUser('admissions.notify_admission_letter_title', [], $user),
-                    $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
+                $this->formatter->title(
+                    $this->transPair('admissions.notify_admission_letter_title')['en'],
+                    optional($application->institution)->name,
+                    $this->transPair('admissions.notify_admission_letter_title')['fr']
+                ),
+                $this->formatBilingual(
+                    'admissions.notify_admission_letter_title',
+                    optional($application->applicant)->first_name ?: optional($user)->name,
                     [
-                        $this->formatter->field(
-                            $this->transForUser('admissions.notify_field_application', [], $user),
-                            (string) $application->application_number
-                        ),
-                        $this->transForUser('admissions.notify_admission_letter_body', [], $user),
+                        $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                        $this->bilingualSummary('admissions.notify_admission_letter_body'),
                     ],
                     optional($application->institution)->name
                 ),
@@ -71,20 +72,19 @@ class NotificationService
         $letterPath = (new RejectionLetterService())->generateRejectionLetter($application, $stage);
         $stageLabel = $this->transForUser('admissions.rejection_stage_'.$stage, [], $user);
 
-        $header = $this->transForUser('admissions.rejection_notify_header', [], $user);
-        $message = $this->formatter->format(
-            $header,
-            $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
+        $stageEn = $this->transPair('admissions.rejection_stage_'.$stage)['en'];
+        $stageFr = $this->transPair('admissions.rejection_stage_'.$stage)['fr'];
+        $headerPair = $this->transPair('admissions.rejection_notify_header');
+        $header = $this->formatter->title($headerPair['en'], optional($application->institution)->name, $headerPair['fr']);
+        $bodyPair = $this->transPair('admissions.rejection_notify_body', ['stage' => $stageEn]);
+        $bodyFr = $this->transPair('admissions.rejection_notify_body', ['stage' => $stageFr])['fr'];
+        $message = $this->formatBilingual(
+            'admissions.rejection_notify_header',
+            optional($application->applicant)->first_name ?: optional($user)->name,
             [
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_application', [], $user),
-                    (string) $application->application_number
-                ),
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_programme', [], $user),
-                    optional($application->programme)->name ?: '—'
-                ),
-                $this->transForUser('admissions.rejection_notify_body', ['stage' => $stageLabel], $user),
+                $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                $this->bilingualField('admissions.notify_field_programme', optional($application->programme)->name ?: '—'),
+                $this->formatter->summary($bodyPair['en'], $bodyFr),
             ],
             optional($application->institution)->name
         );
@@ -217,19 +217,13 @@ class NotificationService
                 return $result;
             }
 
-            $message = $this->formatter->format(
-                $this->transForUser('admissions.notify_header_admitted', [], $user),
-                $this->formatter->greeting($applicant->first_name),
+            $message = $this->formatBilingual(
+                'admissions.notify_header_admitted',
+                $applicant->first_name,
                 [
-                    $this->formatter->field(
-                        $this->transForUser('admissions.notify_field_application', [], $user),
-                        (string) $application->application_number
-                    ),
-                    $this->formatter->field(
-                        $this->transForUser('admissions.notify_field_programme', [], $user),
-                        $application->programme->name
-                    ),
-                    $this->transForUser('admissions.whatsapp_admitted_body', [], $user),
+                    $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                    $this->bilingualField('admissions.notify_field_programme', $application->programme->name),
+                    $this->bilingualSummary('admissions.whatsapp_admitted_body'),
                 ],
                 optional($application->institution)->name
             );
@@ -347,43 +341,42 @@ class NotificationService
             'institution' => optional($application->institution)->name ?: '—',
         ], $replace);
 
-        $header = isset($headerKeys[$status])
-            ? $this->transForUser('admissions.'.$headerKeys[$status], [], $user)
-            : $this->transForUser('admissions.notify_header_update', [], $user);
-        $title = $this->transForUser('admissions.notify_status_title', [], $user);
-        $body = isset($keys[$status])
-            ? $this->transForUser('admissions.'.$keys[$status], $replace, $user)
-            : $title;
-        $displayTitle = $this->formatter->title($header, optional($application->institution)->name);
+        $headerKey = isset($headerKeys[$status])
+            ? 'admissions.'.$headerKeys[$status]
+            : 'admissions.notify_header_update';
+        $bodyKey = isset($keys[$status])
+            ? 'admissions.'.$keys[$status]
+            : 'admissions.notify_status_title';
+        $headerPair = $this->transPair($headerKey);
+        $displayTitle = $this->formatter->title($headerPair['en'], optional($application->institution)->name, $headerPair['fr']);
+        $bodyPair = $this->transPair($bodyKey, $replace);
 
         $lines = [
-            $this->formatter->field(
-                $this->transForUser('admissions.notify_field_application', [], $user),
-                (string) $replace['number']
-            ),
-            $this->formatter->field(
-                $this->transForUser('admissions.notify_field_programme', [], $user),
-                (string) $replace['programme']
-            ),
+            $this->bilingualSummary($bodyKey, $replace),
+            $this->bilingualField('admissions.notify_field_application', (string) $replace['number']),
+            $this->bilingualField('admissions.notify_field_programme', (string) $replace['programme']),
         ];
 
         $amount = $this->statusFeeAmount($application, $status, $replace);
         if ($amount !== '') {
-            $lines[] = $this->formatter->field(
-                $this->transForUser('admissions.notify_field_amount', [], $user),
-                $amount
-            );
+            $lines[] = $this->bilingualField('admissions.notify_field_amount', $amount);
         }
 
         if ($this->isPaymentStatus($status)) {
-            $lines[] = $this->formatter->action($body);
-        } else {
-            $lines[] = $body;
+            $splitEn = $this->splitSummaryAction($bodyPair['en']);
+            $splitFr = $this->splitSummaryAction($bodyPair['fr']);
+            $lines[0] = $this->formatter->summary($splitEn[0], $splitFr[0]);
+            if ($splitEn[1] !== '' || $splitFr[1] !== '') {
+                $lines[] = $this->formatter->action(
+                    $splitEn[1] !== '' ? $splitEn[1] : $splitFr[1],
+                    $splitFr[1] !== '' ? $splitFr[1] : $splitEn[1]
+                );
+            }
         }
 
-        $message = $this->formatter->format(
-            $header,
-            $this->formatter->greeting($replace['name']),
+        $message = $this->formatBilingual(
+            $headerKey,
+            $replace['name'],
             $lines,
             optional($application->institution)->name
         );
@@ -466,15 +459,13 @@ class NotificationService
             ->get();
 
         foreach ($users as $user) {
-            $message = $this->formatter->format(
-                $this->transForUser('admissions.notify_status_title', [], $user),
+            $headerPair = $this->transPair('admissions.notify_status_title');
+            $message = $this->formatBilingual(
+                'admissions.notify_status_title',
                 null,
                 [
-                    $this->formatter->field(
-                        $this->transForUser('admissions.notify_field_application', [], $user),
-                        (string) $application->application_number
-                    ),
-                    $this->transForUser('admissions.notify_department_review_body', [], $user),
+                    $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                    $this->bilingualSummary('admissions.notify_department_review_body'),
                 ],
                 optional($application->institution)->name
             );
@@ -482,7 +473,7 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
-                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->formatter->title($headerPair['en'], optional($application->institution)->name, $headerPair['fr']),
                 $message,
                 'admission'
             );
@@ -520,21 +511,15 @@ class NotificationService
         $currency = strtoupper((string) ($institution->currency ?? 'USD'));
 
         $application->loadMissing(['institution', 'programme', 'applicant']);
-        $header = $this->transForUser('admissions.notify_header_application_fee_proof_submitted');
-        $title = $this->formatter->title($header, optional($application->institution)->name);
-        $message = $this->formatter->format(
-            $header,
+        $headerPair = $this->transPair('admissions.notify_header_application_fee_proof_submitted');
+        $title = $this->formatter->title($headerPair['en'], optional($application->institution)->name, $headerPair['fr']);
+        $message = $this->formatBilingual(
+            'admissions.notify_header_application_fee_proof_submitted',
             null,
             [
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_application'),
-                    (string) $application->application_number
-                ),
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_amount'),
-                    $currency.' '.number_format((float) $payment->amount, 2)
-                ),
-                $this->formatter->action($this->transForUser('admissions.notify_payment_proof_submitted_body')),
+                $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                $this->bilingualField('admissions.notify_field_amount', $currency.' '.number_format((float) $payment->amount, 2)),
+                $this->bilingualAction('admissions.notify_payment_proof_submitted_body'),
             ],
             optional($application->institution)->name
         );
@@ -552,21 +537,15 @@ class NotificationService
         }
 
         $application->loadMissing(['institution', 'programme', 'applicant.user']);
-        $header = $this->transForUser('admissions.notify_header_application_fee_proof_rejected', [], $user);
-        $title = $this->formatter->title($header, optional($application->institution)->name);
-        $message = $this->formatter->format(
-            $header,
-            $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
+        $headerPair = $this->transPair('admissions.notify_header_application_fee_proof_rejected');
+        $title = $this->formatter->title($headerPair['en'], optional($application->institution)->name, $headerPair['fr']);
+        $message = $this->formatBilingual(
+            'admissions.notify_header_application_fee_proof_rejected',
+            optional($application->applicant)->first_name ?: optional($user)->name,
             [
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_application', [], $user),
-                    (string) $application->application_number
-                ),
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_reason', [], $user),
-                    $payment->review_notes ?: '—'
-                ),
-                $this->formatter->action($this->transForUser('admissions.notify_payment_proof_rejected_body', [], $user)),
+                $this->bilingualField('admissions.notify_field_application', (string) $application->application_number),
+                $this->bilingualField('admissions.notify_field_reason', $payment->review_notes ?: '—'),
+                $this->bilingualAction('admissions.notify_payment_proof_rejected_body'),
             ],
             optional($application->institution)->name
         );
@@ -594,15 +573,13 @@ class NotificationService
             ->get();
 
         foreach ($users as $user) {
-            $message = $this->formatter->format(
-                $this->transForUser('admissions.notify_status_title', [], $user),
+            $headerPair = $this->transPair('admissions.notify_status_title');
+            $message = $this->formatBilingual(
+                'admissions.notify_status_title',
                 null,
                 [
-                    $this->formatter->field(
-                        $this->transForUser('admissions.notify_field_registration', [], $user),
-                        (string) $student->registration_number
-                    ),
-                    $this->transForUser('admissions.notify_course_pending_body', [], $user),
+                    $this->bilingualField('admissions.notify_field_registration', (string) $student->registration_number),
+                    $this->bilingualSummary('admissions.notify_course_pending_body'),
                 ],
                 optional($student->institution)->name
             );
@@ -610,7 +587,7 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $student->institution_id,
-                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->formatter->title($headerPair['en'], optional($student->institution)->name, $headerPair['fr']),
                 $message,
                 'admission'
             );
@@ -643,6 +620,66 @@ class NotificationService
                 'admission'
             );
         }
+    }
+
+    protected function transPair(string $key, array $replace = []): array
+    {
+        $previous = app()->getLocale();
+        app()->setLocale('en');
+        $en = (string) __($key, $replace);
+        app()->setLocale('fr');
+        $fr = (string) __($key, $replace);
+        app()->setLocale($previous);
+
+        return ['en' => $en, 'fr' => $fr];
+    }
+
+    protected function formatBilingual(string $headerKey, ?string $name, array $lines, ?string $institution, array $replace = []): string
+    {
+        $header = $this->transPair($headerKey, $replace);
+
+        return $this->formatter->format(
+            $header['en'],
+            $name ? $this->formatter->greeting($name) : null,
+            $lines,
+            $institution,
+            null,
+            $header['fr']
+        );
+    }
+
+    protected function bilingualField(string $key, string $value): array
+    {
+        $pair = $this->transPair($key);
+
+        return $this->formatter->field($pair['en'], $value, '▫️', $pair['fr']);
+    }
+
+    protected function bilingualSummary(string $key, array $replace = []): array
+    {
+        $pair = $this->transPair($key, $replace);
+
+        return $this->formatter->summary($pair['en'], $pair['fr']);
+    }
+
+    protected function bilingualAction(string $key, array $replace = []): array
+    {
+        $pair = $this->transPair($key, $replace);
+
+        return $this->formatter->action($pair['en'], $pair['fr']);
+    }
+
+    /**
+     * @return array{0:string,1:string}
+     */
+    protected function splitSummaryAction(string $text): array
+    {
+        $text = trim($text);
+        if (preg_match('/^(.+?[.!?])\s+(.+)$/us', $text, $m)) {
+            return [trim($m[1]), trim($m[2])];
+        }
+
+        return [$text, ''];
     }
 
     protected function isPaymentStatus($status): bool

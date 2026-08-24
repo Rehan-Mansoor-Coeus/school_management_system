@@ -44,16 +44,21 @@ class LicenseNotificationService
 
         $pair = $messages[$event] ?? ['License update', 'There is an update to your institution license.'];
         $lines = [
-            $this->formatter->field('Institution', $name),
-            $this->formatter->field('Semester', (string) $license->semester_name),
-            $this->formatter->field('Status', (string) $license->status),
-            $this->formatter->field('Balance due', ($license->currency ?: 'XAF').' '.number_format((float) $license->balance_due, 2)),
+            $this->formatter->field('Institution', $name, '▫️', 'Établissement'),
+            $this->formatter->field('Semester', (string) $license->semester_name, '▫️', 'Semestre'),
+            $this->formatter->field('Status', (string) $license->status, '▫️', 'Statut'),
+            $this->formatter->field('Balance due', ($license->currency ?: 'XAF').' '.number_format((float) $license->balance_due, 2), '▫️', 'Solde dû'),
         ];
         foreach ($extra as $label => $value) {
             $lines[] = $this->formatter->field((string) $label, (string) $value);
         }
 
-        $body = $this->formatter->format($pair[0], null, array_merge($lines, [$this->formatter->action($pair[1])]), $name);
+        $body = $this->formatter->format(
+            $pair[0],
+            null,
+            array_merge($lines, [$this->formatter->action($pair[1])]),
+            $name
+        );
         $this->notifyInstitutionAdmins((int) $license->institution_id, $pair[0], $body, 'licensing');
     }
 
@@ -64,12 +69,14 @@ class LicenseNotificationService
             $title,
             null,
             [
-                $this->formatter->field('Invoice', $invoice->invoice_number),
-                $this->formatter->field('Type', $invoice->invoice_type),
-                $this->formatter->field('Amount', ($invoice->currency ?: 'XAF').' '.number_format((float) $invoice->total_amount, 2)),
-                $this->formatter->field('Due', (string) optional($invoice->due_date)->toDateString()),
+                $this->formatter->field('Invoice', $invoice->invoice_number, '▫️', 'Facture'),
+                $this->formatter->field('Type', $invoice->invoice_type, '▫️', 'Type'),
+                $this->formatter->field('Amount', ($invoice->currency ?: 'XAF').' '.number_format((float) $invoice->total_amount, 2), '▫️', 'Montant'),
+                $this->formatter->field('Due', (string) optional($invoice->due_date)->toDateString(), '▫️', 'Échéance'),
             ],
-            optional($invoice->institution)->name
+            optional($invoice->institution)->name,
+            '💳',
+            'Facture de licence émise'
         );
         $this->notifyInstitutionAdmins((int) $invoice->institution_id, $title, $body, 'licensing');
     }
@@ -81,11 +88,13 @@ class LicenseNotificationService
             $title,
             null,
             [
-                $this->formatter->field('Payment', $payment->payment_number),
-                $this->formatter->field('Amount', ($payment->currency ?: 'XAF').' '.number_format((float) $payment->amount, 2)),
-                $this->formatter->field('Status', $payment->status),
+                $this->formatter->field('Payment', $payment->payment_number, '▫️', 'Paiement'),
+                $this->formatter->field('Amount', ($payment->currency ?: 'XAF').' '.number_format((float) $payment->amount, 2), '▫️', 'Montant'),
+                $this->formatter->field('Status', $payment->status, '▫️', 'Statut'),
             ],
-            optional($payment->institution)->name
+            optional($payment->institution)->name,
+            $approved ? '✅' : '⚠️',
+            $approved ? 'Paiement de licence vérifié' : 'Paiement de licence rejeté'
         );
         $this->notifyInstitutionAdmins((int) $payment->institution_id, $title, $body, 'licensing');
     }

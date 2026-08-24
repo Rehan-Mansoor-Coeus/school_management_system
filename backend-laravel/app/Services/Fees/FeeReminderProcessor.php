@@ -69,12 +69,17 @@ class FeeReminderProcessor
                 strtoupper($status).' TUITION REMINDER',
                 null,
                 [
-                    $formatter->field('Balance', (string) $fee->balance),
-                    $formatter->field('Status', (string) $status),
-                    $formatter->field('Pay before', (string) $fee->latest_payment_date),
-                    $formatter->action('Please settle your semester fee balance before the due date.'),
+                    $formatter->field('Balance', (string) $fee->balance, '▫️', 'Solde'),
+                    $formatter->field('Status', (string) $status, '▫️', 'Statut'),
+                    $formatter->field('Pay before', (string) $fee->latest_payment_date, '▫️', 'Payer avant'),
+                    $formatter->action(
+                        'Please settle your semester fee balance before the due date.',
+                        'Veuillez régler le solde des frais avant la date d\'échéance.'
+                    ),
                 ],
-                optional(Institution::find($fee->institution_id))->name
+                optional(Institution::find($fee->institution_id))->name,
+                '⏰',
+                'RAPPEL DE FRAIS DE SCOLARITÉ'
             );
 
             FeeReminder::create([

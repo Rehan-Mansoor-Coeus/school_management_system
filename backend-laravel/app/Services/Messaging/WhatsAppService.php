@@ -68,15 +68,15 @@ class WhatsAppService
     {
         $formatter = new NotificationMessageFormatter();
         $lines = [
-            $formatter->field('OTP Code', $otp),
-            $formatter->field('Valid for', '3 minutes'),
+            $formatter->field('OTP Code', $otp, '▫️', 'Code OTP'),
+            $formatter->field('Valid for', '3 minutes', '▫️', 'Valable pendant'),
         ];
         if ($context) {
             $lines[] = $context;
         }
-        $lines[] = $formatter->action('Never share this code with anyone.');
+        $lines[] = $formatter->action('Never share this code with anyone.', 'Ne partagez jamais ce code.');
 
-        $message = $formatter->format('AUTHENTICATION', null, $lines, null, '🔐');
+        $message = $formatter->format('AUTHENTICATION', null, $lines, null, '🔐', 'AUTHENTIFICATION');
 
         return $this->sendTextMessage($toPhone, $message, 'otp');
     }
