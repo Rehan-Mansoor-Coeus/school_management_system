@@ -15,6 +15,7 @@ import InstitutionPlatformSettingsPage from './pages/InstitutionPlatformSettings
 import SystemLayout from './components/system/SystemLayout'
 import SystemIndexRedirect from './components/system/SystemIndexRedirect'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
+import ApplicationsEntry from './pages/ApplicationsEntry'
 import DashboardPage from './pages/Dashboard'
 import SchoolDetailPage from './pages/superadmin/SchoolDetail'
 import InstitutionsPage from './pages/superadmin/InstitutionsPage'
@@ -260,6 +261,8 @@ export default function App(){
             <Route index element={<SystemIndexRedirect />} />
           </Route>
           <Route path="institution-requests" element={<InstitutionRequestsPage />} />
+          <Route path="applications" element={<ApplicationsEntry />} />
+          <Route path="super-admin/applications" element={<ApplicationsEntry />} />
           <Route path="users" element={<UsersLayout />}>
             <Route index element={<UsersIndexPage />} />
             <Route path="customers" element={<CustomersPage />} />

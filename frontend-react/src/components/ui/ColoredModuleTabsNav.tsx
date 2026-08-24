@@ -26,7 +26,7 @@ export type ColoredTabItem = {
   badge?: number
 }
 
-/** Accent colors for inactive outlined tabs (active is always navy). */
+/** Accent colors for inactive outlined tabs. */
 const inactiveStyles: Record<TabColor, string> = {
   navy: 'border-[#1e3a5f] bg-white text-[#1e3a5f] hover:bg-slate-50',
   gold: 'border-[#A67C00] bg-white text-[#A67C00] hover:bg-amber-50',
@@ -44,7 +44,24 @@ const inactiveStyles: Record<TabColor, string> = {
   slate: 'border-slate-400 bg-white text-slate-700 hover:bg-slate-50',
 }
 
-const ACTIVE_STYLE = 'border-transparent bg-[#1e3a5f] text-white shadow-sm'
+const PAGE_ACTIVE = 'border-transparent bg-[#1e3a5f] text-white shadow-sm'
+
+const pillActiveStyles: Record<TabColor, string> = {
+  navy: 'border-[#1e3a5f] bg-[#1e3a5f] text-white shadow-sm',
+  gold: 'border-[#eab308] bg-[#eab308] text-[#1e3a5f] shadow-sm',
+  blue: 'border-sky-500 bg-sky-500 text-white shadow-sm',
+  indigo: 'border-indigo-500 bg-indigo-500 text-white shadow-sm',
+  violet: 'border-violet-500 bg-violet-500 text-white shadow-sm',
+  purple: 'border-[#6F42C1] bg-[#6F42C1] text-white shadow-sm',
+  pink: 'border-pink-500 bg-pink-500 text-white shadow-sm',
+  rose: 'border-rose-500 bg-rose-500 text-white shadow-sm',
+  orange: 'border-orange-500 bg-orange-500 text-slate-900 shadow-sm',
+  amber: 'border-[#eab308] bg-[#eab308] text-[#1e3a5f] shadow-sm',
+  emerald: 'border-emerald-600 bg-emerald-600 text-white shadow-sm',
+  teal: 'border-teal-500 bg-teal-500 text-white shadow-sm',
+  cyan: 'border-cyan-500 bg-cyan-500 text-white shadow-sm',
+  slate: 'border-slate-600 bg-slate-700 text-white shadow-sm',
+}
 
 const COLOR_CYCLE: TabColor[] = [
   'emerald',
@@ -65,11 +82,16 @@ export function tabColorAt(index: number): TabColor {
   return COLOR_CYCLE[index % COLOR_CYCLE.length]
 }
 
-export function coloredTabClass(color: TabColor | undefined, isActive: boolean): string {
+export function coloredTabClass(
+  color: TabColor | undefined,
+  isActive: boolean,
+  variant: 'pages' | 'pills' = 'pages'
+): string {
   const tone = color || 'slate'
+  const active = variant === 'pills' ? pillActiveStyles[tone] : PAGE_ACTIVE
   return [
-    'inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all',
-    isActive ? ACTIVE_STYLE : inactiveStyles[tone],
+    'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all',
+    isActive ? active : inactiveStyles[tone],
   ].join(' ')
 }
 
@@ -78,12 +100,12 @@ export function ColoredTabsBar({
   activeId,
   onChange,
 }: {
-  items: Array<{ id: string; label: string; color?: TabColor; icon?: ComponentType<{ className?: string }> }>
+  items: Array<{ id: string; label: string; color?: TabColor; icon?: ComponentType<{ className?: string }>; badge?: number }>
   activeId: string
   onChange: (id: string) => void
 }) {
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+    <nav className="flex flex-wrap gap-2">
       {items.map((item, index) => {
         const color = item.color || tabColorAt(index)
         const Icon = item.icon
@@ -93,10 +115,15 @@ export function ColoredTabsBar({
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
-            className={coloredTabClass(color, isActive)}
+            className={coloredTabClass(color, isActive, 'pills')}
           >
-            {Icon ? <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'opacity-95' : 'opacity-90'}`} /> : null}
+            {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
             <span>{item.label}</span>
+            {typeof item.badge === 'number' ? (
+              <span className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${isActive ? 'bg-white/80 text-slate-800' : 'bg-slate-100 text-slate-700'}`}>
+                {item.badge}
+              </span>
+            ) : null}
           </button>
         )
       })}

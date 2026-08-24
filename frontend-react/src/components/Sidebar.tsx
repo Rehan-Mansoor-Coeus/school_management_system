@@ -99,14 +99,14 @@ const reportItems: SidebarItem[] = [
 
 function linkClass(isActive: boolean, nested = false) {
   return [
-    'flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition',
+    'relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition',
     nested ? 'pl-6' : '',
-    isActive ? 'bg-[#2a4a73] text-[#eab308]' : 'text-white hover:bg-[#2a4a73]/70',
+    isActive ? 'bg-[#eab308] text-[#1e3a5f] shadow-sm' : 'text-white hover:bg-[#2a4a73]/70',
   ].join(' ')
 }
 
 function iconClass(isActive: boolean) {
-  return `h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`
+  return `h-4 w-4 shrink-0 ${isActive ? 'text-[#1e3a5f]' : 'text-[#eab308]'}`
 }
 
 function roleBadgeLabel(roles: string[], isPlatformSuperAdmin: boolean) {
@@ -190,6 +190,7 @@ const platformNavItems: SidebarItem[] = [
   { label: 'Dashboard', path: '/super-admin/dashboard', icon: LayoutDashboard },
   { label: 'Institutions', path: '/super-admin/institutions', icon: Building2 },
   { label: 'Users', path: '/super-admin/users', icon: Users },
+  { label: 'Applications', path: '/applications', icon: FileStack },
   { label: 'Licenses & Billing', path: '/super-admin/licensing', icon: CreditCard },
   { label: 'License Plans', path: '/super-admin/licensing/plans', icon: Layers },
   { label: 'Module Pricing', path: '/super-admin/licensing/module-pricing', icon: Puzzle },
@@ -298,6 +299,7 @@ export default function Sidebar() {
   const showAdmissions = canUseModule('admissions') && canAccess({
     permissions: ['admissions.view', 'admissions.apply', 'admissions.manage', 'admissions.registry.review', 'admissions.department.review', 'admissions.registrar.admit', 'admissions.finance.verify', 'admissions.courses.register', 'admissions.hod.approve'],
   })
+  const showApplications = showAdmissions
 
   const showCertificates = canUseModule('character_certificates') && canAccess({
     permissions: ['character_certificates.view', 'character_certificates.manage', 'character_certificates.issue'],
@@ -363,6 +365,20 @@ export default function Sidebar() {
                 <span className="truncate">Time Table</span>
               </>
             )}
+          </NavLink>
+        )}
+
+        {showApplications && (
+          <NavLink to="/applications" className={({ isActive }) => linkClass(isActive || location.pathname.startsWith('/admissions/my-applications') || location.pathname.startsWith('/admissions/applications'))}>
+            {({ isActive }) => {
+              const active = isActive || location.pathname.startsWith('/admissions/my-applications') || location.pathname.startsWith('/admissions/applications')
+              return (
+                <>
+                  <FileStack className={iconClass(active)} aria-hidden="true" />
+                  <span className="truncate">Applications</span>
+                </>
+              )
+            }}
           </NavLink>
         )}
 

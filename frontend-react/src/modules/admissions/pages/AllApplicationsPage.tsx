@@ -4,17 +4,7 @@ import type { Application } from '../types';
 import { fetchAllApplications } from '../../../api/admissions';
 import { useAdmissionsI18n } from '../../../hooks/useAdmissionsI18n';
 import { statusLabelKey } from '../../../i18n/admissions';
-
-const STATUS_OPTIONS = [
-  'submitted',
-  'registry_reviewed',
-  'department_approved',
-  'admitted',
-  'accepted',
-  'tuition_paid',
-  'enrolled',
-  'rejected',
-] as const;
+import { ColoredTabsBar, type TabColor } from '../../../components/ui/ColoredModuleTabsNav';
 
 export default function AllApplicationsPage() {
   const { t } = useAdmissionsI18n();
@@ -58,24 +48,26 @@ export default function AllApplicationsPage() {
         <p className="text-sm text-slate-500">{t('allApplicationsSubtitle')}</p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <ColoredTabsBar
+        items={[
+          { id: '', label: t('allStatuses'), color: 'navy' as TabColor },
+          { id: 'submitted', label: t(statusLabelKey('submitted')), color: 'amber' as TabColor },
+          { id: 'admitted', label: t(statusLabelKey('admitted')), color: 'purple' as TabColor },
+          { id: 'enrolled', label: t(statusLabelKey('enrolled')), color: 'emerald' as TabColor },
+          { id: 'rejected', label: t(statusLabelKey('rejected')), color: 'rose' as TabColor },
+        ]}
+        activeId={status}
+        onChange={(id) => { setStatus(id); setPage(1); }}
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
         <input
           type="search"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           placeholder={t('searchApplications')}
-          className="min-w-[220px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          className="min-w-[220px] flex-1 rounded-lg border border-indigo-200 px-3 py-2 text-sm"
         />
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-        >
-          <option value="">{t('allStatuses')}</option>
-          {STATUS_OPTIONS.map((value) => (
-            <option key={value} value={value}>{t(statusLabelKey(value))}</option>
-          ))}
-        </select>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

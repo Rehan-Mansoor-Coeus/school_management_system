@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { MoreHorizontal } from 'lucide-react'
+import { Building2, CheckCircle2, Clock, CreditCard, MoreHorizontal } from 'lucide-react'
 import {
   approveInstitutionRequest,
   fetchInstitutionRequestsHub,
@@ -15,11 +15,11 @@ import { FormField, formInputClass } from '../components/ui/FormField'
 import { useToast } from '../components/ui/ToastProvider'
 import { ColoredTabsBar, type TabColor } from '../components/ui/ColoredModuleTabsNav'
 
-const TABS: { id: InstitutionRequestHubTab; label: string; color: TabColor }[] = [
-  { id: 'all', label: 'All Institutions', color: 'navy' },
-  { id: 'awaiting', label: 'Awaiting Acceptance', color: 'amber' },
-  { id: 'pending_payment', label: 'Pending Payment', color: 'orange' },
-  { id: 'approved', label: 'Approved Institutions', color: 'emerald' },
+const TABS: { id: InstitutionRequestHubTab; label: string; color: TabColor; icon: typeof Clock }[] = [
+  { id: 'all', label: 'All Institutions', color: 'navy', icon: Building2 },
+  { id: 'awaiting', label: 'Awaiting Acceptance', color: 'amber', icon: Clock },
+  { id: 'pending_payment', label: 'Pending Payment', color: 'orange', icon: CreditCard },
+  { id: 'approved', label: 'Approved Institutions', color: 'emerald', icon: CheckCircle2 },
 ]
 
 const STATUS_OPTIONS = [
@@ -217,14 +217,14 @@ export default function InstitutionRequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Institution Registration Requests</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Applications</h1>
         <p className="text-sm text-slate-500">
-          Review onboarding requests, assign license plans, and track payment through activation.
+          Review institution applications, accept or deny them, assign a license, and track activation.
         </p>
       </div>
 
       <ColoredTabsBar
-        items={TABS.map((t) => ({ id: t.id, label: t.label, color: t.color }))}
+        items={TABS.map((t) => ({ id: t.id, label: t.label, color: t.color, icon: t.icon }))}
         activeId={tab}
         onChange={(id) => setTab(id as InstitutionRequestHubTab)}
       />
@@ -318,17 +318,17 @@ export default function InstitutionRequestsPage() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          className="rounded-lg bg-emerald-100 px-3 py-1 text-emerald-800"
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
                           onClick={() => openApprove(row)}
                         >
-                          Approve
+                          Accept
                         </button>
                         <button
                           type="button"
-                          className="rounded-lg bg-rose-100 px-3 py-1 text-rose-800"
+                          className="rounded-lg border border-rose-400 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
                           onClick={() => reject(row.id)}
                         >
-                          Reject
+                          Deny
                         </button>
                       </div>
                     ) : null}
