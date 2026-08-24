@@ -332,27 +332,31 @@ class PaymentService
         $depositId = (string) Str::uuid();
         $referenceNumber = $this->generatePaymentReference();
 
-        $payment = ApplicationPayment::create([
-            'institution_id' => $application->institution_id,
-            'application_id' => $application->id,
-            'reference_number' => $referenceNumber,
-            'transaction_id' => $depositId,
-            'payment_type' => $paymentType,
-            'payment_method' => 'pawapay',
-            'amount' => $quote['school_amount'],
-            'status' => 'pending',
-            'description' => ucfirst(str_replace('_', ' ', $paymentType))." for {$application->application_number}",
-            'gateway_response' => [
-                'school_amount' => $quote['school_amount'],
-                'school_currency' => $quote['school_currency'],
-                'payer_amount' => $quote['payer_amount_string'],
-                'payer_currency' => $quote['payer_currency'],
-                'fx_rate' => $quote['fx_rate'],
-                'country' => $payer['country_code'],
-                'provider' => $resolvedProvider,
-                'phone' => $msisdn,
-            ],
-        ]);
+        try {
+            $payment = ApplicationPayment::create([
+                'institution_id' => $application->institution_id,
+                'application_id' => $application->id,
+                'reference_number' => $referenceNumber,
+                'transaction_id' => $depositId,
+                'payment_type' => $paymentType,
+                'payment_method' => 'pawapay',
+                'amount' => $quote['school_amount'],
+                'status' => 'pending',
+                'description' => ucfirst(str_replace('_', ' ', $paymentType))." for {$application->application_number}",
+                'gateway_response' => [
+                    'school_amount' => $quote['school_amount'],
+                    'school_currency' => $quote['school_currency'],
+                    'payer_amount' => $quote['payer_amount_string'],
+                    'payer_currency' => $quote['payer_currency'],
+                    'fx_rate' => $quote['fx_rate'],
+                    'country' => $payer['country_code'],
+                    'provider' => $resolvedProvider,
+                    'phone' => $msisdn,
+                ],
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            throw new \RuntimeException(__('admissions.pawapay_failed'));
+        }
 
         $result = $pawapay->createDeposit([
             'depositId' => $depositId,

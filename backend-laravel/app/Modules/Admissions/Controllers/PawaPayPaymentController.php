@@ -84,6 +84,11 @@ class PawaPayPaymentController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->transForUser('admissions.pawapay_failed'),
+            ], 400);
         }
 
         if (! $result) {

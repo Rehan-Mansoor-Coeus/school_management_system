@@ -10,6 +10,7 @@ use App\Services\InstitutionModuleService;
 use App\Services\Letters\LetterAssetHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -104,7 +105,7 @@ class InstitutionController extends Controller
         ]));
 
         $validator = Validator::make($normalized, [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:institutions,name',
             'code' => 'required|string|max:50|unique:institutions,code',
             'type' => 'required|in:university,college,school,vocational,technical,training',
             'email' => 'nullable|email|max:255',
@@ -129,16 +130,37 @@ class InstitutionController extends Controller
             'letterhead' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'footer' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'registrar_signature' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+        ], [
+            'name.unique' => 'An institution with this name already exists. Open it from the list or choose a different name.',
+            'code.unique' => 'An institution with this short name already exists. Choose a different short name.',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        $institution = Institution::create(collect($validator->validated())->only([
-            'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
-            'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
-        ])->toArray());
+        try {
+            $institution = Institution::create(collect($validator->validated())->only([
+                'name', 'code', 'type', 'email', 'phone', 'address', 'city', 'country',
+                'website', 'currency', 'timezone', 'language', 'is_active', 'subscription_plan',
+            ])->toArray());
+        } catch (\Illuminate\Database\QueryException $e) {
+            $isUnique = (string) $e->getCode() === '23505' || stripos($e->getMessage(), 'unique') !== false;
+            if ($isUnique) {
+                return response()->json([
+                    'message' => 'An institution with this name or short name already exists. Open it from the list or choose different values.',
+                ], 422);
+            }
+
+            Log::error('Institution create failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Could not create the institution. Please try again.',
+            ], 500);
+        }
 
         $this->handleBrandUploads($request, $institution);
 

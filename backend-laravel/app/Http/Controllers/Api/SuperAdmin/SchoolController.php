@@ -14,6 +14,7 @@ use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
@@ -94,7 +95,7 @@ class SchoolController extends Controller
     public function storeSchool(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:institutions,name',
             'code' => 'required|string|max:50|unique:institutions,code',
             'type' => 'required|in:university,college,school,vocational,technical,training',
             'email' => 'nullable|email|max:255',
@@ -102,21 +103,49 @@ class SchoolController extends Controller
             'country' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
             'subscription_plan' => 'nullable|string|max:100',
+        ], [
+            'name.unique' => 'An institution with this name already exists. Open it from the list or choose a different name.',
+            'code.unique' => 'An institution with this short name already exists. Choose a different short name.',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        $institution = Institution::create(array_merge($validator->validated(), [
-            'is_active' => true,
-            'subscription_status' => 'active',
-            'subscription_started_at' => now(),
-        ]));
+        try {
+            $institution = Institution::create(array_merge($validator->validated(), [
+                'is_active' => true,
+                'subscription_status' => 'active',
+                'subscription_started_at' => now(),
+            ]));
+        } catch (\Illuminate\Database\QueryException $e) {
+            $isUnique = (string) $e->getCode() === '23505' || stripos($e->getMessage(), 'unique') !== false;
+            if ($isUnique) {
+                return response()->json([
+                    'message' => 'An institution with this name or short name already exists. Open it from the list or choose different values.',
+                ], 422);
+            }
 
-        InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], []);
-        app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
-        app(InstitutionLicenseService::class)->ensureFromLegacy($institution->fresh());
+            Log::error('Institution create failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Could not create the institution. Please try again.',
+            ], 500);
+        }
+
+        try {
+            InstitutionSetting::updateOrCreate(['institution_id' => $institution->id], []);
+            app(InstitutionModuleService::class)->syncDefaultsForInstitution($institution->id);
+            app(InstitutionLicenseService::class)->ensureFromLegacy($institution->fresh());
+        } catch (\Exception $e) {
+            Log::error('Institution created but setup failed', [
+                'institution_id' => $institution->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'School created successfully.',
