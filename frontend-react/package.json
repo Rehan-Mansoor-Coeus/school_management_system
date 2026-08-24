@@ -1,6 +1,6 @@
 {
   "name": "admin-dashboard-frontend",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "private": true,
   "scripts": {
     "dev": "node node_modules/vite/bin/vite.js",
