@@ -1,5 +1,5 @@
-import { type ComponentType } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { type ComponentType, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useSidebarSection } from '../hooks/useSidebarSection'
 import {
   Award,
@@ -20,12 +20,14 @@ import {
   Library,
   Mail,
   Megaphone,
+  Power,
   Package,
   Puzzle,
   ScrollText,
   Server,
   Settings,
   Shield,
+  User,
   UserCog,
   Users,
   UtensilsCrossed,
@@ -36,6 +38,10 @@ import { useLettersI18n } from '../hooks/useLettersI18n'
 import { useAuth } from '../context/AuthContext'
 import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS } from '../utils/accessControl'
 import { publicFileUrl } from '../utils/publicFileUrl'
+import api from '../api/client'
+import { clearStoredSession } from '../utils/authSession'
+import { useToast } from './ui/ToastProvider'
+import ChangePasswordModal from './ui/ChangePasswordModal'
 
 type SidebarItem = {
   label: string
@@ -103,6 +109,69 @@ function iconClass(isActive: boolean) {
   return `h-4 w-4 shrink-0 ${isActive ? 'text-[#eab308]' : 'text-blue-200'}`
 }
 
+function roleBadgeLabel(roles: string[], isPlatformSuperAdmin: boolean) {
+  if (isPlatformSuperAdmin) return 'SUPER ADMIN'
+  const first = roles[0]
+  if (!first) return 'USER'
+  return first.replace(/[-_]/g, ' ').toUpperCase()
+}
+
+function SidebarAccountFooter() {
+  const navigate = useNavigate()
+  const { pushToast } = useToast()
+  const { user, userRoles, isPlatformSuperAdmin, clearAuth } = useAuth()
+  const [passwordOpen, setPasswordOpen] = useState(false)
+
+  const displayName = String(user?.name || user?.username || 'Account')
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'A'
+  const badge = roleBadgeLabel(userRoles, isPlatformSuperAdmin)
+
+  const signOut = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // ignore network failure during logout
+    }
+    clearStoredSession()
+    clearAuth()
+    navigate('/admin')
+    pushToast('Logged out successfully.', 'info')
+  }
+
+  return (
+    <div className="mt-3 shrink-0 border-t border-[#2a4a73] pt-4">
+      <div className="mb-3 flex items-center gap-3 px-2">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eab308] text-sm font-bold text-[#1e3a5f]">
+          {initial}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-white">{displayName}</p>
+          <span className="mt-1 inline-flex rounded-full bg-[#eab308] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1e3a5f]">
+            {badge}
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => setPasswordOpen(true)}
+        className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-white hover:bg-[#2a4a73]/70"
+      >
+        <User className="h-4 w-4 shrink-0 text-[#eab308]" aria-hidden="true" />
+        My Profile
+      </button>
+      <button
+        type="button"
+        onClick={signOut}
+        className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-[#f5a3a3] hover:bg-[#2a4a73]/70"
+      >
+        <Power className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Sign Out
+      </button>
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+    </div>
+  )
+}
+
 function SidebarLink({ item, nested = false }: { item: SidebarItem; nested?: boolean }) {
   const Icon = item.icon
   return (
@@ -167,6 +236,7 @@ export default function Sidebar() {
             <SidebarLink key={`${item.label}-${item.path}`} item={item} />
           ))}
         </nav>
+        <SidebarAccountFooter />
       </aside>
     )
   }
@@ -605,6 +675,7 @@ export default function Sidebar() {
           </>
         )}
       </nav>
+      <SidebarAccountFooter />
     </aside>
   )
 }
