@@ -68,14 +68,15 @@ class WhatsAppService
     {
         $formatter = new NotificationMessageFormatter();
         $lines = [
-            $formatter->field('Verification code', $otp),
+            $formatter->field('OTP Code', $otp),
+            $formatter->field('Valid for', '3 minutes'),
         ];
         if ($context) {
             $lines[] = $context;
         }
-        $lines[] = 'This code expires in 3 minutes. Do not share it.';
+        $lines[] = $formatter->action('Never share this code with anyone.');
 
-        $message = $formatter->format('VERIFICATION CODE', null, $lines);
+        $message = $formatter->format('AUTHENTICATION', null, $lines, null, '🔐');
 
         return $this->sendTextMessage($toPhone, $message, 'otp');
     }

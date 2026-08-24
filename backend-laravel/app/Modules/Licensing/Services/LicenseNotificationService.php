@@ -53,7 +53,7 @@ class LicenseNotificationService
             $lines[] = $this->formatter->field((string) $label, (string) $value);
         }
 
-        $body = $this->formatter->format($pair[0], null, array_merge([$pair[1]], $lines), $name);
+        $body = $this->formatter->format($pair[0], null, array_merge($lines, [$this->formatter->action($pair[1])]), $name);
         $this->notifyInstitutionAdmins((int) $license->institution_id, $pair[0], $body, 'licensing');
     }
 

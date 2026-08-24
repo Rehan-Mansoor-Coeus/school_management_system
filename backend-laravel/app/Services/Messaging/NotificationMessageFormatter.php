@@ -3,10 +3,10 @@
 namespace App\Services\Messaging;
 
 /**
- * Shared modern layout for WhatsApp / email / in-app notification bodies.
+ * Shared WhatsApp / email / in-app layout (Mulema-style).
  *
- * WhatsApp does not support custom font sizes; readability comes from clear
- * hierarchy, spacing, and bold labels.
+ * Title: {Institution} | {Subject}
+ * Fields: ▫️ Label: *value*
  */
 class NotificationMessageFormatter
 {
@@ -17,33 +17,26 @@ class NotificationMessageFormatter
     /**
      * Build a structured notification message.
      *
-     * @param  string  $header  Uppercase title, e.g. APPLICATION RECEIVED
+     * @param  string  $header  Subject, e.g. APPLICATION RECEIVED
      * @param  string|null  $greeting  e.g. Hello *Nasrah*,
-     * @param  array<int, string|array{label?:string,value?:string}|null>  $lines
+     * @param  array<int, string|array{label?:string,value?:string,emoji?:string,action?:string}|null>  $lines
      * @param  string|null  $institution  Institution display name
+     * @param  string|null  $emoji  Title emoji; inferred from the subject when omitted
      */
     public function format(
         string $header,
         ?string $greeting = null,
         array $lines = [],
-        ?string $institution = null
+        ?string $institution = null,
+        ?string $emoji = null
     ): string {
         $parts = [];
-        $parts[] = '*'.self::BRAND.'*';
+        $titleEmoji = $emoji !== null && $emoji !== '' ? $emoji : $this->emojiForHeader($header);
+        $title = $this->title($header, $institution);
+
+        $parts[] = $titleEmoji.' *'.$title.'*';
         $parts[] = self::RULE;
         $parts[] = '';
-
-        $header = trim($header);
-        if ($header !== '') {
-            $parts[] = '*'.mb_strtoupper($header).'*';
-            $parts[] = '';
-        }
-
-        $institution = trim((string) $institution);
-        if ($institution !== '') {
-            $parts[] = '*'.$institution.'*';
-            $parts[] = '';
-        }
 
         $greeting = trim((string) $greeting);
         if ($greeting !== '') {
@@ -58,11 +51,21 @@ class NotificationMessageFormatter
             }
 
             if (is_array($line)) {
+                if (! empty($line['action'])) {
+                    $bodyLines[] = '👉 '.trim((string) $line['action']);
+                    $bodyLines[] = '';
+                    continue;
+                }
+
                 $label = trim((string) ($line['label'] ?? ''));
                 $value = trim((string) ($line['value'] ?? ''));
+                $bullet = trim((string) ($line['emoji'] ?? '▫️'));
+                if ($bullet === '') {
+                    $bullet = '▫️';
+                }
+
                 if ($label !== '' && $value !== '') {
-                    $bodyLines[] = '*'.$label.'*';
-                    $bodyLines[] = $value;
+                    $bodyLines[] = $bullet.' '.$label.': *'.$this->stripWrappingBold($value).'*';
                     $bodyLines[] = '';
                 } elseif ($value !== '') {
                     $bodyLines[] = $value;
@@ -76,10 +79,8 @@ class NotificationMessageFormatter
                 continue;
             }
 
-            // Promote "*Label:* value" into stacked label/value for readability.
             if (preg_match('/^\*(.+?):\*\s*(.+)$/u', $text, $m)) {
-                $bodyLines[] = '*'.trim($m[1]).'*';
-                $bodyLines[] = trim($m[2]);
+                $bodyLines[] = '▫️ '.trim($m[1]).': *'.$this->stripWrappingBold(trim($m[2])).'*';
                 $bodyLines[] = '';
                 continue;
             }
@@ -100,16 +101,28 @@ class NotificationMessageFormatter
         }
 
         $parts[] = self::RULE;
-        if ($institution !== '') {
-            $parts[] = '_'.$institution.'_';
-        }
-        $parts[] = '_'.self::BRAND.'_';
+        $parts[] = '🌐 '.self::BRAND;
 
         return implode("\n", $parts);
     }
 
     /**
-     * Wrap free-form content with Okusoma branding (and optional institution).
+     * Display title: Institution | Subject
+     */
+    public function title(string $header, ?string $institution = null): string
+    {
+        $subject = $this->displaySubject($header);
+        $institution = trim((string) $institution);
+
+        if ($institution !== '' && $subject !== '') {
+            return $institution.' | '.$subject;
+        }
+
+        return $institution !== '' ? $institution : $subject;
+    }
+
+    /**
+     * Wrap free-form content with the branded layout.
      */
     public function wrap(string $body, ?string $header = null, ?string $institution = null): string
     {
@@ -118,7 +131,6 @@ class NotificationMessageFormatter
             return $this->format((string) $header, null, [], $institution);
         }
 
-        // Avoid double-wrapping messages that already use this layout.
         if ($this->isBranded($body)) {
             return $body;
         }
@@ -127,8 +139,7 @@ class NotificationMessageFormatter
     }
 
     /**
-     * Append a light brand/institution footer to user-authored content
-     * (announcements, letter captions) without rewriting the body.
+     * Append a light brand footer to user-authored content.
      */
     public function appendBrand(string $body, ?string $institution = null): string
     {
@@ -137,19 +148,13 @@ class NotificationMessageFormatter
             return $body;
         }
 
-        $footer = [self::RULE];
-        $institution = trim((string) $institution);
-        if ($institution !== '') {
-            $footer[] = '_'.$institution.'_';
-        }
-        $footer[] = '_'.self::BRAND.'_';
-
-        return $body."\n\n".implode("\n", $footer);
+        return $body."\n\n".self::RULE."\n🌐 ".self::BRAND;
     }
 
     public function isBranded(string $body): bool
     {
-        return strpos($body, '*'.self::BRAND.'*') !== false
+        return strpos($body, '🌐 '.self::BRAND) !== false
+            || strpos($body, '*'.self::BRAND.'*') !== false
             || strpos($body, '_'.self::BRAND.'_') !== false;
     }
 
@@ -164,13 +169,84 @@ class NotificationMessageFormatter
     }
 
     /**
-     * @return array{label:string,value:string}
+     * @return array{label:string,value:string,emoji:string}
      */
-    public function field(string $label, string $value): array
+    public function field(string $label, string $value, string $emoji = '▫️'): array
     {
         return [
             'label' => $label,
             'value' => $value,
+            'emoji' => $emoji,
         ];
+    }
+
+    /**
+     * @return array{action:string}
+     */
+    public function action(string $text): array
+    {
+        return ['action' => $text];
+    }
+
+    public function emojiForHeader(string $header): string
+    {
+        $h = mb_strtolower(trim($header), 'UTF-8');
+
+        if (preg_match('/otp|verif|username|auth|password|mot de passe/u', $h)) {
+            return '🔐';
+        }
+
+        if (preg_match('/proof|preuve/u', $h) && preg_match('/reject|rejet/u', $h)) {
+            return '⚠️';
+        }
+
+        if (preg_match('/proof|preuve/u', $h)) {
+            return '🧾';
+        }
+
+        if (preg_match('/overdue|reminder|rappel|en retard/u', $h)) {
+            return '⏰';
+        }
+
+        if (preg_match('/payment|paiement|tuition|scolarité|invoice|facture|fee|frais/u', $h)) {
+            return '💳';
+        }
+
+        if (preg_match('/admitted|admission|enrolled|inscription|offer|offre/u', $h)) {
+            return '🎓';
+        }
+
+        if (preg_match('/application|candidature/u', $h) && ! preg_match('/payment|paiement|fee|frais/u', $h)) {
+            return '📥';
+        }
+
+        if (preg_match('/approved|approuv/u', $h)) {
+            return '✅';
+        }
+
+        return '📌';
+    }
+
+    protected function displaySubject(string $header): string
+    {
+        $header = trim($header);
+        if ($header === '') {
+            return '';
+        }
+
+        if ($header !== mb_strtoupper($header, 'UTF-8')) {
+            return $header;
+        }
+
+        return mb_convert_case(mb_strtolower($header, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+    }
+
+    protected function stripWrappingBold(string $value): string
+    {
+        if (preg_match('/^\*(.+)\*$/u', $value, $m)) {
+            return $m[1];
+        }
+
+        return $value;
     }
 }

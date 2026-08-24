@@ -72,7 +72,7 @@ class FeeReminderProcessor
                     $formatter->field('Balance', (string) $fee->balance),
                     $formatter->field('Status', (string) $status),
                     $formatter->field('Pay before', (string) $fee->latest_payment_date),
-                    'Please settle your semester fee balance before the due date.',
+                    $formatter->action('Please settle your semester fee balance before the due date.'),
                 ],
                 optional(Institution::find($fee->institution_id))->name
             );

@@ -354,21 +354,37 @@ class NotificationService
         $body = isset($keys[$status])
             ? $this->transForUser('admissions.'.$keys[$status], $replace, $user)
             : $title;
+        $displayTitle = $this->formatter->title($header, optional($application->institution)->name);
+
+        $lines = [
+            $this->formatter->field(
+                $this->transForUser('admissions.notify_field_application', [], $user),
+                (string) $replace['number']
+            ),
+            $this->formatter->field(
+                $this->transForUser('admissions.notify_field_programme', [], $user),
+                (string) $replace['programme']
+            ),
+        ];
+
+        $amount = $this->statusFeeAmount($application, $status, $replace);
+        if ($amount !== '') {
+            $lines[] = $this->formatter->field(
+                $this->transForUser('admissions.notify_field_amount', [], $user),
+                $amount
+            );
+        }
+
+        if ($this->isPaymentStatus($status)) {
+            $lines[] = $this->formatter->action($body);
+        } else {
+            $lines[] = $body;
+        }
 
         $message = $this->formatter->format(
             $header,
             $this->formatter->greeting($replace['name']),
-            [
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_application', [], $user),
-                    (string) $replace['number']
-                ),
-                $this->formatter->field(
-                    $this->transForUser('admissions.notify_field_programme', [], $user),
-                    (string) $replace['programme']
-                ),
-                $body,
-            ],
+            $lines,
             optional($application->institution)->name
         );
 
@@ -376,12 +392,12 @@ class NotificationService
             $this->createInAppNotification(
                 $application->applicant->user_id,
                 $application->institution_id,
-                $header,
+                $displayTitle,
                 $message,
                 'admission'
             );
 
-            $this->sendStatusEmail($application, $header, $message);
+            $this->sendStatusEmail($application, $displayTitle, $message);
             $this->sendStatusWhatsApp($application, $message, $user);
         }
     }
@@ -504,9 +520,10 @@ class NotificationService
         $currency = strtoupper((string) ($institution->currency ?? 'USD'));
 
         $application->loadMissing(['institution', 'programme', 'applicant']);
-        $title = $this->transForUser('admissions.notify_payment_proof_title');
+        $header = $this->transForUser('admissions.notify_header_application_fee_proof_submitted');
+        $title = $this->formatter->title($header, optional($application->institution)->name);
         $message = $this->formatter->format(
-            $this->transForUser('admissions.notify_header_application_fee_proof_submitted'),
+            $header,
             null,
             [
                 $this->formatter->field(
@@ -517,7 +534,7 @@ class NotificationService
                     $this->transForUser('admissions.notify_field_amount'),
                     $currency.' '.number_format((float) $payment->amount, 2)
                 ),
-                $this->transForUser('admissions.notify_payment_proof_submitted_body'),
+                $this->formatter->action($this->transForUser('admissions.notify_payment_proof_submitted_body')),
             ],
             optional($application->institution)->name
         );
@@ -535,9 +552,10 @@ class NotificationService
         }
 
         $application->loadMissing(['institution', 'programme', 'applicant.user']);
-        $title = $this->transForUser('admissions.notify_payment_proof_title', [], $user);
+        $header = $this->transForUser('admissions.notify_header_application_fee_proof_rejected', [], $user);
+        $title = $this->formatter->title($header, optional($application->institution)->name);
         $message = $this->formatter->format(
-            $this->transForUser('admissions.notify_header_application_fee_proof_rejected', [], $user),
+            $header,
             $this->formatter->greeting(optional($application->applicant)->first_name ?: optional($user)->name),
             [
                 $this->formatter->field(
@@ -548,7 +566,7 @@ class NotificationService
                     $this->transForUser('admissions.notify_field_reason', [], $user),
                     $payment->review_notes ?: '—'
                 ),
-                $this->transForUser('admissions.notify_payment_proof_rejected_body', [], $user),
+                $this->formatter->action($this->transForUser('admissions.notify_payment_proof_rejected_body', [], $user)),
             ],
             optional($application->institution)->name
         );
@@ -620,11 +638,44 @@ class NotificationService
             $this->createInAppNotification(
                 $user->id,
                 $application->institution_id,
-                $this->transForUser('admissions.notify_status_title', [], $user),
+                $this->formatter->title((string) $title, optional($application->institution)->name),
                 $formatted,
                 'admission'
             );
         }
+    }
+
+    protected function isPaymentStatus($status): bool
+    {
+        return in_array($status, [
+            'application_fee_paid',
+            'application_fee_proof_submitted',
+            'application_fee_proof_rejected',
+            'tuition_paid',
+            'tuition_proof_submitted',
+        ], true);
+    }
+
+    protected function statusFeeAmount(Application $application, $status, array $replace = []): string
+    {
+        if (! $this->isPaymentStatus($status)) {
+            return '';
+        }
+
+        if (! empty($replace['amount'])) {
+            return trim((string) $replace['amount']);
+        }
+
+        $currency = strtoupper((string) (optional($application->institution)->currency ?: 'USD'));
+        $amount = $status === 'tuition_paid'
+            ? $application->tuition_fee
+            : $application->application_fee;
+
+        if ((float) $amount <= 0) {
+            return '';
+        }
+
+        return $currency.' '.number_format((float) $amount, 2);
     }
 
     protected function createInAppNotification($userId, $institutionId, $title, $message, $category)
