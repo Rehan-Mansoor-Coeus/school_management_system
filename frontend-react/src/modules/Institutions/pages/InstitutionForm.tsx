@@ -593,6 +593,9 @@ export default function InstitutionForm({ mode, institutionId, onClose, onSaved 
                       placeholder="Search country…"
                     />
                   </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Mobile Money uses this country's operators and currency. Students do not pick a country at payment.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700">City</label>

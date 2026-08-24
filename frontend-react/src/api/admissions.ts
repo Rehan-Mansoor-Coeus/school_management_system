@@ -172,6 +172,33 @@ export async function fetchPaymentMethods(applicationId?: number) {
   return data.data as {
     stripe?: { enabled: boolean; publishable_key?: string | null };
     campay?: { enabled: boolean };
+    school?: {
+      country_code?: string | null;
+      country_name?: string | null;
+      currency?: string | null;
+    };
+    pawapay?: {
+      enabled: boolean;
+      country_code?: string | null;
+      country_name?: string | null;
+      currency?: string | null;
+      phone_prefix?: string | null;
+      phone_placeholder?: string | null;
+      providers?: Array<{ code: string; label: string }>;
+      school?: {
+        country_code?: string | null;
+        country_name?: string | null;
+        currency?: string | null;
+      };
+      payer?: {
+        country_code?: string | null;
+        country_name?: string | null;
+        currency?: string | null;
+        phone_prefix?: string | null;
+        phone_placeholder?: string | null;
+        providers?: Array<{ code: string; label: string }>;
+      } | null;
+    };
     flutterwave?: { enabled: boolean };
     proof?: { enabled: boolean };
   };
@@ -217,6 +244,68 @@ export async function verifyCampayPayment(reference: string) {
   return data.data as {
     status?: string;
     campay_status?: string;
+  };
+}
+
+export async function createPawapayPayment(
+  applicationId: number,
+  paymentType: 'application_fee' | 'tuition',
+  phone: string,
+  provider?: string
+) {
+  const { data } = await api.post('/admissions/payment/pawapay/collect', {
+    application_id: applicationId,
+    payment_type: paymentType,
+    phone,
+    provider: provider || undefined,
+  });
+  return data.data as {
+    deposit_id?: string;
+    reference?: string;
+    reference_number?: string;
+    status?: string;
+    currency?: string;
+    payer_amount?: string;
+    payer_currency?: string;
+    country_name?: string;
+    provider?: string;
+  };
+}
+
+export async function fetchPawapayQuote(
+  applicationId: number,
+  paymentType: 'application_fee' | 'tuition',
+  phone: string
+) {
+  const { data } = await api.get('/admissions/payment/pawapay/quote', {
+    params: {
+      application_id: applicationId,
+      payment_type: paymentType,
+      phone: phone || undefined,
+    },
+  });
+  return data.data as {
+    school?: { country_name?: string | null; currency?: string | null };
+    payer?: {
+      country_name?: string | null;
+      currency?: string | null;
+      phone_placeholder?: string | null;
+      providers?: Array<{ code: string; label: string }>;
+    };
+    school_amount?: number;
+    school_currency?: string;
+    payer_amount?: number;
+    payer_amount_formatted?: string;
+    payer_currency?: string;
+    same_currency?: boolean;
+  };
+}
+
+export async function verifyPawapayPayment(depositId: string) {
+  const { data } = await api.get(`/admissions/payment/pawapay/status/${encodeURIComponent(depositId)}`);
+  return data.data as {
+    status?: string;
+    pawapay_status?: string;
   };
 }
 

@@ -67,4 +67,14 @@ return [
         'currency' => env('CAMPAY_CURRENCY', 'XAF'),
     ],
 
+    'pawapay' => [
+        'api_token' => env('PAWAPAY_API_TOKEN'),
+        'base_url' => env('PAWAPAY_BASE_URL', 'https://api.pawapay.io'),
+        'deposit_callback_url' => env('PAWAPAY_DEPOSIT_CALLBACK_URL', env('APP_URL').'/api/payments/pawapay/deposits/callback'),
+        'checkout_callback_url' => env('PAWAPAY_CHECKOUT_CALLBACK_URL', env('APP_URL').'/api/payments/pawapay/checkouts/callback'),
+        'payout_callback_url' => env('PAWAPAY_PAYOUT_CALLBACK_URL', env('APP_URL').'/api/payments/pawapay/payouts/callback'),
+        'refund_callback_url' => env('PAWAPAY_REFUND_CALLBACK_URL', env('APP_URL').'/api/payments/pawapay/refunds/callback'),
+        'fx_url' => env('PAWAPAY_FX_URL', 'https://open.er-api.com/v6/latest/USD'),
+    ],
+
 ];

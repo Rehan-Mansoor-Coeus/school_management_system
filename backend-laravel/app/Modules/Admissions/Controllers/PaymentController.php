@@ -34,9 +34,10 @@ class PaymentController extends Controller
 
     public function methods(Request $request)
     {
+        $application = null;
         $institutionId = null;
         if ($request->filled('application_id')) {
-            $application = Application::find($request->application_id);
+            $application = Application::with(['applicant', 'institution'])->find($request->application_id);
             $institutionId = $application ? $application->institution_id : null;
         }
         if (! $institutionId && auth()->user()) {
@@ -45,7 +46,10 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->paymentService->getAvailableMethods($institutionId ? (int) $institutionId : null),
+            'data' => $this->paymentService->getAvailableMethods(
+                $institutionId ? (int) $institutionId : null,
+                $application
+            ),
         ]);
     }
 

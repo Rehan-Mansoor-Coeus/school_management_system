@@ -47,6 +47,13 @@ Route::middleware('auth:api')->group(function () {
     Route::post('app-notifications/read-all', 'Api\AppNotificationController@markAllRead');
 });
 
+Route::prefix('payments/pawapay')->group(function () {
+    Route::post('deposits/callback', 'Api\PawaPayCallbackController@deposits');
+    Route::post('checkouts/callback', 'Api\PawaPayCallbackController@checkouts');
+    Route::post('payouts/callback', 'Api\PawaPayCallbackController@payouts');
+    Route::post('refunds/callback', 'Api\PawaPayCallbackController@refunds');
+});
+
 Route::get('letters/public/verify/{letter}', 'Api\Letters\LetterPublicController@verify');
 
 // Platform super-admin: manage every school (licensing, plans, admins).

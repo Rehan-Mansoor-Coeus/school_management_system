@@ -2,9 +2,13 @@
 
 namespace App\Modules\Admissions\Services;
 
+use App\Institution;
 use App\Modules\Admissions\Models\Application;
 use App\Modules\Admissions\Models\ApplicationPayment;
 use App\Services\InstitutionPaymentConfigResolver;
+use App\Services\PawaPayCountryCatalog;
+use App\Services\PawaPayFxService;
+use App\Services\PawaPayService;
 use App\Support\HttpClient;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -21,12 +25,23 @@ class PaymentService
         $this->configResolver = new InstitutionPaymentConfigResolver();
     }
 
-    public function getAvailableMethods(?int $institutionId = null): array
+    public function getAvailableMethods(?int $institutionId = null, ?Application $application = null): array
     {
-        $institutionId = $institutionId ?: (int) optional(auth()->user())->institution_id;
+        $institutionId = $institutionId ?: (int) optional($application)->institution_id ?: (int) optional(auth()->user())->institution_id;
         $stripe = $institutionId ? StripePaymentService::forInstitution($institutionId) : new StripePaymentService();
         $campay = $institutionId ? CampayPaymentService::forInstitution($institutionId) : new CampayPaymentService();
         $flutterwave = $institutionId ? $this->configResolver->flutterwave($institutionId) : ['enabled' => ! empty(config('services.flutterwave.secret_key')), 'secret_key' => config('services.flutterwave.secret_key')];
+        $institution = $institutionId ? Institution::find($institutionId) : null;
+        $pawapayConfigured = (new PawaPayService())->isConfigured();
+        $school = PawaPayCountryCatalog::schoolContext($institution);
+        $applicant = optional($application)->applicant;
+        $payer = $pawapayConfigured
+            ? PawaPayCountryCatalog::forPayer(
+                (string) optional($applicant)->phone,
+                optional($applicant)->country,
+                $institution
+            )
+            : null;
 
         return [
             'stripe' => [
@@ -34,7 +49,19 @@ class PaymentService
                 'publishable_key' => $stripe->publicKey(),
             ],
             'campay' => [
-                'enabled' => $campay->isConfigured(),
+                'enabled' => $campay->isConfigured() && ! $pawapayConfigured,
+            ],
+            'school' => $school,
+            'pawapay' => [
+                'enabled' => $pawapayConfigured,
+                'country_code' => $payer['country_code'] ?? $school['country_code'] ?? null,
+                'country_name' => $payer['country_name'] ?? $school['country_name'] ?? null,
+                'currency' => $payer['currency'] ?? $school['currency'] ?? null,
+                'phone_prefix' => $payer['phone_prefix'] ?? null,
+                'phone_placeholder' => $payer['phone_placeholder'] ?? null,
+                'providers' => $payer['providers'] ?? [],
+                'school' => $school,
+                'payer' => $payer ? $this->presentPayerCatalog($payer) : null,
             ],
             'flutterwave' => [
                 'enabled' => ! empty($flutterwave['secret_key']) && ($flutterwave['enabled'] ?? true),
@@ -237,6 +264,289 @@ class PaymentService
             'campay_status' => $campayStatus,
             'status' => $payment->fresh()->status,
         ];
+    }
+
+    public function quotePawapayPayment(Application $application, string $paymentType, string $phone): array
+    {
+        $institution = $application->institution ?: Institution::find($application->institution_id);
+        $applicant = $application->applicant;
+        $school = PawaPayCountryCatalog::schoolContext($institution);
+        $digits = PawaPayCountryCatalog::digitsOnly($phone);
+        $fromPhone = PawaPayCountryCatalog::forPhone($phone);
+
+        if ($digits !== '' && strlen($digits) >= 10 && ! $fromPhone) {
+            throw new \RuntimeException(__('admissions.pawapay_phone_unsupported'));
+        }
+
+        $payer = PawaPayCountryCatalog::forPayer(
+            $phone,
+            optional($applicant)->country,
+            $institution
+        );
+        if (! $payer) {
+            throw new \RuntimeException(__('admissions.pawapay_phone_unsupported'));
+        }
+
+        $schoolAmount = (float) ($paymentType === 'tuition' ? $application->tuition_fee : $application->application_fee);
+        $schoolCurrency = $school['currency'] ?: $payer['currency'];
+        $fx = (new PawaPayFxService())->convert($schoolAmount, $schoolCurrency, $payer['currency']);
+        $providerCode = $payer['providers'][0]['code'] ?? '';
+        $payerAmountString = PawaPayCountryCatalog::formatAmount(
+            $fx['amount'],
+            $providerCode ? PawaPayCountryCatalog::providerAllowsDecimals($providerCode, $payer) : false
+        );
+
+        return [
+            'school' => $school,
+            'payer' => $this->presentPayerCatalog($payer),
+            'school_amount' => $schoolAmount,
+            'school_currency' => $schoolCurrency,
+            'payer_amount' => (float) $payerAmountString,
+            'payer_amount_formatted' => $payerAmountString,
+            'payer_currency' => $payer['currency'],
+            'fx_rate' => $fx['rate'],
+            'same_currency' => $schoolCurrency === $payer['currency'],
+        ];
+    }
+
+    public function initializePawapayPayment(Application $application, string $paymentType, string $phone, ?string $provider = null): ?array
+    {
+        $pawapay = new PawaPayService();
+        if (! $pawapay->isConfigured()) {
+            return null;
+        }
+
+        if ($paymentType === 'application_fee' && ! $application->canPayApplicationFee()) {
+            throw new \RuntimeException(__('admissions.fee_cannot_pay'));
+        }
+
+        if ($paymentType === 'tuition' && ! $application->canPayTuition()) {
+            throw new \RuntimeException(__('admissions.tuition_cannot_pay'));
+        }
+
+        $quote = $this->buildPawapayQuote($application, $paymentType, $phone, $provider);
+        $payer = $quote['payer'];
+        $msisdn = $quote['msisdn'];
+        $resolvedProvider = $quote['provider'];
+
+        $depositId = (string) Str::uuid();
+        $referenceNumber = $this->generatePaymentReference();
+
+        $payment = ApplicationPayment::create([
+            'institution_id' => $application->institution_id,
+            'application_id' => $application->id,
+            'reference_number' => $referenceNumber,
+            'transaction_id' => $depositId,
+            'payment_type' => $paymentType,
+            'payment_method' => 'pawapay',
+            'amount' => $quote['school_amount'],
+            'status' => 'pending',
+            'description' => ucfirst(str_replace('_', ' ', $paymentType))." for {$application->application_number}",
+            'gateway_response' => [
+                'school_amount' => $quote['school_amount'],
+                'school_currency' => $quote['school_currency'],
+                'payer_amount' => $quote['payer_amount_string'],
+                'payer_currency' => $quote['payer_currency'],
+                'fx_rate' => $quote['fx_rate'],
+                'country' => $payer['country_code'],
+                'provider' => $resolvedProvider,
+                'phone' => $msisdn,
+            ],
+        ]);
+
+        $result = $pawapay->createDeposit([
+            'depositId' => $depositId,
+            'amount' => $quote['payer_amount_string'],
+            'currency' => $quote['payer_currency'],
+            'payer' => [
+                'type' => 'MMO',
+                'accountDetails' => [
+                    'phoneNumber' => $msisdn,
+                    'provider' => $resolvedProvider,
+                ],
+            ],
+            'customerMessage' => 'Okusoma fees',
+            'clientReferenceId' => $referenceNumber,
+            'metadata' => [
+                ['applicationId' => (string) $application->id],
+                ['paymentType' => $paymentType],
+                ['schoolCurrency' => $quote['school_currency']],
+                ['payerCountry' => $payer['country_code']],
+            ],
+        ]);
+
+        if (! $result) {
+            $payment->markAsFailed(['error' => 'empty_pawapay_response']);
+            return null;
+        }
+
+        $status = strtoupper((string) ($result['status'] ?? ''));
+        $payment->update(['gateway_response' => array_merge($payment->gateway_response ?: [], $result)]);
+
+        if ($status === 'REJECTED') {
+            $payment->markAsFailed($result);
+            $message = data_get($result, 'failureReason.failureMessage')
+                ?: __('admissions.pawapay_failed');
+            throw new \RuntimeException($message);
+        }
+
+        return [
+            'deposit_id' => $depositId,
+            'reference' => $depositId,
+            'reference_number' => $referenceNumber,
+            'amount' => $quote['school_amount'],
+            'currency' => $quote['school_currency'],
+            'payer_amount' => $quote['payer_amount_string'],
+            'payer_currency' => $quote['payer_currency'],
+            'country_name' => $payer['country_name'],
+            'provider' => $resolvedProvider,
+            'status' => $status ?: 'ACCEPTED',
+        ];
+    }
+
+    protected function buildPawapayQuote(Application $application, string $paymentType, string $phone, ?string $provider = null): array
+    {
+        $institution = $application->institution ?: Institution::find($application->institution_id);
+        $applicant = $application->applicant;
+        $school = PawaPayCountryCatalog::schoolContext($institution);
+        $payer = PawaPayCountryCatalog::forPayer(
+            $phone,
+            optional($applicant)->country,
+            $institution
+        );
+
+        if (! $payer) {
+            throw new \RuntimeException(__('admissions.pawapay_phone_unsupported'));
+        }
+
+        $fromPhone = PawaPayCountryCatalog::forPhone($phone);
+        if ($phone !== '' && PawaPayCountryCatalog::digitsOnly($phone) !== '' && ! $fromPhone) {
+            $digits = PawaPayCountryCatalog::digitsOnly($phone);
+            if (strlen($digits) >= 8) {
+                throw new \RuntimeException(__('admissions.pawapay_phone_unsupported'));
+            }
+        }
+
+        $msisdn = PawaPayCountryCatalog::normalizePhone($phone, $payer);
+        $resolvedProvider = $provider ?: PawaPayCountryCatalog::detectProvider($msisdn, $payer);
+
+        if (! $resolvedProvider) {
+            $predicted = (new PawaPayService())->predictProvider($msisdn);
+            $resolvedProvider = data_get($predicted, 'provider')
+                ?: data_get($predicted, 'data.provider');
+        }
+
+        if (! $resolvedProvider || ! PawaPayCountryCatalog::providerBelongsToCountry((string) $resolvedProvider, $payer)) {
+            throw new \RuntimeException(__('admissions.pawapay_operator_required'));
+        }
+
+        $prefix = $payer['phone_prefix'];
+        $localLength = (int) $payer['local_length'];
+        if (! preg_match('/^'.$prefix.'[1-9][0-9]{'.($localLength - 1).','.($localLength + 1).'}$/', $msisdn)) {
+            throw new \RuntimeException(__('admissions.pawapay_phone_invalid'));
+        }
+
+        $schoolAmount = (float) ($paymentType === 'tuition' ? $application->tuition_fee : $application->application_fee);
+        $schoolCurrency = $school['currency'] ?: $payer['currency'];
+        if ($schoolCurrency === '') {
+            throw new \RuntimeException(__('admissions.pawapay_country_unavailable'));
+        }
+
+        $fx = (new PawaPayFxService())->convert($schoolAmount, $schoolCurrency, $payer['currency']);
+        $payerAmountString = PawaPayCountryCatalog::formatAmount(
+            $fx['amount'],
+            PawaPayCountryCatalog::providerAllowsDecimals((string) $resolvedProvider, $payer)
+        );
+
+        return [
+            'school' => $school,
+            'payer' => $payer,
+            'msisdn' => $msisdn,
+            'provider' => $resolvedProvider,
+            'school_amount' => $schoolAmount,
+            'school_currency' => $schoolCurrency,
+            'payer_amount' => (float) $payerAmountString,
+            'payer_amount_string' => $payerAmountString,
+            'payer_currency' => $payer['currency'],
+            'fx_rate' => $fx['rate'],
+        ];
+    }
+
+    protected function presentPayerCatalog(array $catalog): array
+    {
+        return [
+            'country_code' => $catalog['country_code'] ?? null,
+            'country_name' => $catalog['country_name'] ?? null,
+            'currency' => $catalog['currency'] ?? null,
+            'phone_prefix' => $catalog['phone_prefix'] ?? null,
+            'phone_placeholder' => $catalog['phone_placeholder'] ?? null,
+            'providers' => $catalog['providers'] ?? [],
+        ];
+    }
+
+    public function verifyPawapayPayment(string $depositId): ?array
+    {
+        $payment = ApplicationPayment::where('payment_method', 'pawapay')
+            ->where(function ($query) use ($depositId) {
+                $query->where('transaction_id', $depositId)
+                    ->orWhere('reference_number', $depositId);
+            })
+            ->first();
+
+        if (! $payment) {
+            return null;
+        }
+
+        $payload = (new PawaPayService())->getDeposit($payment->transaction_id);
+        $this->applyPawapayStatus($payment, $payload ?: []);
+
+        $fresh = $payment->fresh();
+
+        return [
+            'payment' => $fresh,
+            'application' => Application::find($payment->application_id),
+            'pawapay_status' => (new PawaPayService())->extractDepositStatus($payload),
+            'status' => $fresh ? $fresh->status : $payment->status,
+        ];
+    }
+
+    public function processPawapayCallback(array $payload): bool
+    {
+        $depositId = (new PawaPayService())->extractDepositId($payload);
+        if (! $depositId) {
+            return false;
+        }
+
+        $payment = ApplicationPayment::where('payment_method', 'pawapay')
+            ->where('transaction_id', $depositId)
+            ->first();
+
+        if (! $payment) {
+            return false;
+        }
+
+        $this->applyPawapayStatus($payment, $payload);
+
+        return true;
+    }
+
+    protected function applyPawapayStatus(ApplicationPayment $payment, array $payload): void
+    {
+        $status = (new PawaPayService())->extractDepositStatus($payload);
+
+        if (in_array($status, ['COMPLETED', 'SUCCESSFUL', 'SUCCESS'], true) && $payment->status !== 'completed') {
+            $payment->markAsCompleted($payment->transaction_id, array_merge($payment->gateway_response ?: [], $payload));
+            $application = Application::find($payment->application_id);
+            if ($application) {
+                $this->applyPaymentToApplication($application, $payment->payment_type, $payment);
+            }
+
+            return;
+        }
+
+        if (in_array($status, ['FAILED', 'REJECTED', 'CANCELLED'], true) && $payment->status === 'pending') {
+            $payment->markAsFailed($payload);
+        }
     }
 
     public function initializePayment(Application $application, $paymentType = 'application_fee', $amount = null)
@@ -562,7 +872,7 @@ class PaymentService
 
     protected function isDigitalPaymentMethod(?string $method): bool
     {
-        return in_array($method, ['stripe', 'campay', 'flutterwave', 'online'], true);
+        return in_array($method, ['stripe', 'campay', 'pawapay', 'flutterwave', 'online'], true);
     }
 
     protected function autoEnrollAfterDigitalTuition(Application $application, NotificationService $notificationService): void

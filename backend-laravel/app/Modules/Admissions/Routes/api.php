@@ -10,6 +10,7 @@ use App\Modules\Admissions\Controllers\PaymentController;
 use App\Modules\Admissions\Controllers\PaymentProofController;
 use App\Modules\Admissions\Controllers\StripePaymentController;
 use App\Modules\Admissions\Controllers\CampayPaymentController;
+use App\Modules\Admissions\Controllers\PawaPayPaymentController;
 use App\Modules\Admissions\Controllers\StudentDashboardController;
 use App\Modules\Admissions\Controllers\CourseRegistrationController;
 use App\Modules\Admissions\Controllers\DocumentReviewController;
@@ -20,6 +21,7 @@ use App\Modules\Admissions\Controllers\AdmissionsAdminDashboardController;
 Route::prefix('admissions')->group(function () {
     Route::post('payment/webhook', [PaymentController::class, 'webhook']);
     Route::post('payment/stripe/webhook', [StripePaymentController::class, 'webhook']);
+    Route::post('payment/pawapay/callback', [PawaPayPaymentController::class, 'callback']);
 
     Route::middleware(['auth:api', 'module_enabled:admissions'])->group(function () {
         Route::get('student/dashboard', [StudentDashboardController::class, 'index']);
@@ -49,6 +51,9 @@ Route::prefix('admissions')->group(function () {
         Route::post('payment/stripe/confirm', [StripePaymentController::class, 'confirm']);
         Route::post('payment/campay/collect', [CampayPaymentController::class, 'collect']);
         Route::get('payment/campay/status/{reference}', [CampayPaymentController::class, 'status']);
+        Route::post('payment/pawapay/collect', [PawaPayPaymentController::class, 'collect']);
+        Route::get('payment/pawapay/quote', [PawaPayPaymentController::class, 'quote']);
+        Route::get('payment/pawapay/status/{depositId}', [PawaPayPaymentController::class, 'status']);
 
         Route::middleware('role:registry|finance-officer|institution-admin|admin|super-admin')->group(function () {
             Route::get('payment/pending-proofs', [PaymentProofController::class, 'pendingProofs']);
