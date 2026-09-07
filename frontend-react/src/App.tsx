@@ -17,6 +17,7 @@ import SystemIndexRedirect from './components/system/SystemIndexRedirect'
 import InstitutionRequestsPage from './pages/InstitutionRequestsPage'
 import ApplicationsEntry from './pages/ApplicationsEntry'
 import DashboardPage from './pages/Dashboard'
+import SchoolAdminHelpPage from './pages/help/SchoolAdminHelpPage'
 import SchoolDetailPage from './pages/superadmin/SchoolDetail'
 import InstitutionsPage from './pages/superadmin/InstitutionsPage'
 import PlatformUsersPage from './pages/superadmin/PlatformUsersPage'
@@ -238,6 +239,7 @@ export default function App(){
 
         <Route element={<ProtectedRoute><MainLayout/></ProtectedRoute>}>
           <Route path="dashboard" element={<DashboardPage/>} />
+          <Route path="help" element={<SchoolAdminHelpPage />} />
           <Route path="super-admin" element={<Navigate to="/super-admin/dashboard" replace />} />
           <Route path="super-admin/dashboard" element={<DashboardPage/>} />
           <Route path="super-admin/institutions" element={<InstitutionsPage />} />

@@ -84,6 +84,7 @@ export default function AdminDashboard() {
     canAccess({ permissions: ['roles.view', 'view_roles', 'manage_roles'] }) && { label: 'Roles & Permissions', to: '/roles-permissions', description: 'Control access for your school', icon: UserCog },
     canAccess({ permissions: ['modules.view', 'modules.manage', 'manage_modules'] }) && { label: 'Modules', to: '/modules', description: 'Enable features for your school', icon: Puzzle },
     canAccess({ permissions: ['institutions.view', 'institutions.edit'] }) && { label: 'School profile', to: '/institutions', description: 'Branding and institution settings', icon: Building2 },
+    { label: 'Help', to: '/help', description: 'Set up the school in the right order', icon: BookOpen },
   ].filter(Boolean) as Array<{ label: string; to: string; description: string; icon: typeof Users }>
 
   return (

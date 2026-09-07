@@ -7,6 +7,7 @@ import {
   Bell,
   Building2,
   CalendarDays,
+  CircleHelp,
   CheckSquare,
   Clock,
   CreditCard,
@@ -34,6 +35,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
+import { helpT } from '../i18n/help'
 import { useLettersI18n } from '../hooks/useLettersI18n'
 import { useAuth } from '../context/AuthContext'
 import { ACCESS_CONTROL_PERMISSIONS, MODULE_MENU_PERMISSIONS } from '../utils/accessControl'
@@ -203,10 +205,11 @@ const platformNavItems: SidebarItem[] = [
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2 },
   { label: 'Roles & Permissions', path: '/roles-permissions', icon: UserCog },
   { label: 'Platform Settings', path: '/system/general-settings', icon: Settings },
+  { label: 'Help', path: '/help', icon: CircleHelp },
 ]
 
 export default function Sidebar() {
-  const { t } = useTimesheetI18n()
+  const { t, locale } = useTimesheetI18n()
   const { t: tLetters } = useLettersI18n()
   const {
     institution,
@@ -690,6 +693,15 @@ export default function Sidebar() {
             ))}
           </>
         )}
+
+        <NavLink to="/help" className={({ isActive }) => linkClass(isActive)}>
+          {({ isActive }) => (
+            <>
+              <CircleHelp className={iconClass(isActive)} aria-hidden="true" />
+              <span className="truncate">{helpT('menu', locale)}</span>
+            </>
+          )}
+        </NavLink>
       </nav>
       <SidebarAccountFooter />
     </aside>
