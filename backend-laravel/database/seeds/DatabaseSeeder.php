@@ -16,5 +16,7 @@ class DatabaseSeeder extends Seeder
         $this->call(LibraryPermissionSeeder::class);
         $this->call(LicensePlansSeeder::class);
         $this->call(SyncAllPermissionsSeeder::class);
+        $this->call(AiPermissionSeeder::class);
+        $this->call(AiKnowledgeSeeder::class);
     }
 }

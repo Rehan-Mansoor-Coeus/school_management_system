@@ -30,6 +30,7 @@ import SemesterLicensesPage from './pages/superadmin/licensing/SemesterLicensesP
 import LicenseInvoicesPage from './pages/superadmin/licensing/LicenseInvoicesPage'
 import LicensePaymentsPage from './pages/superadmin/licensing/LicensePaymentsPage'
 import LicensingReportsPage from './pages/superadmin/licensing/LicensingReportsPage'
+import AiKnowledgeManagerPage from './pages/superadmin/AiKnowledgeManagerPage'
 import InstitutionBillingPage from './pages/InstitutionBillingPage'
 import RolesAndPermissionsPage from './pages/RolesAndPermissions'
 import LibraryLayout from './components/library/LibraryLayout'
@@ -255,6 +256,7 @@ export default function App(){
           <Route path="super-admin/licensing/invoices" element={<LicenseInvoicesPage />} />
           <Route path="super-admin/licensing/payments" element={<LicensePaymentsPage />} />
           <Route path="super-admin/licensing/reports" element={<LicensingReportsPage />} />
+          <Route path="super-admin/ai-knowledge" element={<AiKnowledgeManagerPage />} />
           <Route path="general-settings" element={<Navigate to="/system/general-settings" replace />} />
           <Route path="system" element={<SystemLayout />}>
             <Route path="general-settings" element={<GeneralSettingsPage />} />

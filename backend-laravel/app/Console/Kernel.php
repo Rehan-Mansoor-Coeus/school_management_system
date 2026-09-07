@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        //
+        \App\Modules\AiAssistant\Console\ImportHelpKnowledgeCommand::class,
     ];
 
     /**
@@ -46,6 +46,7 @@ class Kernel extends ConsoleKernel
     protected function commands()
     {
         $this->load(__DIR__.'/Commands');
+        $this->load(app_path('Modules/AiAssistant/Console'));
 
         require base_path('routes/console.php');
     }

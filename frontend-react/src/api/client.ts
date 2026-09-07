@@ -40,6 +40,7 @@ function isPublicAuthRequest(url: string): boolean {
   return /\/auth\/(login|register|signup|forgot-password|forgot-username)/i.test(path)
     || /\/auth\/signup\//i.test(path)
     || /\/auth\/forgot-password\//i.test(path)
+    || /\/ai\//i.test(path)
 }
 
 function wipeLocalSession() {

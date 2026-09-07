@@ -90,6 +90,7 @@ class RouteServiceProvider extends ServiceProvider
                  require base_path('app/Modules/Audit/Routes/api.php');
                  require base_path('app/Modules/Contracts/Routes/api.php');
                  require base_path('app/Modules/Timetable/Routes/api.php');
+                 require base_path('app/Modules/AiAssistant/Routes/api.php');
              });
     }
 }

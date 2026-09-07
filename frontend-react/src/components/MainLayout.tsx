@@ -10,6 +10,7 @@ import { useTimesheetI18n } from '../hooks/useTimesheetI18n'
 import { useAuth } from '../context/AuthContext'
 import { NotificationBell } from '../modules/admissions/components/NotificationBell'
 import ChangePasswordModal from './ui/ChangePasswordModal'
+import MboleChat from '../landing/components/MboleChat'
 
 const SCHOOL_ONLY_PREFIXES = [
   '/timetable',
@@ -200,6 +201,7 @@ export default function MainLayout() {
       </div>
 
       <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <MboleChat />
     </div>
   )
 }
