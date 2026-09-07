@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, Building2, CircleHelp, ExternalLink } from 'lucide-react'
+import { BookOpen, Building2, ExternalLink, HelpCircle } from 'lucide-react'
 import { useTimesheetI18n } from '../../hooks/useTimesheetI18n'
 import { helpT } from '../../i18n/help'
 
@@ -32,7 +32,7 @@ export default function SchoolAdminHelpPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-[#1e3a5f] to-[#2d4a73] p-6 text-white shadow-sm">
         <p className="flex items-center gap-2 text-sm text-blue-100">
-          <CircleHelp className="h-4 w-4" /> {t('menu')}
+          <HelpCircle className="h-4 w-4" /> {t('menu')}
         </p>
         <h1 className="mt-1 text-2xl font-semibold">{t('title')}</h1>
         <p className="mt-2 max-w-3xl text-sm text-blue-100">{t('subtitle')}</p>

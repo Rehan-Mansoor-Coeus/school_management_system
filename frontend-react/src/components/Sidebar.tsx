@@ -7,7 +7,7 @@ import {
   Bell,
   Building2,
   CalendarDays,
-  CircleHelp,
+  HelpCircle,
   CheckSquare,
   Clock,
   CreditCard,
@@ -205,7 +205,7 @@ const platformNavItems: SidebarItem[] = [
   { label: 'Institution Requests', path: '/institution-requests', icon: Building2 },
   { label: 'Roles & Permissions', path: '/roles-permissions', icon: UserCog },
   { label: 'Platform Settings', path: '/system/general-settings', icon: Settings },
-  { label: 'Help', path: '/help', icon: CircleHelp },
+  { label: 'Help', path: '/help', icon: HelpCircle },
 ]
 
 export default function Sidebar() {
@@ -697,7 +697,7 @@ export default function Sidebar() {
         <NavLink to="/help" className={({ isActive }) => linkClass(isActive)}>
           {({ isActive }) => (
             <>
-              <CircleHelp className={iconClass(isActive)} aria-hidden="true" />
+              <HelpCircle className={iconClass(isActive)} aria-hidden="true" />
               <span className="truncate">{helpT('menu', locale)}</span>
             </>
           )}
